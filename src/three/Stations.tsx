@@ -100,7 +100,8 @@ function StationProp({ id }: { id: StationId }) {
     case 'credibility':
       return (
         <group>
-          <Box args={[7, 3.2, 0.4]} position={[0, 1.8, -0.6]} color={INK} />
+          <Box args={[7, 3.2, 0.4]} position={[0, 1.8, -0.6]} color={BRAND_DARK} />
+          <Box args={[6.4, 2.4, 0.15]} position={[0, 1.9, -0.35]} color={PAPER} />
           {[0, 1, 2, 3].map((i) => (
             <group key={i} position={[i * 1.9 - 2.85, 2.4, 0]}>
               <Cylinder args={[0.55, 0.55, 0.15, 16]} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]} color={WARM} />
@@ -155,7 +156,7 @@ function StationProp({ id }: { id: StationId }) {
     case 'about':
       return (
         <group>
-          <Box args={[4.6, 2.6, 3.4]} position={[0, 1.3, 0]} color={PAPER} />
+          <Box args={[4.6, 2.6, 3.4]} position={[0, 1.3, 0]} color={'#e3d7c3'} />
           <mesh position={[0, 3.1, 0]} rotation={[0, Math.PI / 4, 0]}>
             <coneGeometry args={[3.2, 1.4, 4]} />
             <meshStandardMaterial color={BRAND} flatShading />

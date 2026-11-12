@@ -18,7 +18,7 @@ function CameraRig() {
 
   useEffect(() => {
     // zoom grows with viewport so the world stays readable 390px → 3840px
-    const zoom = THREE.MathUtils.clamp(size.width / 30, 14, 44)
+    const zoom = THREE.MathUtils.clamp(size.width / 26, 14, 64)
     camera.zoom = zoom
     camera.updateProjectionMatrix()
   }, [camera, size])
