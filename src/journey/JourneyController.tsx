@@ -1,18 +1,29 @@
 import Lenis from 'lenis'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { STATION_COUNT } from './stations'
 import { clamp01, useJourney } from './store'
 
-const SECTIONS = 11
-const KEY_STEP_VH = 0.9
+/** ease with a real accel phase and decel phase (not exponential glide) */
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+const KEY_TRAVEL_S = 1.15
 
 /**
  * Binds smooth scroll (wheel/touch) and arrow keys to one shared
  * target progress so both control the walking character.
+ * Arrow keys snap to the next station and land dead-centre on its panel
+ * so every floating window comes to a full, readable stop.
  */
 export function JourneyController() {
+  // station the arrow-key cursor is at — accumulates during key animation,
+  // re-synced from the character whenever the user wheels instead
+  const keyCursor = useRef(0)
+
   useEffect(() => {
     const lenis = new Lenis({ lerp: 0.09, smoothWheel: true })
     const setTarget = useJourney.getState().setTarget
+    keyCursor.current = useJourney.getState().activeStation
 
     const progressFromScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight
@@ -21,23 +32,35 @@ export function JourneyController() {
 
     const onScroll = () => setTarget(progressFromScroll())
 
-    const scrollToProgress = (p: number) => {
-      const max = document.documentElement.scrollHeight - window.innerHeight
-      lenis.scrollTo(clamp01(p) * max, { duration: 0.6 })
+    const scrollToStation = (index: number) => {
+      // data-station uses the 1-based display index (01..11)
+      const el = document.querySelector<HTMLElement>(`[data-station="${index + 1}"]`)
+      if (!el) return
+      // centre the section's card in the viewport, whatever its height
+      const top = el.offsetTop + (el.offsetHeight - window.innerHeight) / 2
+      lenis.scrollTo(top, { duration: KEY_TRAVEL_S, easing: easeInOutCubic })
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return
-      const current = useJourney.getState().target
-      const step = KEY_STEP_VH / SECTIONS
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault()
-        scrollToProgress(current + step)
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        scrollToProgress(current - step)
-      }
+      const dir =
+        e.key === 'ArrowRight' || e.key === 'ArrowDown'
+          ? 1
+          : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+            ? -1
+            : 0
+      if (dir === 0) return
+      e.preventDefault()
+      const next = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
+      if (next === keyCursor.current) return
+      keyCursor.current = next
+      scrollToStation(next)
+    }
+
+    // wheel/touch takes over: re-anchor the cursor at the character's station
+    const onWheel = () => {
+      keyCursor.current = useJourney.getState().activeStation
     }
 
     let raf = 0
@@ -49,11 +72,13 @@ export function JourneyController() {
 
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('wheel', onWheel, { passive: true })
 
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('wheel', onWheel)
       lenis.destroy()
     }
   }, [])

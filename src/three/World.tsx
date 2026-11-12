@@ -1,6 +1,6 @@
 import { OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { STATIONS } from '../journey/stations'
 import { useJourney } from '../journey/store'
@@ -13,11 +13,20 @@ const ISO_OFFSET = new THREE.Vector3(16, 16, 16)
 // screen-right direction in world space for our fixed iso camera
 const SCREEN_RIGHT = new THREE.Vector3(-1, 0, 1).normalize()
 const EYE_HEIGHT = 1.45
+// lateral viewpoint shift between station sides — eased with the same
+// acceleration-capped velocity model as the character so the camera
+// translation has a natural accel/decel instead of snapping
+const LAT_MAX_SPEED = 7 // world units/s
+const LAT_ACCELERATION = 11 // world units/s^2
 
 function CameraRig() {
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
   const pov = useJourney((s) => s.pov)
+  const lat = useRef({
+    value: (STATIONS[0].side === 'left' ? 1 : -1) * 5.5,
+    vel: 0,
+  })
 
   useEffect(() => {
     if (pov !== 'follow' || !(camera instanceof THREE.OrthographicCamera)) return
@@ -30,7 +39,7 @@ function CameraRig() {
   const lookTarget = useMemo(() => new THREE.Vector3(), [])
   const eye = useMemo(() => new THREE.Vector3(), [])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (pov === 'fp') {
       // first-person: eye at head height, looking along the facing direction
       eye.set(
@@ -46,14 +55,18 @@ function CameraRig() {
       )
       return
     }
+    const dt = Math.min(delta, 0.05)
     const { activeStation } = useJourney.getState()
     const station = STATIONS[activeStation]
     // shift the camera target toward the panel side so the character
     // lands on the free third of the screen instead of behind the card
-    const sideSign = station.side === 'left' ? 1 : -1
-    lookTarget
-      .copy(characterPos.current)
-      .addScaledVector(SCREEN_RIGHT, sideSign * 5.5)
+    const desired = (station.side === 'left' ? 1 : -1) * 5.5
+    const l = lat.current
+    const latDiff = desired - l.value
+    const desiredVel = THREE.MathUtils.clamp(latDiff * 4, -LAT_MAX_SPEED, LAT_MAX_SPEED)
+    l.vel += THREE.MathUtils.clamp(desiredVel - l.vel, -LAT_ACCELERATION * dt, LAT_ACCELERATION * dt)
+    l.value += l.vel * dt
+    lookTarget.copy(characterPos.current).addScaledVector(SCREEN_RIGHT, l.value)
     camera.position.set(
       lookTarget.x + ISO_OFFSET.x,
       ISO_OFFSET.y,
