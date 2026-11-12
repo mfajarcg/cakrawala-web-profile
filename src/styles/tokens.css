@@ -1,0 +1,23 @@
+:root {
+  --brand: #408fb4;
+  --brand-dark: #2e6f8e;
+  --ink: #101418;
+  --paper: #f7f9fa;
+}
+
+html {
+  font-size: clamp(14px, 0.45vw + 9px, 26px);
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
