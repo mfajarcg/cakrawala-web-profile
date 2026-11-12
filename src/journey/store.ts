@@ -8,15 +8,20 @@ interface JourneyState {
   target: number
   /** index (0-based) of the station the character is closest to */
   activeStation: number
+  /** camera mode: third-person orbit or first person */
+  pov: 'follow' | 'fp'
   setTarget: (target: number) => void
   tick: (progress: number) => void
+  togglePov: () => void
 }
 
 export const useJourney = create<JourneyState>((set) => ({
   progress: 0,
   target: 0,
   activeStation: 0,
+  pov: 'follow',
   setTarget: (target) => set({ target: clamp01(target) }),
+  togglePov: () => set((s) => ({ pov: s.pov === 'follow' ? 'fp' : 'follow' })),
   tick: (progress) =>
     set((s) => {
       const station = Math.min(

@@ -3,7 +3,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { getPath } from './path'
-import { characterPos, characterSpeed } from './shared'
+import { characterPos, characterSpeed, characterYaw } from './shared'
 
 const SUIT = '#2e3a44'
 const SHIRT = '#f7f9fa'
@@ -32,6 +32,7 @@ function dampAngle(current: number, target: number, lambda: number, dt: number) 
 
 export function Character() {
   const group = useRef<THREE.Group>(null)
+  const pov = useJourney((s) => s.pov)
   const body = useRef<THREE.Group>(null)
   const lean = useRef<THREE.Group>(null)
   // legs: hip pivot -> thigh -> knee pivot -> shin
@@ -95,6 +96,7 @@ export function Character() {
     if (!g) return
     g.position.set(pos.x, 0, pos.z)
     g.rotation.y = s.yaw
+    characterYaw.current = s.yaw
 
     // --- gait: stride locked to distance travelled (no foot sliding)
     const speedNorm = clamp(worldSpeed / 6.5, 0, 1) // 0 idle .. 1 full run
@@ -137,7 +139,7 @@ export function Character() {
   })
 
   return (
-    <group ref={group}>
+    <group ref={group} visible={pov !== 'fp'}>
       <group ref={body}>
         <group ref={lean}>
           {/* torso: suit + shirt + tie */}

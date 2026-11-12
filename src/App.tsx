@@ -7,6 +7,7 @@ import { Market } from './blocks/Market'
 import { Nav } from './blocks/Nav'
 import { Numbers } from './blocks/Numbers'
 import { PlayMoment } from './blocks/PlayMoment'
+import { PovButton } from './blocks/PovButton'
 import { Services } from './blocks/Services'
 import { Signature } from './blocks/Signature'
 import { Story } from './blocks/Story'
@@ -20,6 +21,7 @@ export default function App() {
       <JourneyController />
       <World />
       <Nav />
+      <PovButton />
       <main className="relative">
         <Hero />
         <Story />
