@@ -1,0 +1,234 @@
+{
+  "meta": {
+    "brand": "Cakrawala",
+    "byline": "by PT Cartenz Technology Indonesia",
+    "tagline": "Collaboration for the Nation"
+  },
+  "nav": {
+    "links": [
+      { "id": "services", "label": "Services" },
+      { "id": "credibility", "label": "Credibility" },
+      { "id": "numbers", "label": "Numbers" },
+      { "id": "signature", "label": "Story" },
+      { "id": "market", "label": "Clients" },
+      { "id": "about", "label": "About" },
+      { "id": "contact", "label": "Contact" }
+    ],
+    "language": "ID",
+    "menu": "Menu"
+  },
+  "hero": {
+    "eyebrow": "IT Consulting for Central & Local Government",
+    "title": "Cakrawala",
+    "subtitle": "IT Consulting by PT Cartenz Technology Indonesia",
+    "lead": "Since 2014, our teams have helped ministries, institutions, and local governments modernize public services through technology.",
+    "ctaPrimary": "Explore Services",
+    "ctaSecondary": "Contact Us",
+    "hint": "Scroll or press arrow → to walk"
+  },
+  "story": {
+    "title": "A Day in the Life of an IT Consultant",
+    "lead": "The character's journey mirrors our real delivery cycle in the field.",
+    "stages": [
+      {
+        "key": "discover",
+        "title": "Discover",
+        "text": "Mapping the problem: technical, operational, and regulatory gap analysis — like our logistics platform integration study for the NLE."
+      },
+      {
+        "key": "design",
+        "title": "Design",
+        "text": "Architecting blueprints: from the OSS-RBA interconnectivity blueprint to the SKK Migas data platform design."
+      },
+      {
+        "key": "build",
+        "title": "Build",
+        "text": "Building platforms: SILANI for the elderly, Power BI dashboards for OECD accession, and a national-scale LMS for Universitas Indonesia."
+      },
+      {
+        "key": "assure",
+        "title": "Assure",
+        "text": "Independent evidence-based oversight — OSS 2.0 PMQA guarding schedule, security, and the migration of 15.4 million business IDs."
+      },
+      {
+        "key": "operate",
+        "title": "Operate",
+        "text": "Keeping services alive: corrective, adaptive, and preventive maintenance for PERURI, Bareskrim Polri, and Kemenkumham."
+      }
+    ]
+  },
+  "services": {
+    "title": "Services",
+    "lead": "Seven core services proven on national-scale projects.",
+    "items": [
+      {
+        "icon": "compass",
+        "title": "Advisory & Technical Assistance",
+        "text": "Strategic technical assistance, such as TRAMPIL (2017–2021) with the government to modernize local tax administration, and integrated fiscal cadastre."
+      },
+      {
+        "icon": "network",
+        "title": "System Integration",
+        "text": "OSS-RBA system integrator: interconnectivity with GISTARU, SIMBG, and AmdalNet, plus licensing UI/UX redesign."
+      },
+      {
+        "icon": "shield-check",
+        "title": "Project Management & QA",
+        "text": "Independent evidence-based oversight (PMQA) for OSS 2.0 — layered methodology, service continuity, and data migration validation."
+      },
+      {
+        "icon": "app-window",
+        "title": "Platform Development",
+        "text": "Platform builds: SILANI (Bappenas), PPP 4.0 (Ministry of Finance), MOOC Universitas Indonesia, and SPPT-TI across law-enforcement agencies."
+      },
+      {
+        "icon": "database",
+        "title": "Data Platform & Governance",
+        "text": "Integrated data platform and governance for SKK Migas: data catalog, data quality management, and role-based access control."
+      },
+      {
+        "icon": "workflow",
+        "title": "Business Process Management",
+        "text": "Upstream oil & gas process modeling with BPMN 2.0 and ARIS 10, ISO/IEC 11179 data dictionary audits, and RACI accountability matrices."
+      },
+      {
+        "icon": "wrench",
+        "title": "Operations & Maintenance",
+        "text": "O&M for PERURI's 5 Non-SAP applications plus E-PPNS and ISKRIM at Bareskrim Polri — uptime, security patching, and performance."
+      }
+    ]
+  },
+  "credibility": {
+    "title": "Credibility",
+    "lead": "Standardized, certified, and trusted by world-class institutions.",
+    "certs": ["BSSN", "ISO 9001", "ISO 27001", "PSE (Electronic System Provider)"],
+    "techTitle": "Technologies & standards we use",
+    "tech": [
+      "Microsoft Power Platform",
+      "Power BI",
+      "ARIS 10 Enterprise Architecture",
+      "BPMN 2.0",
+      "ISO/IEC 11179",
+      "RACI Matrix"
+    ],
+    "partnersTitle": "Partners & clients",
+    "partnersNote": "Logos belong to their respective owners; shown as portfolio references."
+  },
+  "numbers": {
+    "title": "In Numbers",
+    "lead": "Real figures from 12 years of work.",
+    "items": [
+      { "value": 12, "suffix": "", "label": "years at work since 2014" },
+      { "value": 200, "suffix": "+", "label": "local governments across Indonesia" },
+      { "value": 15, "suffix": "+", "label": "ministries, institutions & international bodies" },
+      { "value": 15.4, "suffix": "M+", "label": "business IDs validated in the OSS 2.0 migration", "decimals": 1 },
+      { "value": 15, "suffix": "", "label": "flagship national projects" },
+      { "value": 5, "suffix": "", "label": "PERURI Non-SAP applications we maintain" }
+    ]
+  },
+  "signature": {
+    "title": "Signature Moment",
+    "lead": "A true story from one of Indonesia's toughest oversight missions.",
+    "project": "PMQA OSS 2.0",
+    "period": "2024–2026",
+    "body": "When OSS 2.0 was being built, 15.4 million+ existing business identification numbers could not stop for a single second. Our team stood as the independent guardian: layered methodology oversight, service continuity through transition and cutover, and validation of the KBLI 2020 → 2025 migration.",
+    "highlights": [
+      "Oversight of 5 core OSS modules: Basic Requirements, Business Licensing & PB UMKU, Information Services, System Management",
+      "Service continuity — the existing OSS stayed stable without disruption during cutover",
+      "Validation of the KBLI 2020 → 2025 update and migration of 15.4M+ historical business IDs"
+    ]
+  },
+  "market": {
+    "title": "Market & Users",
+    "lead": "Who we serve.",
+    "regionsTitle": "Local Governments",
+    "regions": [
+      "Banjarmasin City",
+      "Palu City",
+      "Badung Regency",
+      "Bandung City",
+      "West Nusa Tenggara",
+      "Padang City",
+      "Yogyakarta City",
+      "Tangerang Regency",
+      "Deli Serdang Regency",
+      "North Sulawesi",
+      "Balikpapan City",
+      "Jakarta"
+    ],
+    "institutionsTitle": "Ministries & Institutions",
+    "institutions": [
+      "Ministry of Finance (DG Fiscal Balance & DG PPP)",
+      "Ministry of Investment/BKPM",
+      "Bappenas",
+      "SKK Migas",
+      "Bareskrim Polri",
+      "PERURI",
+      "Universitas Indonesia",
+      "National OECD Secretariat (SETIMNAS)"
+    ],
+    "bankingTitle": "Banking",
+    "banking": "National banking partnerships for digital public services."
+  },
+  "about": {
+    "title": "About Us",
+    "body": "PT Cartenz Technology Indonesia was founded in 2014 with the spirit of \"Turning Vision into Action\". Cakrawala is our IT consulting service team for central government institutions — continuing a track record as a pioneer of integrated digital public services for local tax and online transaction monitoring.",
+    "vision": "Turning Vision into Action",
+    "facts": [
+      { "label": "Founded", "value": "2014" },
+      { "label": "Focus", "value": "IT consulting for central & local government" },
+      { "label": "Parent", "value": "PT Cartenz Technology Indonesia" }
+    ]
+  },
+  "play": {
+    "title": "Play Moment",
+    "lead": "Build your own digital infrastructure stack.",
+    "hint": "Drag a block from below, drop it, and watch the physics work. Every block is one of our real services.",
+    "reset": "Reset",
+    "score": "Stack height",
+    "best": "Best",
+    "blocks": [
+      { "kind": "server", "label": "System Integration" },
+      { "kind": "cloud", "label": "Data Platform" },
+      { "kind": "doc", "label": "PMQA" },
+      { "kind": "laptop", "label": "Platform Development" },
+      { "kind": "gear", "label": "O&M" },
+      { "kind": "coffee", "label": "Consultant energy ☕" }
+    ]
+  },
+  "contact": {
+    "title": "Contact",
+    "lead": "Let's start a collaboration for the nation.",
+    "addressLabel": "Address",
+    "address": "Wisma Bumiputera 9th Fl., Jl. Jenderal Sudirman Kav. 76, South Jakarta 12920",
+    "phone": "+62 815-1941-5874",
+    "phoneLabel": "Phone / WhatsApp",
+    "email": "hello@cartenz.co.id",
+    "emailLabel": "Email",
+    "map": "Open in Google Maps",
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=Wisma+Bumiputera+Jl.+Jenderal+Sudirman+Kav.+76+Jakarta+Selatan",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "message": "Message",
+      "send": "Send via Email",
+      "note": "This form opens your email app — nothing is stored on our server."
+    }
+  },
+  "footer": {
+    "copyright": "© 2026 PT Cartenz Technology Indonesia",
+    "trademark": "Cakrawala™ and the knight-shield logo are trademarks of PT Cartenz Technology Indonesia. All partner, ministry, and institution logos are trademarks of their respective owners.",
+    "tributeTitle": "Tribute & Attribution",
+    "tribute": [
+      "Built with React, TypeScript, Vite, Tailwind CSS (MIT)",
+      "Three.js & React Three Fiber (MIT) — isometric 3D world",
+      "GSAP & Lenis (MIT) — journey scroll animation",
+      "Zustand (MIT) — journey state",
+      "Matter.js (MIT) — Play Moment physics",
+      "Lucide (ISC) — icons",
+      "Project data & facts: official PT Cartenz Technology Indonesia materials",
+      "Partner & institution logos: property of their respective owners"
+    ],
+    "backToTop": "Back to start"
+  }
+}

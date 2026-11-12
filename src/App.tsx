@@ -1,7 +1,38 @@
+import { About } from './blocks/About'
+import { Contact } from './blocks/Contact'
+import { Credibility } from './blocks/Credibility'
+import { Footer } from './blocks/Footer'
+import { Hero } from './blocks/Hero'
+import { Market } from './blocks/Market'
+import { Nav } from './blocks/Nav'
+import { Numbers } from './blocks/Numbers'
+import { PlayMoment } from './blocks/PlayMoment'
+import { Services } from './blocks/Services'
+import { Signature } from './blocks/Signature'
+import { Story } from './blocks/Story'
+import { JourneyController } from './journey/JourneyController'
+import { LanguageProvider } from './lib/i18n'
+import { World } from './three/World'
+
 export default function App() {
   return (
-    <main className="mx-auto min-h-screen w-[min(92vw,120rem)]">
-      <h1 className="text-3xl font-bold text-[#408fb4]">Cakrawala — segera hadir</h1>
-    </main>
+    <LanguageProvider>
+      <JourneyController />
+      <World />
+      <Nav />
+      <main className="relative">
+        <Hero />
+        <Story />
+        <Services />
+        <Credibility />
+        <Numbers />
+        <Signature />
+        <Market />
+        <About />
+        <PlayMoment />
+        <Contact />
+        <Footer />
+      </main>
+    </LanguageProvider>
   )
 }
