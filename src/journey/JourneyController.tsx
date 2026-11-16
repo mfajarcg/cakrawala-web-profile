@@ -53,6 +53,7 @@ export function JourneyController() {
     }
 
     let lockUntil = 0
+    let hopStartedAt = 0
     // arrow keys pressed during a hop are queued, so the character walks each
     // checkpoint instead of the scroll leaving it behind
     let pending: number | null = null
@@ -60,7 +61,8 @@ export function JourneyController() {
     const scrollToStation = (index: number) => {
       const top = stationTop(index)
       if (top == null) return
-      lockUntil = performance.now() + KEY_TRAVEL_S * 1000 + 250
+      hopStartedAt = performance.now()
+      lockUntil = hopStartedAt + KEY_TRAVEL_S * 1000 + 250
       lenis.scrollTo(top, {
         duration: KEY_TRAVEL_S,
         easing: easeInOutCubic,
@@ -130,14 +132,27 @@ export function JourneyController() {
 
     const onScroll = () => {
       setTarget(progressFromScroll())
-      if (blocked() || performance.now() < lockUntil) return
+      if (blocked() || lockLive(performance.now())) return
       window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(settle, SETTLE_MS)
     }
 
     let wheelAccum = 0
     let lastWheelAt = 0
+    // a hop whose onComplete never fires (target already reached, interrupted
+    // animation) must not swallow the wheel forever: release the lock once the
+    // travel window is over and Lenis is idle
+    const lockLive = (now: number) => {
+      if (now < lockUntil && now - hopStartedAt > KEY_TRAVEL_S * 1000 + 700 && !lenis.isScrolling) {
+        lockUntil = 0
+      }
+      return now < lockUntil
+    }
     const onWheel = (e: WheelEvent) => {
+      // Lenis' own wheel listener (smoothWheel:false) calls animate.stop() on
+      // every wheel event, which would kill a running checkpoint hop the moment
+      // the user's next notch arrives. Own the gesture in capture phase.
+      e.stopPropagation()
       if (blocked() || e.ctrlKey || e.metaKey) return
       if (fromPip(e)) {
         e.preventDefault()
@@ -146,13 +161,23 @@ export function JourneyController() {
       e.preventDefault()
       const now = performance.now()
       // swallow the rest of the gesture while a checkpoint animation runs
-      if (now < lockUntil) return
+      if (lockLive(now)) return
+      // line/page-mode mice (some drivers send 3 lines per notch) must step a
+      // checkpoint too, not stay under the pixel threshold forever
+      const dy =
+        e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY
       if (now - lastWheelAt > WHEEL_QUIET_MS) wheelAccum = 0
       lastWheelAt = now
-      wheelAccum += e.deltaY
+      wheelAccum += dy
       if (Math.abs(wheelAccum) < 16) return
       const dir = wheelAccum > 0 ? 1 : -1
       wheelAccum = 0
+      // the cursor can drift from the real scroll position (scrollbar drag,
+      // native jump, missed settle); re-anchor it before stepping
+      const curTop = stationTop(keyCursor.current)
+      if (curTop == null || Math.abs(window.scrollY - curTop) > 64) {
+        keyCursor.current = nearestIndex()
+      }
       const next = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
       if (next === keyCursor.current) return
       keyCursor.current = next
@@ -173,7 +198,7 @@ export function JourneyController() {
       e.preventDefault()
       // during a hop, remember only the next checkpoint so the character always
       // walks each leg instead of the scroll racing ahead of it
-      if (performance.now() < lockUntil) {
+      if (lockLive(performance.now())) {
         if (pending != null) return
         const queued = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
         if (queued !== keyCursor.current) {
@@ -216,6 +241,18 @@ export function JourneyController() {
 
     scrollBridge.toStation = (index) => {
       keyCursor.current = index
+      // a skip of two+ stations is a teleport, not a walk: land the panel
+      // instantly so the driver's beam sequence starts from the true origin
+      if (Math.abs(index - nearestIndex()) >= 2) {
+        const top = stationTop(index)
+        if (top != null) {
+          lockUntil = 0
+          pending = null
+          window.clearTimeout(settleTimer)
+          lenis.scrollTo(top, { immediate: true, force: true })
+          return
+        }
+      }
       scrollToStation(index)
     }
     scrollBridge.lock = (locked) => {
@@ -235,9 +272,17 @@ export function JourneyController() {
     }
     raf = requestAnimationFrame(loop)
 
+    // runtime probe for QA harnesses (same spirit as __gameDebug)
+    ;(window as unknown as Record<string, unknown>).__jdebug = {
+      lenis,
+      lock: () => lockUntil,
+      hop: () => hopStartedAt,
+      cursor: () => keyCursor.current,
+    }
+
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
     window.addEventListener('touchstart', onTouchStart, { passive: true })
     window.addEventListener('touchend', onTouchEnd, { passive: true })
     window.addEventListener('touchcancel', onTouchEnd, { passive: true })
@@ -247,7 +292,7 @@ export function JourneyController() {
       window.clearTimeout(settleTimer)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('wheel', onWheel, { capture: true })
       window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('touchcancel', onTouchEnd)

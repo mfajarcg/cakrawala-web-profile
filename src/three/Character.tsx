@@ -4,8 +4,22 @@ import { Suspense, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
+import { audio } from '../game/audio'
 import { getPath } from './path'
-import { cadenceFor, characterPos, characterYaw, gait, gaitNorm } from './shared'
+import {
+  cadenceFor,
+  characterPos,
+  characterYaw,
+  gait,
+  gaitNorm,
+  teleport,
+  tpBeam,
+  tpRing,
+  tpScale,
+  tpWhoosh,
+  TP_DUR,
+  TP_VANISH,
+} from './shared'
 import { ELBOW_SHAPE, KNEE_SHAPE, sampleLoop } from './runLoop'
 
 const BASE = import.meta.env.BASE_URL
@@ -52,6 +66,7 @@ export function Character() {
   return (
     <>
       <CharacterDriver />
+      <TeleportBeams />
       <Suspense fallback={null}>
         <EricVisual />
       </Suspense>
@@ -91,11 +106,15 @@ function CharacterDriver() {
     const jump = targetP - s.progress
     let cut = false
     // a nav link can skip most of the path; walking it would leave the camera
-    // seconds behind the already-settled panel, so cut to the destination
-    if (Math.abs(jump) > 0.16) {
+    // seconds behind the already-settled panel, so teleport instead of walking
+    if (Math.abs(jump) > 0.16 && teleport.t < 0) {
+      teleport.t = 0
+      teleport.from.copy(characterPos.current)
       s.progress = targetP
       s.velocity = 0
+      curve.getPointAt(clamp01(s.progress), teleport.to)
       cut = true
+      audio.teleport()
     }
     const diff = targetP - s.progress
     const desired = clamp(diff * 4, -maxSpeed, maxSpeed)
@@ -115,6 +134,27 @@ function CharacterDriver() {
     if (cut) s.yaw = targetYaw
     const yawErr = Math.abs(Math.atan2(Math.sin(targetYaw - s.yaw), Math.cos(targetYaw - s.yaw)))
     s.yaw = dampAngle(s.yaw, targetYaw, TURN_RATE, dt)
+
+    // --- teleport sequence: beam out at origin, whoosh, beam in at destination
+    if (teleport.t >= 0) {
+      teleport.t += dt
+      characterPos.current.lerpVectors(teleport.from, teleport.to, tpWhoosh(teleport.t))
+      characterYaw.current = s.yaw
+      gait.phase = s.phase
+      gait.speedNorm = 0
+      gait.move01 = 0
+      gait.moving = 0
+      gait.lift = 0
+      gait.jumpState = 0
+      gait.crouch = 0
+      gait.vy = 0
+      gait.airT = 0
+      gait.landT = 0
+      gait.impact = 0
+      if (teleport.t >= TP_DUR) teleport.t = -1
+      tick(s.progress)
+      return
+    }
 
     // --- turn-in-place: sharply slow translation while the body re-faces
     const turnBrake = yawErr > 0.35 ? clamp(1 - (yawErr - 0.35) / 1.1, 0, 1) : 1
@@ -144,6 +184,84 @@ function CharacterDriver() {
   })
 
   return null
+}
+
+/**
+ * Columns of light from the sky for the teleport sequence: one ignites over the
+ * origin while the body dematerialises, a second catches it at the destination
+ * with a ground shockwave. Normal blending — additive would wash out against
+ * the bright dawn sky.
+ */
+function TeleportBeams() {
+  const outerA = useRef<THREE.Mesh>(null)
+  const innerA = useRef<THREE.Mesh>(null)
+  const outerB = useRef<THREE.Mesh>(null)
+  const innerB = useRef<THREE.Mesh>(null)
+  const ring = useRef<THREE.Mesh>(null)
+  const lightA = useRef<THREE.PointLight>(null)
+  const lightB = useRef<THREE.PointLight>(null)
+
+  // shaft origin at its top so scaling Y grows the beam downward from the sky
+  const shaft = useMemo(() => {
+    const geo = new THREE.CylinderGeometry(0.62, 0.5, 14, 24, 1, true)
+    geo.translate(0, -7, 0)
+    return geo
+  }, [])
+  const ringGeo = useMemo(() => new THREE.RingGeometry(0.86, 1, 48), [])
+
+  useFrame(() => {
+    const t = teleport.t
+    const ea = tpBeam(t, false)
+    const eb = tpBeam(t, true)
+    const u = tpRing(t)
+    const beam = (m: THREE.Mesh | null, env: number, x: number, z: number, core: boolean) => {
+      if (!m) return
+      m.visible = env > 0.002
+      m.position.set(x, 14, z)
+      m.scale.set(core ? 0.42 : 1, Math.max(env, 0.001), core ? 0.42 : 1)
+      ;(m.material as THREE.MeshBasicMaterial).opacity = env * (core ? 0.75 : 0.42)
+    }
+    beam(outerA.current, ea, teleport.from.x, teleport.from.z, false)
+    beam(innerA.current, ea, teleport.from.x, teleport.from.z, true)
+    beam(outerB.current, eb, teleport.to.x, teleport.to.z, false)
+    beam(innerB.current, eb, teleport.to.x, teleport.to.z, true)
+    const lamp = (l: THREE.PointLight | null, env: number, x: number, z: number) => {
+      if (!l) return
+      l.visible = env > 0.002
+      l.position.set(x, 2.2, z)
+      l.intensity = env * 26
+    }
+    lamp(lightA.current, ea, teleport.from.x, teleport.from.z)
+    lamp(lightB.current, eb, teleport.to.x, teleport.to.z)
+    if (ring.current) {
+      ring.current.visible = u > 0 && u < 1
+      ring.current.position.set(teleport.to.x, 0.06, teleport.to.z)
+      ring.current.scale.setScalar(0.4 + 2.2 * u)
+      ;(ring.current.material as THREE.MeshBasicMaterial).opacity = (1 - u) * 0.6
+    }
+  })
+
+  return (
+    <>
+      <mesh ref={outerA} geometry={shaft} visible={false} frustumCulled={false}>
+        <meshBasicMaterial color="#f2a13c" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={innerA} geometry={shaft} visible={false} frustumCulled={false}>
+        <meshBasicMaterial color="#fff7e6" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={outerB} geometry={shaft} visible={false} frustumCulled={false}>
+        <meshBasicMaterial color="#f2a13c" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={innerB} geometry={shaft} visible={false} frustumCulled={false}>
+        <meshBasicMaterial color="#fff7e6" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ring} geometry={ringGeo} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+        <meshBasicMaterial color="#f2a13c" transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <pointLight ref={lightA} color="#ffd9a0" distance={14} decay={2} intensity={0} visible={false} />
+      <pointLight ref={lightB} color="#ffd9a0" distance={14} decay={2} intensity={0} visible={false} />
+    </>
+  )
 }
 
 interface Poser {
@@ -503,14 +621,25 @@ function EricVisual() {
     g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)
     g.rotation.y = characterYaw.current
 
+    // teleport: dematerialise shrink + rise + spin, hidden during the whoosh,
+    // easeOutBack rematerialise at the destination beam
+    const ts = tpScale(teleport.t)
+    if (teleport.t >= 0) {
+      const hidden = 1 - clamp(ts, 0, 1)
+      g.position.y += hidden * 0.4
+      if (teleport.t < TP_VANISH) g.rotation.y += hidden * 3
+    }
+    g.scale.setScalar(MODEL_SCALE * Math.max(ts, 0.0001))
+    g.visible = (mode === 'game' || pov !== 'fp') && ts > 0.02
+
     if (shadow.current) {
       const fade = clamp(1 - lift / 1.6, 0.25, 1)
       const landPulse = js === 3 ? (1 - clamp(gait.landT / 0.3, 0, 1)) * 0.3 * gait.impact : 0
       // the path ribbon's top face sits at y≈0.033, so the shadow has to clear
       // it or it disappears underneath
       shadow.current.position.set(characterPos.current.x, baseY + 0.045, characterPos.current.z)
-      shadow.current.scale.setScalar(1 + lift * 0.35 + landPulse)
-      ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade
+      shadow.current.scale.setScalar((1 + lift * 0.35 + landPulse) * Math.max(ts, 0.0001))
+      ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade * clamp(ts, 0, 1)
     }
   })
 

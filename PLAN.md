@@ -936,3 +936,66 @@ swing; run-07 flight knee-drive; live-run HUD normal. Regresi hijau: jump-qa
 (termasuk tribute full-screen + wheel pane + close return, ID & 390), verify2,
 play-qa, meaning-qa, mobile-play-qa, touch-qa, layout-qa (LAYOUT_OK), sweep
 clearance 390 ID+EN (CLEAR390_OK, scratch dihapus). tsc -b bersih.
+
+## 24. Scroll mouse mati (root cause Lenis) + teleportasi bersinar
+
+### 24.1 Wheel: tiga lapis akar masalah
+
+Laporan: "scroll mouse tidak bisa dipakai". Probe bertahap (wheelcheck states A–F,
+wheeltraj, burst dengan `__jdebug`) menemukan tiga lapis:
+
+1. **Mouse line-mode** (`deltaMode 1`, ±3 px/baris) tidak pernah melewati ambang
+   akumulasi 16 → normalisasi: mode 1 ×33, mode 2 ×`innerHeight`.
+2. **Desync kursor/kunci**: `keyCursor` bisa tertinggal dari posisi scroll nyata
+   (scroll manual, tribute, resize) → resync `nearestIndex()` bila
+   `|scrollY − stationTop(cursor)| > 64`; kunci nyangkut dilepas `lockLive(now)`
+   bila hop > durasi+700 ms dan `!lenis.isScrolling`.
+3. **Akar inti — Lenis sendiri mematikan hop.** Dengan `smoothWheel: false`,
+   listener wheel Lenis (`node_modules/lenis/dist/lenis.mjs` ±621) menjalankan
+   `isScrolling = "native"; animate.stop(); event.lenisStopPropagation = true`
+   pada **setiap** event wheel. Notch kedua dari gesture alami tiba saat hop
+   1,9 s masih berjalan → `animate.stop()` membekukan halaman 2–3 px setelah
+   stasiun pertama; `isScrolling` nyangkut truthy. Hop satu notch lolos karena
+   tidak ada wheel susulan. Fix: milik gesture di **fase capture** pada window
+   (`{ capture: true, passive: false }`) + `e.stopPropagation()` sehingga Lenis
+   tidak pernah melihat wheel situs; cleanup memakai capture yang sama.
+   Efek samping terjaga: pane tribute tetap scroll native (default action tidak
+   di-prevent di dalam pane), ctrl+wheel zoom browser tetap hidup.
+
+Regresi permanen ditambahkan ke `scripts/verify2.mjs`: burst 4 notch trusted
+(`page.mouse.wheel`, jeda 90 ms) harus maju **tepat satu** stasiun
+(`wheel burst ok: true`), dan `clickNav('Kontak')` dari stasiun ≥2 jarak harus
+mendarat seketika (`teleport jump immediate: true`). Probe QA permanen
+`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController.
+
+### 24.2 Teleportasi: sinar dari atas saat lompat tak berurutan
+
+Permintaan: animasi teleport dengan sinar dari atas ketika perpindahan section
+tidak berurutan. Grammar (0,95 s, `TP_DUR` di `three/shared.ts`):
+
+- **Trigger**: driver cut `|target − progress| > 0,16` → `teleport.t = 0`,
+  simpan `from` (posisi nyata) dan `to` (titik kurva tujuan), `audio.teleport()`.
+- **Vanish 0–0,30 s**: skala `1−u²`, rise 0,4, spin 3 rad; shadow ikut menyusut.
+- **Whoosh 0,30–0,55 s**: karakter tersembunyi, posisi lerp `easeInOutCubic`.
+- **Materialise 0,55–0,95 s**: `easeOutBack` (c1 1,70158); cincin tanah
+  radius 0,4→2,6 opacity `(1−u)·0,6`.
+- **Sinar**: tabung terbuka (0,62/0,5 × 14) di y=14 dengan geometri di-translate
+  (0,−7,0) sehingga `scale.y = env` tumbuh ke bawah dari langit; envelope asal
+  in 0/out 0,32+0,2, tujuan in 0,45+0,1/out 0,75+0,2. `NormalBlending` (additive
+  washed-out di langit `#e9eff3`): outer `#f2a13c` 0,42·env, core `#fff7e6`
+  0,75·env; pointLight `#ffd9a0` env·26. Selama urutan seluruh state gait nol.
+- **Aturan lompat**: `scrollBridge.toStation` dengan selisih ≥2 stasiun →
+  `lenis.scrollTo(top, { immediate: true, force: true })` supaya panel mendarat
+  seketika dan sinar berangkat dari stasiun asal sesungguhnya; selisih ≤1 tetap
+  hop berjalan 1,9 s tanpa sinar (tp-05-walk-hop).
+- **Audio**: `audio.teleport()` — noise whoosh + tone 720→200 Hz, chime
+  240→720 Hz pada 480 ms; hormat pada mute.
+
+QA visual: tp-01-vanish (kolom sinar + karakter di dalamnya), tp-02-whoosh
+(sinar dari langit + karakter kecil materialise + cincin amber), tp-03-materialise
+bersih, tp-05-walk-hop tanpa sinar; mobile 390×844 lewat hamburger → Kontak:
+panel mendarat seketika (y 0→8398) dan sinar terlihat di dalam PiP
+(tp-mobile-beam), frame settled bersih (tp-mobile-settled). Regresi hijau penuh:
+layout-qa LAYOUT_OK, touch-qa TOUCH_OK, meaning-qa MEANING_QA_OK, mobile-play-qa
+MOBILE_PLAY_OK, verify2 (burst + teleport baru) errors [], play-qa, jump-qa,
+gait-qa errors []. `tsc -b` + `npm run build` bersih. Scratch probe dihapus.

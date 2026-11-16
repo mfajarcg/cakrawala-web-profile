@@ -177,6 +177,11 @@ Canvas (fixed, React Three Fiber)
 | Toleransi “sudah di tengah” | 32 px |
 | Guard anti-loop | berhenti jika jarak ke posisi snap terakhir < 48 px |
 | Arrow key saat hop | hanya satu hop diantrikan (`pending`), karakter selalu berjalan tiap etape |
+| Wheel di fase capture | `window.addEventListener('wheel', …, { capture: true, passive: false })` + `stopPropagation()`. Listener wheel Lenis sendiri (`smoothWheel: false`) memanggil `animate.stop()` pada **setiap** event wheel; tanpa capture, notch kedua dari gesture alami mematikan hop yang sedang berjalan (halaman membeku 2–3 px setelah stasiun pertama) |
+| Normalisasi `deltaMode` | 1 (baris) → ×33 px; 2 (halaman) → ×`innerHeight`. Mouse line-mode (±3/baris) tetap melewati ambang 16 |
+| Heal kunci | `lockLive(now)`: kunci dilepas bila hop sudah berjalan > durasi + 700 ms dan `lenis.isScrolling` false — kunci tidak pernah nyangkut permanen |
+| Resync kursor | `\|scrollY − stationTop(cursor)\| > 64` → kursor = `nearestIndex()` sebelum menghitung arah notch berikutnya |
+| Lompatan ≥ 2 stasiun | `scrollBridge.toStation`: `lenis.scrollTo(top, { immediate: true, force: true })` — panel mendarat seketika sehingga urutan teleport berangkat dari stasiun asal sesungguhnya, bukan dari tengah animasi |
 
 Navigasi Nav/Hero/Footer tidak memakai `scrollIntoView` (bentrok dengan animasi Lenis), tetapi
 memanggil `jumpTo(id)` → `scrollBridge.toStation(index)`.
@@ -197,7 +202,7 @@ titik fokus kamera.
 |---|---|
 | `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Ground + grid + path + stasiun + arena + karakter selalu ada; kamera berganti sesuai mode. Mode situs: `OrthographicCamera` (16,16,16) + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
 | `path.ts` | `CatmullRomCurve3(STATIONS, closed=false, 'catmullrom', tension=0.15)`, di-cache. `getPointAt` / `getTangentAt` untuk posisi & arah hadap. |
-| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `EricVisual` (FBX + tekstur asli, bone posing, bob pelvis, blob shadow). |
+| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait, cut teleport) + `TeleportBeams` (sinar & cincin) + `EricVisual` (FBX + tekstur asli, bone posing, bob pelvis, blob shadow). |
 | `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
 | `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
 | `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, move01, moving, lift}`, `gaitNorm()`/`RUN_SPEED` dan `cadenceFor()` — dipakai bersama situs dan game. |
@@ -303,8 +308,30 @@ progress += velocity × turnBrake × dt
 | `JOURNEY_ACCEL` | 2,0 unit dunia/s² | start/stop terasa berbobot |
 | `RUN_SPEED` | 4,4 unit dunia/s | ambang “lari penuh” untuk normalisasi gait (sama dengan game) |
 | `TURN_RATE` | 9 rad/s (damped) | badan berbalik tanpa patah |
-| Cut | `\|jump\| > 0,16` | lompatan nav/scrollbar memotong langsung, bukan diseret berjalan |
+| Cut | `\|jump\| > 0,16` | lompatan nav/scrollbar memicu urutan teleport bersinar (bawah), bukan diseret berjalan |
 | `turnBrake` | `yawErr > 0,35 rad` → melambat sampai 0 | berbalik 180° = berhenti dulu, lalu jalan |
+
+#### Teleportasi (lompatan tak berurutan)
+
+Bila cut terjadi, driver memainkan urutan 0,95 s (`TP_DUR`, `three/shared.ts`): sinar turun
+dari langit di stasiun asal, karakter menyusut-lenyap, kamera whoosh, lalu sinar kedua dan
+cincin mengembang di stasiun tujuan saat karakter muncul kembali. Lompatan ≤ 1 stasiun tetap
+hop berjalan 1,9 s tanpa sinar.
+
+| Fase | Jendela | Perilaku |
+|---|---|---|
+| Vanish | 0–0,30 s | skala `1−u²`, naik 0,4 unit, spin 3 rad; blob shadow ikut menyusut |
+| Whoosh | 0,30–0,55 s | posisi lerp asal→tujuan `easeInOutCubic`; karakter tersembunyi |
+| Materialise | 0,55–0,95 s | skala `easeOutBack` (c1 = 1,70158); cincin tanah radius 0,4→2,6, opacity `(1−u)·0,6` |
+| Sinar asal | in 0–0,10 s, out 0,32–0,52 s | tabung terbuka (r 0,62/0,5, tinggi 14) di y=14, `scale.y = env` tumbuh **ke bawah** dari langit |
+| Sinar tujuan | in 0,45–0,55 s, out 0,75–0,95 s | envelope sama; pointLight `#ffd9a0` intensitas `env·26`, distance 14 |
+
+Sinar memakai `NormalBlending` — additive washed-out di langit terang `#e9eff3`: outer
+`#f2a13c` opacity `0,42·env`, core `#fff7e6` `0,75·env`. Selama urutan seluruh state gait
+dinolkan (`move01`, `lift`, `jumpState`, `vy`, …) sehingga rig tidak berstride di udara.
+Audio `audio.teleport()`: whoosh noise + tone turun 720→200 Hz, lalu chime naik 240→720 Hz
+pada 0,48 s (materialise); tetap hormat pada mute. Probe QA permanen:
+`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController.
 
 ### 6.3 Model gait (berjalan & berlari)
 
@@ -657,7 +684,7 @@ server di `http://localhost:5199/cakrawala-web-profile/`. Screenshot ditulis ke 
 ```bash
 node scripts/shot.mjs       # 5 viewport: 390 / 1440 / 1920 / 2560 / 3840
 node scripts/layout-qa.mjs  # split 46/54, rail 11 titik, PiP drag/clamp/expand/persist, swipe vs PiP
-node scripts/verify2.mjs    # gait + shadow, wheel-up snap, jump/break, persistensi reload
+node scripts/verify2.mjs    # gait + shadow, wheel-up snap, burst multi-notch, lompatan teleport immediate, jump/break, persistensi reload
 node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, Esc dua tahap
 node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/11/11, overflow 390
 node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute

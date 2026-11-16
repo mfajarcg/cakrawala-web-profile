@@ -110,4 +110,12 @@ export const audio = {
     tone(262, 1.4, 'sine', 0.22, 130)
     tone(392, 1.4, 'sine', 0.14, 196)
   },
+  teleport() {
+    noise(0.3, 0.2, 2600)
+    tone(720, 0.34, 'sine', 0.16, -520)
+    window.setTimeout(() => {
+      tone(240, 0.4, 'sine', 0.22, 480)
+      noise(0.12, 0.12, 1200)
+    }, 480)
+  },
 }

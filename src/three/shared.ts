@@ -45,3 +45,55 @@ export function cadenceFor(speed: number, speedNorm: number) {
   const stride = STRIDE_WALK + (STRIDE_RUN - STRIDE_WALK) * speedNorm
   return THREE.MathUtils.clamp(speed / stride, 0.2, MAX_CADENCE)
 }
+
+// --- teleport (non-sequential section jumps) -------------------------------
+// A nav/rail/scrollbar jump skips most of the path; walking it would leave the
+// character seconds behind the settled panel. Instead of a bare cut, the driver
+// runs a beam-from-above dematerialise → camera whoosh → rematerialise sequence.
+export const TP_DUR = 0.95
+export const TP_VANISH = 0.3
+export const TP_WHOOSH = 0.25
+export const TP_MATERIALISE = 0.55
+
+export const teleport = {
+  t: -1, // seconds since trigger, -1 = idle
+  from: new THREE.Vector3(),
+  to: new THREE.Vector3(),
+}
+
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+/** camera/character travel between the two beams, 0 before the whoosh */
+export function tpWhoosh(t: number) {
+  return easeInOutCubic(THREE.MathUtils.clamp((t - TP_VANISH) / TP_WHOOSH, 0, 1))
+}
+
+/** body scale: shrink out, hidden during the whoosh, overshoot back in */
+export function tpScale(t: number) {
+  if (t < 0) return 1
+  if (t < TP_VANISH) {
+    const u = t / TP_VANISH
+    return 1 - u * u
+  }
+  if (t < TP_MATERIALISE) return 0
+  const u = THREE.MathUtils.clamp((t - TP_MATERIALISE) / (TP_DUR - TP_MATERIALISE), 0, 1)
+  const c1 = 1.70158
+  const c3 = c1 + 1
+  return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2)
+}
+
+/** beam opacity envelope: origin beam dies as the destination beam ignites */
+export function tpBeam(t: number, dest: boolean) {
+  if (t < 0) return 0
+  const start = dest ? 0.45 : 0
+  const inU = THREE.MathUtils.clamp((t - start) / 0.1, 0, 1)
+  const outU = THREE.MathUtils.clamp((t - (dest ? 0.75 : 0.32)) / 0.2, 0, 1)
+  return inU * (1 - outU)
+}
+
+/** ground shockwave ring at the destination while the body rematerialises */
+export function tpRing(t: number) {
+  if (t < TP_MATERIALISE) return 0
+  return THREE.MathUtils.clamp((t - TP_MATERIALISE) / (TP_DUR - TP_MATERIALISE), 0, 1)
+}

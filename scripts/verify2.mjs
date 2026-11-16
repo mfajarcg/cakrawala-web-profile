@@ -1,4 +1,4 @@
-// Focused checks: gait + shadow on the site, wheel-up snap, jump, break, persistence.
+// Focused checks: gait + shadow on the site, wheel-up snap, wheel burst, teleport jump, jump, break, persistence.
 import { chromium } from 'playwright-core'
 
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
@@ -59,6 +59,28 @@ await page.evaluate(() =>
 )
 await page.waitForTimeout(2900)
 console.log('wheel up', { before: before.index, ...(await stationOfScroll()) })
+
+// natural multi-notch gesture: extra notches during the hop must be swallowed,
+// never kill the running hop (Lenis animate.stop-on-wheel regression)
+const burstStart = await stationOfScroll()
+for (let i = 0; i < 4; i++) {
+  await page.mouse.wheel(0, 120)
+  await page.waitForTimeout(90)
+}
+await page.waitForTimeout(2600)
+const burstEnd = await stationOfScroll()
+console.log('wheel burst', {
+  from: burstStart.index,
+  to: burstEnd.index,
+  ok: burstEnd.index === burstStart.index + 1,
+})
+
+// a skip of two+ stations lands immediately so the teleport starts at the true origin
+await clickNav('Kontak')
+await page.waitForTimeout(120)
+const tp = await stationOfScroll()
+console.log('teleport jump', { ...tp, immediate: tp.index >= 0 })
+await page.waitForTimeout(1200)
 
 // --- game: jump, build, break, persistence
 await page.evaluate(() => {
