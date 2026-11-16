@@ -1,9 +1,10 @@
 /**
  * The philosophical spine of the playground: the five services are not just
  * materials, they are the five layers a living system is built from —
- * foundation, memory, craft, quality, care — in that order, from the ground up.
+ * foundation, craft, quality, change, care — in that order, from the ground up.
+ * The order matches BLOCK_KINDS so hotbar slot N always equals layer N.
  */
-export const LAYERS = ['server', 'cloud', 'laptop', 'doc', 'gear'] as const
+export const LAYERS = ['server', 'cloud', 'doc', 'laptop', 'gear'] as const
 
 export const LAYER_ROMAN = ['I', 'II', 'III', 'IV', 'V'] as const
 

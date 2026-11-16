@@ -28,7 +28,7 @@ await page.evaluate(() => {
 // side profile, frozen: the pause path zeroes gait.moving every frame, so pin
 // all gait fields behind accessors — GameScene writes become inert while the
 // poser reads our frozen values
-const GAIT_KEYS = ['phase', 'speedNorm', 'moving', 'lift', 'jumpState', 'crouch', 'vy', 'airT', 'landT', 'impact']
+const GAIT_KEYS = ['phase', 'speedNorm', 'move01', 'moving', 'lift', 'jumpState', 'crouch', 'vy', 'airT', 'landT', 'impact']
 await page.evaluate((keys) => {
   const { gait } = window.__gameDebug
   const frozen = {}
@@ -59,6 +59,7 @@ const pose = (u, sn) =>
       f.phase = u * Math.PI * 2
       f.speedNorm = sn
       f.moving = 1
+      f.move01 = 1
       f.jumpState = 0
       f.lift = 0
       f.crouch = 0
@@ -76,7 +77,7 @@ for (const u of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]) {
   await page.screenshot({ path: `shots/gait-run-${String(u * 10).padStart(2, '0')}.png` })
 }
 for (const u of [0, 0.3, 0.6]) {
-  await pose(u, 0.36)
+  await pose(u, 0)
   await page.waitForTimeout(160)
   await page.screenshot({ path: `shots/gait-walk-${String(u * 10).padStart(2, '0')}.png` })
 }

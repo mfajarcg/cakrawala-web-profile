@@ -9,7 +9,8 @@ export const characterYaw = { current: 0 }
 /** gait state written by the driver, read by the rigged model */
 export const gait = {
   phase: 0, // stride phase, advances PI per step
-  speedNorm: 0, // 0 idle .. 1 full run
+  speedNorm: 0, // 0 walk .. 1 full run (see gaitNorm)
+  move01: 0, // 0 standing .. 1 at any real ground speed; fades stride amplitude
   moving: 0, // 0 when standing
   lift: 0, // world units of the body above its surface (game jumps)
   /** countermovement jump: 0 idle, 1 braking dip, 2 flight, 3 landing absorption */
@@ -28,6 +29,16 @@ export const gait = {
 export const STRIDE_WALK = 1.5
 export const STRIDE_RUN = 3.0
 export const MAX_CADENCE = 1.9 // cycles/s ≈ 228 spm sprint ceiling
+export const RUN_SPEED = 4.4 // world m/s that counts as a full run
+const WALK_PLATEAU = 1.9 // m/s below which the gait stays a pure walk
+
+/**
+ * Walk↔run blend. Speeds up to a brisk walk keep the walk pose entirely;
+ * scaling from zero instead made every stroll a half-run with folded knees.
+ */
+export function gaitNorm(speed: number) {
+  return THREE.MathUtils.clamp((speed - WALK_PLATEAU) / (RUN_SPEED - WALK_PLATEAU), 0, 1)
+}
 
 /** gait cycles/s for a given ground speed, so feet grip instead of skating */
 export function cadenceFor(speed: number, speedNorm: number) {

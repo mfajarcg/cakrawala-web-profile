@@ -45,7 +45,7 @@ export function JourneyController() {
       return max > 0 ? clamp01(window.scrollY / max) : 0
     }
 
-    /** the scroll position that centres a station's floating card */
+    /** the scroll position that centres a station's content */
     const stationTop = (index: number) => {
       const el = document.querySelector<HTMLElement>(`[data-station="${index + 1}"]`)
       if (!el) return null

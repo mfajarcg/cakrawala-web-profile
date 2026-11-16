@@ -96,8 +96,8 @@ const faceF = (k) => [104.5, k - 0.5, FACE_Z] // front face of block y=k-1 → s
 const CANON = [
   ['1', 'server'],
   ['2', 'cloud'],
-  ['4', 'laptop'],
   ['3', 'doc'],
+  ['4', 'laptop'],
   ['5', 'gear'],
 ]
 async function buildColumn() {
@@ -153,7 +153,7 @@ await page.keyboard.press('2')
 await aimAt(...faceF(1))
 await place()
 w = await world()
-check('memory stacked', hasBlock(w, 0, 1, -8, 'cloud'), JSON.stringify(w))
+check('craft stacked', hasBlock(w, 0, 1, -8, 'cloud'), JSON.stringify(w))
 check('pair aphorism', (await toastText()).includes('Lapis demi lapis'))
 
 for (let k = 2; k < 5; k++) {

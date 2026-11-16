@@ -185,9 +185,9 @@
   "play": {
     "title": "Play Character",
     "lead": "Masuk ke dunia blok 3D-nya: jalan, lari, lompat, lalu bangun infrastruktur digitalmu sendiri.",
-    "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser. Susun Tumpukan Bermakna: Fondasi → Memori → Karya → Mutu → Rawat.",
+    "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser. Susun Tumpukan Bermakna: Fondasi → Karya → Mutu → Perubahan → Rawat.",
     "cta": "Mulai Play Character",
-    "ctaNote": "Kamu bermain sebagai karakter Eric di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Memori → III Karya → IV Mutu → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
+    "ctaNote": "Kamu bermain sebagai karakter Eric di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Karya → III Mutu → IV Perubahan → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
     "gameTitle": "Cakrawala Playground",
     "gameHint": "WASD / panah jalan · Shift lari · Spasi lompat · Klik kiri hancurkan · Klik kanan pasang · 1–5 pilih material · Esc jeda, Esc lagi keluar",
     "gameHintTouch": "Joystick kiri untuk jalan · geser sisi kanan untuk melihat · tombol aksi di kanan",
@@ -230,8 +230,8 @@
       "next": "Berikutnya",
       "layers": {
         "server": "Fondasi",
-        "cloud": "Memori",
-        "laptop": "Karya",
+        "cloud": "Karya",
+        "laptop": "Perubahan",
         "doc": "Mutu",
         "gear": "Rawat"
       },
@@ -242,7 +242,7 @@
         },
         "pair": {
           "title": "Lapis demi lapis",
-          "body": "Fondasi memikul memori, memori memikul karya. Urutan adalah bentuk kejujuran."
+          "body": "Fondasi memikul karya, karya memikul mutu. Urutan adalah bentuk kejujuran."
         },
         "reject": {
           "title": "Tanpa fondasi",
@@ -254,7 +254,7 @@
         },
         "complete": {
           "title": "Stack bermakna",
-          "body": "Fondasi, memori, karya, mutu, rawat — lima lapis hidup sebagai satu sistem."
+          "body": "Fondasi, karya, mutu, perubahan, rawat — lima lapis hidup sebagai satu sistem."
         },
         "vista": {
           "title": "Cakrawala",
@@ -262,7 +262,7 @@
         }
       },
       "completeTitle": "Cakrawala terbuka",
-      "completeBody": "Kau menyusun lima lapis dalam urutan yang jujur: fondasi memikul memori, memori memikul karya, mutu menjaganya, rawat meneruskannya. Sistem yang bermakna bukan yang paling tinggi, melainkan yang paling saling memikul.",
+      "completeBody": "Kau menyusun lima lapis dalam urutan yang jujur: fondasi memikul karya, karya memikul mutu, mutu mengawal perubahan, rawat meneruskannya. Sistem yang bermakna bukan yang paling tinggi, melainkan yang paling saling memikul.",
       "continue": "Lanjutkan membangun",
       "renungan": "Renungan",
       "renunganEmpty": "Belum ada renungan. Bangun dengan sengaja, maka makna akan datang.",
@@ -270,11 +270,11 @@
       "soundOff": "Suara: mati"
     },
     "blocks": [
-      { "kind": "server", "label": "System Integration" },
-      { "kind": "cloud", "label": "Data Platform" },
+      { "kind": "server", "label": "Roadmap & Blueprint" },
+      { "kind": "cloud", "label": "Platform Development" },
       { "kind": "doc", "label": "PMQA" },
-      { "kind": "laptop", "label": "Platform Development" },
-      { "kind": "gear", "label": "O&M" },
+      { "kind": "laptop", "label": "Change Management" },
+      { "kind": "gear", "label": "Operation/Maintenance" },
       { "kind": "coffee", "label": "Tenaga konsultan ☕" }
     ]
   },

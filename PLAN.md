@@ -478,11 +478,11 @@ sistem yang hidup**, dibangun dari tanah ke langit dalam urutan yang jujur:
 
 | Lapis | Jenis blok | Makna (ID / EN) | Layanan Cartenz |
 |---|---|---|---|
-| I | server | Fondasi / Foundation | Infrastruktur & data center |
-| II | cloud | Memori / Memory | Cloud & migrasi |
-| III | laptop | Karya / Craft | Pengembangan aplikasi |
-| IV | doc | Mutu / Quality | Dokumentasi & tata kelola |
-| V | gear | Rawat / Care | Managed service & dukungan |
+| I | server | Fondasi / Foundation | Roadmap & Blueprint |
+| II | cloud | Karya / Craft | Platform Development |
+| III | doc | Mutu / Quality | PMQA |
+| IV | laptop | Perubahan / Change | Change Management |
+| V | gear | Rawat / Care | Operation/Maintenance |
 
 Aturan dan konsekuensi (semuanya di `src/game/meaning.ts`, murni & teruji):
 
@@ -648,8 +648,8 @@ dibangun sebelum masuk ke arena.
 ### 17.2 Keputusan
 
 - `ctaNote` (ID + EN) kini menyebut tujuan secara eksplisit: **Tumpukan Bermakna**,
-  lima lapis berurutan dari tanah ke langit (I Fondasi → II Memori → III Karya →
-  IV Mutu → V Rawat), hukum fondasi (blok hanya berdiri di atas yang kokoh;
+  lima lapis berurutan dari tanah ke langit (I Fondasi → II Karya → III Mutu →
+  IV Perubahan → V Rawat), hukum fondasi (blok hanya berdiri di atas yang kokoh;
   mencabut fondasi meruntuhkan yang bertumpu), dan persistensi browser — dengan
   framing "bermain sebagai karakter Eric di arena blok isometrik" (lihat §19).
 - Panel `PlayMoment` menampilkan **ladder target berurutan** (angka Romawi +
@@ -875,3 +875,64 @@ PoV dalam pane, kartu < viewport−nav di semua stasiun, breakpoint 767/768, PiP
 expand + persist reload + swipe-on-Pip guard @390; pageerrors []. Regresi hijau:
 touch-qa (lane swipe dipindah x=120 — pojok kanan-bawah kini permukaan PiP),
 mobile-play-qa, play-qa, verify2, gait-qa, jump-qa, meaning-qa; shot.mjs 5 viewport.
+
+## 23. Konten langsung di kolom kiri + rename lapisan + gait jalan/lari final
+
+### 23.1 Floating card dihapus (menggantikan chrome §22.1)
+
+Permintaan: "Tidak perlu menggunakan floating window, langsung saja konten yang
+memaksimalkan substansi di container di sebelah kiri." `Panel.tsx` kini hanya
+section `journey-col flex min-h-[110vh] w-full items-center justify-center px-[5vw]
+md:justify-start md:px-[3.5vw]` + pembatas `@container w-full max-w-[56rem]`;
+eyebrow chip `NN / 11` + hairline gradien menggantikan header kartu. Tanpa bg/border/
+shadow kartu. Snap math tidak berubah (offsetTop/offsetHeight section).
+Services di-bump sebagai refinement pass: lead text-sm, grid gap-2.5/3, li p-3.5/4
+rounded-xl shadow-sm hover-lift, h3 text-xs/sm, p 0.7rem/xs → kolom terasa berisi,
+bukan padat kecil. Clearance terverifikasi: 1440×900 services h645 (bottom 773),
+contact h649; sweep 390×844 ID+EN 11 stasiun semua lolos (tertinggi EN services
+h720, top 62 ≥ 56, bottom 782 ≤ 844); tanpa oklusi teks oleh PiP.
+
+### 23.2 Urutan blok 3/4 tertukar → LAYERS = BLOCK_KINDS + rename
+
+Akar masalah: `LAYERS` (meaning.ts) berurutan server,cloud,**laptop,doc**,gear
+sedangkan `BLOCK_KINDS` (store.ts) server,cloud,**doc,laptop**,gear → hotbar slot N
+≠ lapis N. Fix: LAYERS disamakan ke BLOCK_KINDS. Rename sesuai permintaan:
+I Fondasi — **Roadmap & Blueprint** (server), II Karya — **Platform Development**
+(cloud), III Mutu — PMQA (doc, tetap), IV Perubahan — **Change Management**
+(laptop), V Rawat — **Operation/Maintenance** (gear). Semua narasi disapu:
+content/id.json + en.json (hint, ctaNote, layers, notices.pair/complete,
+completeBody, blocks), README §8, PLAN §17.2, meaning-qa CANON. Data layanan
+perusahaan asli tidak diubah. QA: meaning-qa MEANING_QA_OK (34 PASS), play-qa
+slot 4 = laptop, HUD "Berikutnya: II - Karya" + pill "I · Fondasi — Roadmap &
+Blueprint" terlihat di shot live.
+
+### 23.3 Gait jalan & lari: diagnosis pose beku + fix
+
+Keluhan: "Gerakan karakter Erick ketika berjalan dan berlari masih aneh."
+Diagnosis lewat gait-qa (kamera samping, pose beku):
+1. **Jalan = setengah lari.** speedNorm = v/4.4 memberi 0.36 pada 1.6 m/s → lutut
+   terlipat 82°. Fix: plateau `gaitNorm(v) = clamp((v−1.9)/2.5, 0, 1)` di shared.ts
+   (RUN_SPEED 4.4 diekspor, dipakai CharacterDriver + GameScene).
+2. **Telapak rocking / toes-up midstance.** Kurva ankle lama menumpuk bump
+   dorsifleksi di atas cancel shin 0.9 → telapak miring ±13°. Fix: ankle = sudut
+   kaki dunia (toes-down +): IC lerp(−0.12,−0.06), TO lerp(0.32,0.5), clearance
+   lerp(0.12,0.2); stance lerp(IC,TO,pow(s,1.7)) rata sampai akhir stance; swing
+   lerp(TO,IC,s) − clear·sin(πs); pose lokal = −(hip+knee) + ankle (cancel penuh).
+3. **Teleport vertikal di batas flight.** Cabang flight lama konstan
+   HIP_HEIGHT−ANKLE_TO_SOLE → pop 2.7 cm saat toe-off, drop 9.4 cm saat contact.
+   Fix: support flight = lerp(reach(jTO), reach(jIC), prog) + sin(π·prog)·
+   lerp(0,0.06,sn)·walkBlend; hop terpisah dihapus; bodyY = −soleGap + lift.
+4. **Regresi jalan membeku** setelah plateau: walkBlend dulu gated speedNorm →
+   0 pada jalan murni. Fix: field baru `gait.move01 = clamp(v/0.6,0,1)` ditulis
+   kedua driver; walkBlend = move01; journey `gait.moving = worldSpeed > 0.05`;
+   gait-qa pin move01 dan set 1, pose jalan sn 0.
+5. **Sign spine salah koreksi**: tulang distal menunjuk bawah (+flex = belakang)
+   tetapi spine menunjuk atas (+flex = depan). Sign lean/neck/jump-spine asli
+   benar → enam edit sign dibatalkan kembali.
+
+Hasil visual: walk-00/03/06 stride penuh (contact, passing, mirror contact);
+run-00 lean depan + ayun lengan berlawanan; run-04 push-off plantar + lipatan
+swing; run-07 flight knee-drive; live-run HUD normal. Regresi hijau: jump-qa
+(termasuk tribute full-screen + wheel pane + close return, ID & 390), verify2,
+play-qa, meaning-qa, mobile-play-qa, touch-qa, layout-qa (LAYOUT_OK), sweep
+clearance 390 ID+EN (CLEAR390_OK, scratch dihapus). tsc -b bersih.

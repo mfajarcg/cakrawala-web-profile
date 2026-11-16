@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
 import { getPath } from './path'
-import { cadenceFor, characterPos, characterYaw, gait } from './shared'
+import { cadenceFor, characterPos, characterYaw, gait, gaitNorm } from './shared'
 import { ELBOW_SHAPE, KNEE_SHAPE, sampleLoop } from './runLoop'
 
 const BASE = import.meta.env.BASE_URL
@@ -21,7 +21,6 @@ const MODEL_SCALE = 0.01 // the FBX is authored in centimetres
 // The run knee/elbow flexion SHAPE is retargeted from the Sketchfab reference
 // "Male Running (20 frames loop)" by Denys Almaral (see runLoop.ts); amplitudes
 // stay calibrated to Eric's proportions so the reach() foot-lock holds.
-const RUN_SPEED = 4.4 // world m/s that counts as a full run (matches GameScene)
 const JOURNEY_SPEED = 3.4 // world m/s of a full-speed checkpoint hop
 const JOURNEY_ACCEL = 2.0 // world m/s^2
 const TURN_RATE = 9 // rad/s damp when re-facing
@@ -124,7 +123,7 @@ function CharacterDriver() {
     // cadence follows the actual ground speed, so the stride length matches the
     // distance covered and the feet grip the ground
     const worldSpeed = Math.abs(s.velocity) * pathLength
-    const speedNorm = clamp(worldSpeed / RUN_SPEED, 0, 1)
+    const speedNorm = gaitNorm(worldSpeed)
     const cadence = cadenceFor(worldSpeed, speedNorm)
     s.phase += cadence * TAU * dt * Math.max(turnBrake, 0.15)
 
@@ -132,7 +131,8 @@ function CharacterDriver() {
     characterYaw.current = s.yaw
     gait.phase = s.phase
     gait.speedNorm = speedNorm
-    gait.moving = speedNorm > 0.02 ? 1 : 0
+    gait.move01 = clamp(worldSpeed / 0.6, 0, 1)
+    gait.moving = worldSpeed > 0.05 ? 1 : 0
     gait.lift = 0
     gait.jumpState = 0
     gait.crouch = 0
@@ -196,10 +196,11 @@ function poseBone(
 /**
  * Sagittal joint targets over one normalised cycle (u = 0 at heel strike),
  * flexion positive, walk and run parameter sets blended by speedNorm.
- * Stance: hip extends linearly, knee absorbs then re-extends, ankle rolls
- * from dorsiflexion into a plantarflexion push-off. Swing: knee flexes to its
- * peak early (heel toward the butt) then extends before contact; the hip
- * drives forward; the ankle dorsiflexes for toe clearance.
+ * Stance: hip extends linearly, knee absorbs then re-extends. Swing: knee
+ * flexes to its peak early (heel toward the butt) then extends before contact;
+ * the hip drives forward. `ankle` is the WORLD foot angle (toes-down positive):
+ * slightly toes-up at contact, flat through mid-stance, plantarflexed push-off,
+ * dorsiflexed clearance in swing — the poser cancels the shin tilt separately.
  */
 function jointAt(u: number, sn: number) {
   const stanceFrac = lerp(0.62, 0.4, sn)
@@ -210,10 +211,9 @@ function jointAt(u: number, sn: number) {
   const kneeMid = lerp(0.26, 0.78, sn)
   const kneeTO = lerp(0.62, 0.3, sn)
   const kneeSwing = lerp(1.05, 2.09, sn)
-  const ankIC = lerp(0, 0.05, sn)
-  const ankMid = lerp(0.17, 0.26, sn)
-  const ankTO = lerp(-0.35, -0.44, sn)
-  const ankClear = lerp(0.1, 0.17, sn)
+  const ankIC = lerp(-0.12, -0.06, sn)
+  const ankTO = lerp(0.32, 0.5, sn)
+  const ankClear = lerp(0.12, 0.2, sn)
   // authentic run knee shape from the Sketchfab reference loop, mapped onto
   // Eric's run range (0.26 rad extended → 2.09 rad swing fold); blended in by
   // speed so walking keeps the analytic curve and running adopts the reference
@@ -224,9 +224,8 @@ function jointAt(u: number, sn: number) {
     const kneeBase =
       lerp(kneeIC, kneeTO, s) +
       (kneeMid - lerp(kneeIC, kneeTO, 0.4)) * Math.pow(Math.sin(Math.PI * s), 1.1)
-    const ankle =
-      lerp(ankIC, ankTO, s) +
-      (ankMid - lerp(ankIC, ankTO, 0.45)) * Math.sin(Math.PI * s)
+    // the sole stays flat until late stance, then rolls onto the toe
+    const ankle = lerp(ankIC, ankTO, Math.pow(s, 1.7))
     return { hip, knee: lerp(kneeBase, kneeRef, sn), ankle }
   }
   const s = (u - stanceFrac) / (1 - stanceFrac)
@@ -235,7 +234,7 @@ function jointAt(u: number, sn: number) {
   const kneeBase =
     lerp(kneeTO, kneeIC, s) +
     (kneeSwing - lerp(kneeTO, kneeIC, 0.35)) * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.65)), 0.9)
-  const ankle = lerp(ankTO, ankIC, s) + ankClear * Math.sin(Math.PI * s)
+  const ankle = lerp(ankTO, ankIC, s) - ankClear * Math.sin(Math.PI * s)
   return { hip, knee: lerp(kneeBase, kneeRef, sn), ankle }
 }
 
@@ -340,12 +339,12 @@ function EricVisual() {
     if (!g) return
     const dt = Math.min(delta, 0.05)
     const t = state.clock.elapsedTime
-    const { phase, speedNorm, moving, lift } = gait
+    const { phase, speedNorm, move01, moving, lift } = gait
 
-    // amplitude fades out quickly when coming to a standstill
-    const walkBlend = clamp(speedNorm / 0.14, 0, 1) * moving
+    // amplitude fades out quickly when coming to a standstill; it must track
+    // real ground speed, not the walk↔run blend (a pure walk has speedNorm 0)
+    const walkBlend = move01
     const stanceFrac = lerp(0.62, 0.4, speedNorm)
-    const swingFrac = 1 - stanceFrac
 
     // each leg gets its own cycle position; the right leg is half a cycle behind
     const uL = ((phase / TAU) % 1 + 1) % 1
@@ -444,8 +443,8 @@ function EricVisual() {
     const hipFR = lerp(hipR, jp.hip, w)
     const kneeFL = lerp(kneeL, jp.knee, w)
     const kneeFR = lerp(kneeR, jp.knee, w)
-    const footFL = lerp(-(hipL + kneeL) * 0.9 - ankleL, jp.foot, w)
-    const footFR = lerp(-(hipR + kneeR) * 0.9 - ankleR, jp.foot, w)
+    const footFL = lerp(-(hipL + kneeL) + ankleL, jp.foot, w)
+    const footFR = lerp(-(hipR + kneeR) + ankleR, jp.foot, w)
     const armFL = lerp(armSwingL, jp.arm, w)
     const armFR = lerp(armSwingR, jp.arm, w)
     const elbowFL = lerp(elbowFlexL, jp.elbow, w)
@@ -473,27 +472,32 @@ function EricVisual() {
     // during flight both feet are tucked, so the body flies
     const reach = (hip: number, knee: number) =>
       L_THIGH * Math.cos(hip) + L_SHIN * Math.cos(hip + knee)
-    const stanceL = uL < 1 - swingFrac
-    const stanceR = uR < 1 - swingFrac
-    const flight = js === 2 ? 1 : stanceL || stanceR ? 0 : 1
+    const stanceL = uL < stanceFrac
+    const stanceR = uR < stanceFrac
+    // flight apex between toe-off and the next contact. The arc starts and ends
+    // at the exact support heights of the neighbouring stance phases, so the
+    // body hops instead of teleporting vertically at each boundary.
+    const q = uL % 0.5
+    const flightProg = q >= stanceFrac ? (q - stanceFrac) / (0.5 - stanceFrac) : -1
+    const jTO = jointAt(stanceFrac - 1e-4, speedNorm)
+    const jIC = jointAt(0, speedNorm)
     const support =
       js === 2
         ? HIP_HEIGHT - ANKLE_TO_SOLE
         : js === 1 || js === 3
           ? reach(hipFL, kneeFL)
-          : flight
-            ? HIP_HEIGHT - ANKLE_TO_SOLE
+          : flightProg >= 0
+            ? lerp(
+                reach(-jTO.hip * walkBlend, jTO.knee * walkBlend),
+                reach(-jIC.hip * walkBlend, jIC.knee * walkBlend),
+                flightProg,
+              ) + Math.sin(Math.PI * flightProg) * lerp(0, 0.06, speedNorm) * walkBlend
             : Math.max(
                 stanceL ? reach(hipFL, kneeFL) : -Infinity,
                 stanceR ? reach(hipFR, kneeFR) : -Infinity,
               )
     const soleGap = HIP_HEIGHT - ANKLE_TO_SOLE - support
-    // flight apex between toe-off and the next contact: the body actually hops
-    const q = uL % 0.5
-    const flightProg = q >= stanceFrac ? (q - stanceFrac) / (0.5 - stanceFrac) : -1
-    const hop =
-      flightProg >= 0 ? Math.sin(Math.PI * flightProg) * lerp(0.015, 0.07, speedNorm) * walkBlend : 0
-    const bodyY = -soleGap + lift + hop
+    const bodyY = -soleGap + lift
     const baseY = characterPos.current.y
 
     g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)

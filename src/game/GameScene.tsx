@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { cadenceFor, characterPos, characterYaw, gait } from '../three/shared'
+import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED } from '../three/shared'
 import { input, lockState, resetInput, setTapAim } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
@@ -9,7 +9,6 @@ import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } 
 const ORIGIN = ARENA_ORIGIN
 
 const WALK_SPEED = 1.6
-const RUN_SPEED = 4.4
 const ACCELERATION = 16
 const GRAVITY = 24
 const JUMP_SPEED = 7.6
@@ -291,7 +290,7 @@ export function GameScene() {
     if (speed > 0.15) {
       player.facing = dampAngle(player.facing, Math.atan2(player.vx, player.vz), 12, dt)
     }
-    const speedNorm = clamp(speed / RUN_SPEED, 0, 1)
+    const speedNorm = gaitNorm(speed)
     player.phase += cadenceFor(speed, speedNorm) * Math.PI * 2 * dt
 
     const surface = surfaceAt(player.x, player.z)
@@ -299,6 +298,7 @@ export function GameScene() {
     characterYaw.current = player.facing
     gait.phase = player.phase
     gait.speedNorm = speedNorm
+    gait.move01 = clamp(speed / 0.6, 0, 1)
     // the dip and the absorption replace the stride so legs pose symmetrically
     gait.moving = speed > 0.15 && player.jumpState !== 1 && player.jumpState !== 3 ? 1 : 0
     gait.lift = player.y - surface

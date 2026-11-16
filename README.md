@@ -18,8 +18,8 @@ masuk ke dalam dunia itu lewat mode **Play Character**.
 | Fitur | Cara kerja singkat |
 |---|---|
 | Journey 3D | Canvas fixed di belakang DOM. Scroll menggerakkan karakter di sepanjang kurva Catmull-Rom melewati 11 stasiun. |
-| Checkpoint snap | Satu gesture wheel/arrow key = satu stasiun. Scroll selalu berhenti di tengah card. |
-| Kamera | Orthographic isometrik yang mengikuti karakter, bergeser ke sisi berlawanan card dengan akselerasi/de-selerasi. |
+| Checkpoint snap | Satu gesture wheel/arrow key = satu stasiun. Scroll selalu berhenti di tengah konten stasiun. |
+| Kamera | Orthographic isometrik yang mengikuti karakter di tengah pane 3D dengan akselerasi/de-selerasi. |
 | First-person | Tombol PoV mengganti kamera ke perspektif mata karakter (tinggi 1,68 unit). |
 | Play Character | Tombol di stasiun 9 memudarkan situs lalu berpindah ke mode main. Arenanya bukan ruang baru: blok dibangun di tanah yang sama dengan jalur karakter, jadi hasil bangunan tetap terlihat saat kembali ke situs. |
 | Exit | `Esc` dua tahap: Esc pertama membuka menu jeda dan melepas pointer lock, Esc kedua keluar ke checkpoint Play. Blok yang dibangun tetap ada. |
@@ -28,7 +28,7 @@ masuk ke dalam dunia itu lewat mode **Play Character**.
 Dua lapisan yang harus dipahami:
 
 ```
-DOM  (scroll normal, 11 section min-h 110vh, card melayang kiri/kanan)
+DOM  (scroll normal, 11 section min-h 110vh, konten langsung di kolom kiri)
   │  wheel / arrow key / touch / nav click
   ▼
 JourneyController  ──►  Lenis.scrollTo(stationTop, duration)
@@ -100,7 +100,7 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ PlayMoment.tsx        #   10 Play Character (pintu masuk game)
 │  │  ├─ Contact.tsx           #   11 Contact
 │  │  ├─ Footer.tsx            #   12 Footer + tribute
-│  │  ├─ Panel.tsx             #   section pembungkus: data-station, card kiri/kanan
+│  │  ├─ Panel.tsx             #   section pembungkus: data-station, kolom konten kiri
 │  │  └─ PovButton.tsx         #   toggle Orbit / First Person
 │  ├─ journey/
 │  │  ├─ stations.ts           # 11 stasiun: id, index, x, z, side
@@ -188,7 +188,7 @@ memanggil `jumpTo(id)` → `scrollBridge.toStation(index)`.
 | `journey/store.ts` | `progress`, `target`, `activeStation`, `pov` | controller (`setTarget`), driver (`tick`) | Character, CameraRig, Nav |
 | `game/store.ts` | `mode`, `cover`, `paused`, `blocks`, `selected` | PlayMoment, HUD, GameScene | App, World, GameScene |
 
-`activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk menentukan sisi card dan
+`activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk status rail nav dan
 titik fokus kamera.
 
 ### 4.4 Lapisan 3D
@@ -200,7 +200,7 @@ titik fokus kamera.
 | `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `EricVisual` (FBX + tekstur asli, bone posing, bob pelvis, blob shadow). |
 | `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
 | `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
-| `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, moving, lift}` dan `cadenceFor()` — dipakai bersama situs dan game. |
+| `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, move01, moving, lift}`, `gaitNorm()`/`RUN_SPEED` dan `cadenceFor()` — dipakai bersama situs dan game. |
 
 ### 4.5 Mode Play Character
 
@@ -219,8 +219,11 @@ titik fokus kamera.
    browser; bila lock ditolak, aim jatuh ke `freeAim`.
 7. Setiap perubahan blok langsung disimpan ke `localStorage['cakrawala-play-world-v1']`, dan
    blok itu tetap terlihat di stasiun Play setelah keluar maupun setelah reload.
-8. **Lapisan falsafah.** Lima jenis blok adalah lima lapis sistem hidup — I Fondasi (server),
-   II Memori (cloud), III Karya (laptop), IV Mutu (doc), V Rawat (gear). Hukum fondasi
+8. **Lapisan falsafah.** Lima jenis blok adalah lima lapis sistem hidup — I Fondasi /
+   Roadmap & Blueprint (server), II Karya / Platform Development (cloud), III Mutu /
+   PMQA (doc), IV Perubahan / Change Management (laptop), V Rawat /
+   Operation/Maintenance (gear). Urutan `LAYERS` = `BLOCK_KINDS`, jadi slot hotbar N
+   selalu sama dengan lapis N. Hukum fondasi
    (`isSupported`) menolak blok melayang; klik sisi vertikal berarti "teruskan di atasnya";
    mencabut fondasi meruntuhkan yang bertumpu (`cascade`). `scanMeaning` mengukur run
    terpanjang berurutan dari tanah (tangga makna HUD 0–5); menyelesaikannya memunculkan
@@ -250,22 +253,22 @@ LookPad diletakkan di bawah kluster HUD (`-z-10`) supaya tidak mencegat ketukan 
 
 ## 5. Peta blok → stasiun
 
-| Blok | Komponen | Stasiun | `data-station` | Sisi card | Posisi path (x, z) |
+| Blok | Komponen | Stasiun | `data-station` | Kolom konten | Posisi path (x, z) |
 |---|---|---|---|---|---|
 | 01 Navigation | `Nav.tsx` | — (sticky, tanpa stasiun) | — | — | — |
-| 02 Hero | `Hero.tsx` | 1 · `hero` | 1 | center | 0, 0 |
-| 03 Story | `Story.tsx` | 2 · `story` | 2 | kanan | 13, −3,5 |
+| 02 Hero | `Hero.tsx` | 1 · `hero` | 1 | kiri | 0, 0 |
+| 03 Story | `Story.tsx` | 2 · `story` | 2 | kiri | 13, −3,5 |
 | 04 Services | `Services.tsx` | 3 · `services` | 3 | kiri | 26, 3,5 |
-| 05 Credibility | `Credibility.tsx` | 4 · `credibility` | 4 | kanan | 39, −3,5 |
+| 05 Credibility | `Credibility.tsx` | 4 · `credibility` | 4 | kiri | 39, −3,5 |
 | 06 Numbers | `Numbers.tsx` | 5 · `numbers` | 5 | kiri | 52, 3,5 |
-| 07 Signature | `Signature.tsx` | 6 · `signature` | 6 | kanan | 65, −3,5 |
+| 07 Signature | `Signature.tsx` | 6 · `signature` | 6 | kiri | 65, −3,5 |
 | 08 Market | `Market.tsx` | 7 · `market` | 7 | kiri | 78, 3,5 |
-| 09 About | `About.tsx` | 8 · `about` | 8 | kanan | 91, −3,5 |
+| 09 About | `About.tsx` | 8 · `about` | 8 | kiri | 91, −3,5 |
 | 10 Play Character | `PlayMoment.tsx` | 9 · `play` | 9 | kiri | 104, 3,5 |
-| 11 Contact | `Contact.tsx` | 10 · `contact` | 10 | kanan | 117, −3,5 |
-| 12 Footer | `Footer.tsx` | 11 · `footer` | 11 | center | 130, 0 |
+| 11 Contact | `Contact.tsx` | 10 · `contact` | 10 | kiri | 117, −3,5 |
+| 12 Footer | `Footer.tsx` | 11 · `footer` | 11 | kiri | 130, 0 |
 
-Badge pada card menampilkan `01 / 11` … `11 / 11` (nomor stasiun, bukan nomor blok).
+Badge eyebrow pada kolom konten menampilkan `01 / 11` … `11 / 11` (nomor stasiun, bukan nomor blok).
 
 ---
 
@@ -305,7 +308,18 @@ progress += velocity × turnBrake × dt
 
 ### 6.3 Model gait (berjalan & berlari)
 
-Driver hanya menulis `gait.phase`, `speedNorm`, `moving`, dan `lift`; rig FBX dipose tiap frame.
+Driver hanya menulis `gait.phase`, `speedNorm`, `move01`, `moving`, dan `lift`; rig FBX dipose
+tiap frame. Dua normalisasi kecepatan berbeda tugas:
+
+```
+speedNorm = gaitNorm(v) = clamp((v − 1,9) / (4,4 − 1,9), 0, 1)   // bentuk kurva jalan→lari
+move01    = clamp(v / 0,6, 0, 1)                              // amplitudo stride saat berhenti
+```
+
+Plateau 1,9 unit/s menjaga jalan tetap memakai kurva jalan murni (jalan 1,6 m/s → `speedNorm` 0);
+tanpa plateau, jalan terlihat seperti setengah lari karena lutut terlipat terlalu dalam.
+`move01` harus mengikuti kecepatan tanah nyata, bukan `speedNorm` — kalau tidak, pose jalan
+membeku jadi berdiri setiap kali `speedNorm` 0.
 
 **Cadence dikunci ke jarak tempuh** (menghilangkan kaki selip). Stride adalah panjang satu
 siklus penuh (dua langkah), dan `phase` maju `2π` per siklus — pasangan yang konsisten:
@@ -322,20 +336,26 @@ phase  += cadence × 2π × dt
 | Hip contact → toe-off | +0,52 → −0,17 rad (jalan), +0,70 → −0,35 rad (lari) | ayun paha sagittal penuh |
 | Puncak knee saat swing | 1,05 → 2,09 rad, puncak di awal swing | ±60° jalan, ±120° lari |
 | Knee stance (loading → push) | 0,09 → 0,26 rad (jalan), 0,26 → 0,78 rad (lari) | loading response lalu ekstensi push-off |
-| Ankle push-off | −0,35 → −0,44 rad plantar fleksi | tolakan jari kaki saat toe-off |
+| Sudut kaki dunia (ankle) | −0,12 → +0,32 rad (jalan), −0,06 → +0,50 rad (lari); toes-down positif | telapak rata saat midstance, plantar fleksi saat push-off |
 | Ayun lengan | berlawanan fase kaki × lerp(0,35; 0,65) | makin cepat = makin lebar |
 | Fleksi siku | 0,22 → 1,57 rad (kuadratik) | siku ±90° saat lari |
 | Lean badan | 0,04·sn + 0,22·sn² | condong depan saat lari |
-| Flight hop | sin(π·prog) × lerp(0,015; 0,07) | double float: kedua kaki melayang saat lari |
+| Busur flight | lerp(reachTO → reachIC, prog) + sin(π·prog)·lerp(0; 0,06)·move01 | tinggi badan kontinu melewati toe-off/contact; double float saat lari |
 
 **Tinggi badan mengikuti kaki penopang**, bukan konstanta:
 
 ```
 reach(hip, knee) = L_THIGH·cos(hip) + L_SHIN·cos(hip + knee)
-support          = max(reach kaki stance); bila flight → HIP_HEIGHT − ANKLE_TO_SOLE
+support          = max(reach kaki stance)
+                   bila flight → lerp(reach(jTO), reach(jIC), flightProg)
+                                 + sin(π·flightProg)·lerp(0; 0,06)·speedNorm·move01
 soleGap          = HIP_HEIGHT − ANKLE_TO_SOLE − support
-bodyY            = −soleGap + lift + hop
+bodyY            = −soleGap + lift
 ```
+
+`jTO`/`jIC` adalah sendi tepat sebelum toe-off dan tepat saat contact berikutnya, jadi busur
+flight berangkat dan mendarat pada tinggi penopang yang sama — tidak ada teleport vertikal
+di batas stance/swing. Hop terpisah dihapus; busur ini sendiri yang memberi double float.
 
 `L_THIGH = 0,42`, `L_SHIN = 0,422`, `HIP_HEIGHT = 0,969`, `ANKLE_TO_SOLE = 0,127` (meter).
 Model FBX diskalakan `0,01` karena authored dalam sentimeter.
@@ -350,8 +370,7 @@ Sekarang shadow berada di `baseY + 0,045`, skala `1 + lift×0,35`, opacity `0,8 
 |---|---|
 | Isometrik | Orthographic di `(16, 16, 16)`, look-at ke `(x, 0, z)` karakter |
 | Zoom responsif | `zoom = clamp(viewportWidth / 26, 14, 64)` → 390 px ≈ 15, 1440 px ≈ 55, 1920 px ke atas = 64 |
-| Geser lateral | Target ±5,5 unit sepanjang `SCREEN_RIGHT = normalize(−1, 0, 1)` agar karakter tidak tertutup card |
-| Akselerasi lateral | `LAT_MAX_SPEED = 13`, `LAT_ACCELERATION = 26` — model kecepatan yang sama dengan karakter |
+| Tengah pane | Look-at tepat ke karakter; seluruh pane 54% (atau PiP) adalah ruang bebas, tanpa geser lateral |
 | First person | Mata di `y = 1,68`, look-at searah yaw karakter; model disembunyikan |
 
 ### 6.5 Fisika arena Play Character
@@ -431,13 +450,19 @@ di-interpolasi jalan→lari:
 | Hip drive swing (puncak s≈0,5) | 0,10 rad | 0,78 rad (≈45°) | Novacheck 1998 |
 | Lutut stance (loading → push) | 0,09 → 0,26 rad | 0,26 → 0,78 rad | Perry 2010 |
 | Lutut swing (puncak awal swing) | 1,05 rad (≈60°) | 2,09 rad (≈120°); bentuk kurva lari dari loop referensi 20-key | Novacheck 1998; Van Hooren 2024; Almaral (Sketchfab) |
-| Ankle (dorsifleksi → plantar push-off) | 0 → −0,35 rad | 0,05 → −0,44 rad | Perry 2010; Novacheck 1998 |
+| Ankle (sudut kaki dunia, toes-down +) | −0,12 → +0,32 rad; stance rata sampai akhir lalu plantar | −0,06 → +0,50 rad; push-off plantar tegas | Perry 2010; Novacheck 1998 |
 | Siku | 0,22 rad | 1,57 rad (≈90°) | The Movement System 2025 |
 | Lean badan | 0,04·sn | 0,22·sn² + 0,04·sn | Novacheck 1998 |
 
 Ayun lengan **berlawanan fase kaki** (`armSwing = hip·lerp(0,35; 0,65)`), dan fase flight
-(selang dua kaki melayang, ciri lari vs jalan menurut Physio-pedia) diberi hop vertikal
-`sin(π·flightProg)·lerp(0,015; 0,07)` supaya lari tidak terlihat seperti jalan cepat.
+(selang dua kaki melayang, ciri lari vs jalan menurut Physio-pedia) diberi busur vertikal
+`sin(π·flightProg)·lerp(0; 0,06)` di atas interpolasi reach toe-off→contact, supaya lari tidak
+terlihat seperti jalan cepat tanpa membuat badan melompat di batas stance.
+
+**Ankle sebagai sudut kaki dunia:** kurva ankle menulis sudut telapak terhadap tanah (toes-down
+positif), lalu pose lokal kaki = `−(hip + knee) + ankle` — pembatalan penuh rotasi shin. Dengan
+begitu telapak stance tetap rata di midstance (dulu bump dorsifleksi lama memiringkan telapak
+±13° dan kaki terlihat berrocking), sementara push-off tetap plantarfleksi autentik.
 
 **Bentuk kurva lari dari referensi (`runLoop.ts`):** bentuk fleksi lutut & siku saat lari
 di-retarget dari loop lari 20-frame *"Male Running (20 frames loop)"* karya **Denys Almaral**
@@ -458,10 +483,10 @@ membuat kaki stance menyapu tanah tepat sejauh jarak yang ditempuh (bebas foot-s
 ±176 langkah/menit lari (4,4 m/s); batas 1,9 siklus/s mengikuti plateau frekuensi langkah
 Weyand 2000. Kecepatan dunia sengaja manusiawi terhadap panjang kaki ±0,85 m.
 
-QA: `scripts/gait-qa.mjs` memotret 10 pose beku lari + 3 jalan dari kamera samping. Karena
-path pause `GameScene` menulis `gait.moving = 0` tiap frame, harness **mem-pin field `gait`
-lewat accessor property** (getter membaca nilai beku, setter mengabaikan tulisan sim) selama
-potret, lalu memulihkan property data sebelum live run.
+QA: `scripts/gait-qa.mjs` memotret 10 pose beku lari (`speedNorm` 1) + 3 jalan (`speedNorm` 0,
+`move01` 1) dari kamera samping. Karena path pause `GameScene` menulis `gait.moving = 0` tiap
+frame, harness **mem-pin field `gait` lewat accessor property** (getter membaca nilai beku,
+setter mengabaikan tulisan sim) selama potret, lalu memulihkan property data sebelum live run.
 
 #### Kerangka rotasi pose rig
 
@@ -494,13 +519,15 @@ terukur 45–63°. QA memakai freeze in-page per fase (`jumpState`/`vy`/`landT`)
 - `html { font-size: clamp(14px, 0.45vw + 9px, 26px) }` → 390 px = 14 px, 1440 px ≈ 15,5 px,
   3840 px = 26 px.
 - Layout split (≥768px): wrapper konten `md:w-[46%]`, pane 3D `fixed` menempati 54% kanan
-  (`left:46%`, tinggi penuh). Card di dalam kolom `w-full`; grid layanan memakai container
-  query (`@container` pada card, `@[40rem]:grid-cols-3`) sehingga jumlah kolom mengikuti
-  lebar kolom, bukan lebar viewport. Di mobile kolom lebar penuh dan card tetap `w-full`.
-- Card dipadatkan agar selalu muat di bawah nav tetap: tinggi card < tinggi viewport − nav,
-  sehingga snapping tengah tidak menyembunyikan judul di balik nav (Services dua kolom di
-  mobile, tiga kolom hanya bila kolom ≥40rem).
-- Setiap section `min-h-[110vh]` supaya karakter selalu punya ruang berhenti di tengah card.
+  (`left:46%`, tinggi penuh). Konten duduk **langsung** di kolom kiri tanpa kartu mengambang:
+  `Panel` hanya section `min-h-[110vh]` + pembatas `@container max-w-[56rem]` dengan eyebrow
+  `NN / 11` dan hairline gradien. Grid layanan memakai container query (`@container` pada
+  pembatas itu, `@[40rem]:grid-cols-3`) sehingga jumlah kolom mengikuti lebar kolom, bukan
+  lebar viewport (dua kolom di pane 46% pada 1440, tiga bila kolom ≥40rem).
+- Konten dipadatkan agar selalu muat di bawah nav tetap: tinggi konten < tinggi viewport − nav,
+  sehingga snapping tengah tidak menyembunyikan judul di balik nav (terverifikasi 11 stasiun
+  × ID/EN di 1440×900 dan 390×844).
+- Setiap section `min-h-[110vh]` supaya karakter selalu punya ruang berhenti di tengah konten.
 - PiP mobile: lebar `min(46vw,210px)` (diperbesar `min(86vw,400px)`), tinggi ≈1.18× lebar,
   posisi + status diperbesar disimpan di `cakrawala-pip-v1`; drag memakai pointer capture
   dan clamp ke viewport; `data-pip` membuat JourneyController mengabaikan gesture di atasnya.
@@ -510,8 +537,9 @@ terukur 45–63°. QA memakai freeze in-page per fase (`jumpState`/`vy`/`landT`)
 
 ### 6.8 Referensi perhitungan gerak
 
-Model di atas **bukan simulasi biomekanik penuh**; parameter literatur dipetakan ke satu
-variabel `speedNorm` (0–1) untuk menghasilkan gerak yang plausibel dan bebas foot-sliding.
+Model di atas **bukan simulasi biomekanik penuh**; parameter literatur dipetakan ke dua
+variabel — `speedNorm` (0–1, bentuk kurva dengan plateau jalan) dan `move01` (0–1, amplitudo
+stride) — untuk menghasilkan gerak yang plausibel dan bebas foot-sliding.
 
 | Referensi | Dipakai untuk |
 |---|---|
@@ -520,7 +548,7 @@ variabel `speedNorm` (0–1) untuk menghasilkan gerak yang plausibel dan bebas f
 | Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. *Faster top running speeds are achieved with greater ground forces not more rapid leg movements.* J Appl Physiol 89(5):1991–1999, 2000. | Frekuensi langkah cenderung mendatar; kecepatan lebih ditentukan panjang langkah → cadence dibatasi `MAX_CADENCE = 1,9` siklus/s (±228 langkah/menit). |
 | Cavanagh PR, Kram R. *Stride length in distance running: velocity, body dimensions, and added mass effects.* Med Sci Sports Exerc 21(4):467–479, 1989. | Panjang stride naik terhadap kecepatan → interpolasi `STRIDE_WALK 1,5` → `STRIDE_RUN 3,0` meter per siklus penuh. |
 | Van Hooren B, dkk. *The Relationship Between Running Biomechanics and Running Economy: A Systematic Review and Meta-Analysis of Observational Studies.* Sports Med 54(5), 2024. | Kontak singkat & fleksi lutut swing yang efisien menandai lari ekonomis → puncak lutut di awal swing, bukan tengah. |
-| [Physio-pedia: Running Biomechanics](https://www.physio-pedia.com/Running_Biomechanics) | Fase *double float* (kedua kaki melayang) membedakan lari dari jalan → hop vertikal saat flight. |
+| [Physio-pedia: Running Biomechanics](https://www.physio-pedia.com/Running_Biomechanics) | Fase *double float* (kedua kaki melayang) membedakan lari dari jalan → busur vertikal saat flight. |
 | [The Movement System: Biomechanics of Running](https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form) | Siku ±90° digerakkan ke belakang; kadens nyaman 155–160 langkah/menit → elbowFlex lari 1,57 rad & ayun lengan berlawanan kaki. |
 | Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. *Understanding the key phases of the countermovement jump force-time curve.* Strength Cond J 40(4):96–106, 2018. | Enam fase CMJ → mesin `jumpState` (dip, propulsion, flight, landing). |
 | Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. *Why is countermovement jump height greater than squat jump height?* Med Sci Sports Exerc 28(11):1402–1412, 1996. | Alasan memakai countermovement (dip) sebelum take-off, bukan squat jump langsung. |
