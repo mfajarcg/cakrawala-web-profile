@@ -3,16 +3,16 @@ import { jumpTo } from '../journey/jump'
 import { useI18n } from '../lib/i18n'
 import { Panel } from './Panel'
 
-const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-black.svg`
+const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-white.svg`
 
 export function Hero() {
   const { t } = useI18n()
   const jump = (id: string) => jumpTo(id)
 
   return (
-    <Panel id="hero" center>
+    <Panel id="hero">
       <div className="flex flex-col items-center text-center">
-        {/* brand rule: the black mark always sits on a pure white field */}
+        {/* brand rule: cakrawala-white.svg is the black mark, so it sits on a pure white field */}
         <div className="mb-5 rounded-2xl border border-[#101418]/10 bg-white p-3 shadow-[0_0.75rem_2rem_rgba(16,20,24,0.1)]">
           <img src={LOGO} alt="Cakrawala logo" className="h-20 w-20 sm:h-24 sm:w-24" />
         </div>

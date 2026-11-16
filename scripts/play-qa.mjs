@@ -39,7 +39,7 @@ const afterWheel = await page.evaluate(() => {
 })
 console.log('wheel snap', { before, ...afterWheel, delta: afterWheel.scrollY - afterWheel.top })
 
-// --- services panel is wide enough for 3 columns
+// --- services columns are adaptive (2 in the 46% pane at 1440, 3 when card >= 40rem)
 await clickNav('Layanan')
 await page.waitForTimeout(3600)
 const cols = await page.evaluate(() => {

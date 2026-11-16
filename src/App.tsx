@@ -7,7 +7,6 @@ import { Market } from './blocks/Market'
 import { Nav } from './blocks/Nav'
 import { Numbers } from './blocks/Numbers'
 import { PlayMoment } from './blocks/PlayMoment'
-import { PovButton } from './blocks/PovButton'
 import { Services } from './blocks/Services'
 import { Signature } from './blocks/Signature'
 import { Story } from './blocks/Story'
@@ -29,12 +28,11 @@ export default function App() {
       <World />
       <div
         aria-hidden={inGame}
-        className={`transition-opacity duration-300 ${
+        className={`relative z-10 transition-opacity duration-300 md:w-[46%] ${
           inGame ? 'pointer-events-none opacity-0' : 'opacity-100'
         }`}
       >
         <Nav />
-        <PovButton />
         <main className="relative">
           <Hero />
           <Story />

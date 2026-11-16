@@ -112,6 +112,7 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ World.tsx             # Canvas, kamera, ground, path ribbon, scene swap
 │  │  ├─ path.ts               # CatmullRomCurve3 dari STATIONS
 │  │  ├─ Character.tsx         # driver gerak + rig FBX + gait prosedural + blob shadow
+│  │  ├─ runLoop.ts            # bentuk kurva lutut/siku lari dari loop referensi Sketchfab
 │  │  ├─ Stations.tsx          # prop voxel tiap stasiun + pohon
 │  │  └─ shared.ts             # characterPos/characterYaw/gait + cadenceFor()
 │  ├─ game/
@@ -128,13 +129,16 @@ Canvas (fixed, React Three Fiber)
 │  └─ content/id.json, en.json # seluruh copy + data nyata, satu sumber per bahasa
 ├─ scripts/
 │  ├─ shot.mjs                 # screenshot 5 viewport → shots/
+│  ├─ layout-qa.mjs            # uji split kiri/kanan, rail, PiP drag/expand/persist, breakpoint
 │  ├─ verify2.mjs              # uji gait, wheel-up, jump/break, persistensi
 │  ├─ play-qa.mjs              # uji snap, kolom services, pause/hapus/resume, Esc dua tahap
 │  ├─ jump-qa.mjs              # uji CMJ per fase + tribute + overflow 390
 │  ├─ meaning-qa.mjs           # uji loop falsafah tumpukan blok
 │  ├─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
 │  ├─ mobile-play-qa.mjs       # uji kontrol Play sentuh: tap-aim, place/break, HUD bebas overlap
-│  └─ andrew-qa.mjs            # potret likeness (depan/samping/kepala/top-down) + 390 sentuh
+│  ├─ gait-qa.mjs              # 10 pose beku lari + 3 jalan (kamera samping) + live run
+│  ├─ sk-loop-extract.mjs      # sampel loop lari Sketchfab via Viewer API → matriks tulang
+│  └─ sk-loop-gen.mjs          # regenerasi runLoop.ts dari matriks hasil extract
 └─ PLAN.md                     # rencana produk & catatan data
 ```
 
@@ -145,14 +149,19 @@ Canvas (fixed, React Three Fiber)
 ### 4.1 `App.tsx` — dua dunia, satu state
 
 - `<JourneyController />` dan `<World />` selalu ter-mount.
-- 11 blok DOM dibungkus `<div aria-hidden={inGame}>`; saat mode game, div diberi
-  `opacity-0 pointer-events-none` sehingga canvas mengambil alih.
+- 11 blok DOM dibungkus `<div aria-hidden={inGame}>` ber-`relative z-10 md:w-[46%]`; saat mode
+  game, div diberi `opacity-0 pointer-events-none` sehingga canvas mengambil alih. Karena
+  pointer-events diwariskan, section TIDAK boleh menyetel `pointer-events-auto` sendiri —
+  bila tidak, konten tak terlihat (opacity-0) tetap menelan tap di mode game.
+- Layout split: kolom substansi kiri 46%, pane 3D kanan 54% (desktop ≥768px); di mobile
+  konten lebar penuh dan dunia 3D melayang sebagai jendela PiP yang bisa digeser/diperbesar.
 - Yang benar-benar berganti antar-mode hanya kamera (`CameraRig` ↔ `GameScene`) dan HUD;
   dunia, karakter, dan blok arena tetap dirender dari scene yang sama.
 - `<GameHud />` hanya dirender saat `mode === 'game'`; `<GameFade />` selalu ada sebagai cover.
-- Aturan brand: marka hitam `logo/cakrawala-black.svg` di Hero dan Footer selalu duduk di atas
+- Aturan brand: marka hitam `logo/cakrawala-white.svg` di Hero dan Footer selalu duduk di atas
   plat `bg-white` rounded-2xl (border `#101418]/10` + shadow lembut), bukan langsung di atas
-  kertas situs atau panel gelap — SVG-nya berlatar transparan.
+  kertas situs atau panel gelap — SVG-nya berlatar transparan. (`cakrawala-black.svg` adalah
+  marka putih untuk latar gelap.)
 
 ### 4.2 `JourneyController` — checkpoint snapping
 
@@ -188,7 +197,7 @@ titik fokus kamera.
 |---|---|
 | `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Ground + grid + path + stasiun + arena + karakter selalu ada; kamera berganti sesuai mode. Mode situs: `OrthographicCamera` (16,16,16) + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
 | `path.ts` | `CatmullRomCurve3(STATIONS, closed=false, 'catmullrom', tension=0.15)`, di-cache. `getPointAt` / `getTangentAt` untuk posisi & arah hadap. |
-| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `AndrewVisual` (FBX, bone posing, bob pelvis, blob shadow, likeness Andrew Ryan Sinaga: palet vertex + aksesori ter-parent ke bone). |
+| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `EricVisual` (FBX + tekstur asli, bone posing, bob pelvis, blob shadow). |
 | `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
 | `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
 | `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, moving, lift}` dan `cadenceFor()` — dipakai bersama situs dan game. |
@@ -287,9 +296,9 @@ progress += velocity × turnBrake × dt
 
 | Parameter | Nilai | Alasan |
 |---|---|---|
-| `MAX_SPEED` | 0,085 progress/s | ±11,8 s untuk seluruh path — cukup cepat untuk navigasi, cukup lambat agar gait terbaca |
-| `ACCELERATION` | 0,6 progress/s² | start/stop terasa berbobot |
-| `RUN_SPEED` | 10,5 unit dunia/s | ambang “lari penuh” untuk normalisasi gait |
+| `JOURNEY_SPEED` | 3,4 unit dunia/s (`maxSpeed = JOURNEY_SPEED / pathLength`) | hop antar checkpoint terasa seperti lari pendek, bukan teleport |
+| `JOURNEY_ACCEL` | 2,0 unit dunia/s² | start/stop terasa berbobot |
+| `RUN_SPEED` | 4,4 unit dunia/s | ambang “lari penuh” untuk normalisasi gait (sama dengan game) |
 | `TURN_RATE` | 9 rad/s (damped) | badan berbalik tanpa patah |
 | Cut | `\|jump\| > 0,16` | lompatan nav/scrollbar memotong langsung, bukan diseret berjalan |
 | `turnBrake` | `yawErr > 0,35 rad` → melambat sampai 0 | berbalik 180° = berhenti dulu, lalu jalan |
@@ -298,24 +307,26 @@ progress += velocity × turnBrake × dt
 
 Driver hanya menulis `gait.phase`, `speedNorm`, `moving`, dan `lift`; rig FBX dipose tiap frame.
 
-**Cadence dikunci ke jarak tempuh** (menghilangkan kaki selip):
+**Cadence dikunci ke jarak tempuh** (menghilangkan kaki selip). Stride adalah panjang satu
+siklus penuh (dua langkah), dan `phase` maju `2π` per siklus — pasangan yang konsisten:
 
 ```
-stride  = STRIDE_WALK + (STRIDE_RUN − STRIDE_WALK) × speedNorm   // 1,6 → 3,4 unit
-cadence = clamp(worldSpeed / stride, 0,2 … 3,3)                  // siklus/s
+stride  = STRIDE_WALK + (STRIDE_RUN − STRIDE_WALK) × speedNorm   // 1,5 → 3,0 m per siklus
+cadence = clamp(worldSpeed / stride, 0,2 … 1,9)                  // siklus/s
 phase  += cadence × 2π × dt
 ```
 
 | Parameter gait | Idle/walk → run | Padanan |
 |---|---|---|
 | Fase stance | 62% → 40% siklus | jalan ±60% stance, lari ±40% stance |
-| Knee saat stance | 0,32 → 0,50 rad | loading response lalu ekstensi push-off |
-| Puncak knee saat swing | 1,05 → 2,05 rad | ±60° jalan, ±117° lari |
-| Amplitudo hip | 0,30 → 0,62 rad | total ayun paha ≈34° → 71° |
-| Ayun lengan | 0,10 → 0,72 rad (berlawanan fase kaki) | makin cepat = makin lebar |
-| Fleksi siku | 0,22 → 1,50 rad (kuadratik) | siku terlipat saat lari |
-| Lean badan | 0 → 0,32 rad (kuadratik) | condong depan saat lari |
-| Flight lift | 0,025 × speedNorm | fase terbang saat kedua kaki tidak menapak |
+| Hip contact → toe-off | +0,52 → −0,17 rad (jalan), +0,70 → −0,35 rad (lari) | ayun paha sagittal penuh |
+| Puncak knee saat swing | 1,05 → 2,09 rad, puncak di awal swing | ±60° jalan, ±120° lari |
+| Knee stance (loading → push) | 0,09 → 0,26 rad (jalan), 0,26 → 0,78 rad (lari) | loading response lalu ekstensi push-off |
+| Ankle push-off | −0,35 → −0,44 rad plantar fleksi | tolakan jari kaki saat toe-off |
+| Ayun lengan | berlawanan fase kaki × lerp(0,35; 0,65) | makin cepat = makin lebar |
+| Fleksi siku | 0,22 → 1,57 rad (kuadratik) | siku ±90° saat lari |
+| Lean badan | 0,04·sn + 0,22·sn² | condong depan saat lari |
+| Flight hop | sin(π·prog) × lerp(0,015; 0,07) | double float: kedua kaki melayang saat lari |
 
 **Tinggi badan mengikuti kaki penopang**, bukan konstanta:
 
@@ -323,7 +334,7 @@ phase  += cadence × 2π × dt
 reach(hip, knee) = L_THIGH·cos(hip) + L_SHIN·cos(hip + knee)
 support          = max(reach kaki stance); bila flight → HIP_HEIGHT − ANKLE_TO_SOLE
 soleGap          = HIP_HEIGHT − ANKLE_TO_SOLE − support
-bodyY            = −soleGap + lift
+bodyY            = −soleGap + lift + hop
 ```
 
 `L_THIGH = 0,42`, `L_SHIN = 0,422`, `HIP_HEIGHT = 0,969`, `ANKLE_TO_SOLE = 0,127` (meter).
@@ -384,7 +395,7 @@ Semua aturan makna adalah fungsi murni di `src/game/meaning.ts`:
 
 Lompat bukan sekadar translasi naik: rig memainkan empat fase sesuai kurva force-time CMJ
 (Owen et al. 2018): **braking dip → propulsion → flight → landing absorption**. State mesin
-(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `AndrewVisual` mem-blend pose lompat di
+(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `EricVisual` mem-blend pose lompat di
 atas stride dengan damp eksponensial (λ = 16 pose, λ = 12 bobot).
 
 | Fase | Durasi | Hip | Lutut | Lengan | Sumber |
@@ -407,28 +418,50 @@ Rumus fisika lompat ( projectile / flight-time / impulse–momentum ):
 | `J = ∫F dt = m·Δv` | dasar take-off & absorpsi mendarat | Linthorne 2001; McGinnis 2013 |
 | `v += −g·dt; y += v·dt` | semi-implicit Euler, `g = 24` arcade | integrasi numerik standar |
 
-#### Likeness Andrew Ryan Sinaga
+#### Gait lari & jalan (`jointAt`)
 
-Karakter di journey maupun Play adalah **Andrew Ryan Sinaga, Managing Director PT Cartenz**, mengikuti
-foto arsip perusahaan. Scan FBX hanya punya satu atlas diffuse untuk seluruh tubuh, jadi
-likeness dibangun tanpa texture baru:
+Karakter memakai scan asli **Eric Rigged 001** (tekstur diffuse + normal bawaan). Kurva sendi
+per fase siklus normalised `u` (0 = heel strike) ditulis `jointAt(u, speedNorm)` dan
+di-interpolasi jalan→lari:
 
-- **Palet vertex** (`paintAndrew`): warna per vertex dari *dominant skin weight* (sepatu,
-  celana, kemeja, kulit lengan/kepala) plus mask spasial wajah dalam ruang rest meter —
-  garis rambut, mata, senyum melengkung + gigi, stubble halus. Kemeja putih menggantikan
-  vest/tie scan; lengan bawah kulit terbuka (lengan digulung).
-- **Bedah vertex ringan**: ridge tie ditekan rata ke permukaan dada (`chestX`), dan kerah
-  spread scan dilipat turun menjadi band collar mandarin (clamp radius + tinggi).
-- **Aksesori rigid ter-parent ke bone** (`attachAndrew`): kacamata persegi hitam (rim +
-  lensa tinted + temple) di `head`, smartwatch hitam (strap torus + face emissive) di
-  `hand_l`, cuff gulungan lengan di kedua `lowerarm`. Transform lokal dihitung sekali di
-  ruang rest sehingga gait/CMJ membawa aksesori tanpa update per frame.
-- **Satuan**: ruang bone FBX berskala sentimeter; semua offset/geometry ditulis dalam meter
-  lalu dikali 100 saat di-attach (`S100`), dan mask wajah dibagi 100 saat dibaca. Aksesori
-  di-tag `userData.andrew` agar remount StrictMode mengganti, bukan menumpuk.
+| Sendi | Jalan (`speedNorm` 0) | Lari (`speedNorm` 1) | Sumber |
+|---|---|---|---|
+| Stance fraction | 0,62 | 0,40 | Perry 2010; Novacheck 1998 |
+| Hip saat contact → toe-off | +0,52 → −0,17 rad | +0,70 → −0,35 rad | Novacheck 1998 |
+| Hip drive swing (puncak s≈0,5) | 0,10 rad | 0,78 rad (≈45°) | Novacheck 1998 |
+| Lutut stance (loading → push) | 0,09 → 0,26 rad | 0,26 → 0,78 rad | Perry 2010 |
+| Lutut swing (puncak awal swing) | 1,05 rad (≈60°) | 2,09 rad (≈120°); bentuk kurva lari dari loop referensi 20-key | Novacheck 1998; Van Hooren 2024; Almaral (Sketchfab) |
+| Ankle (dorsifleksi → plantar push-off) | 0 → −0,35 rad | 0,05 → −0,44 rad | Perry 2010; Novacheck 1998 |
+| Siku | 0,22 rad | 1,57 rad (≈90°) | The Movement System 2025 |
+| Lean badan | 0,04·sn | 0,22·sn² + 0,04·sn | Novacheck 1998 |
 
-QA: `scripts/andrew-qa.mjs` (potret depan/samping/kepala dari kamera beku saat pause,
-top-down berjalan untuk verifikasi arah hadap, plus 390×844 sentuh).
+Ayun lengan **berlawanan fase kaki** (`armSwing = hip·lerp(0,35; 0,65)`), dan fase flight
+(selang dua kaki melayang, ciri lari vs jalan menurut Physio-pedia) diberi hop vertikal
+`sin(π·flightProg)·lerp(0,015; 0,07)` supaya lari tidak terlihat seperti jalan cepat.
+
+**Bentuk kurva lari dari referensi (`runLoop.ts`):** bentuk fleksi lutut & siku saat lari
+di-retarget dari loop lari 20-frame *"Male Running (20 frames loop)"* karya **Denys Almaral**
+(Sketchfab, Free Standard). Loop 0,667 s @30fps disampel lewat Sketchfab Viewer API
+(`scripts/sk-loop-extract.mjs`); lutut (bip L Calf) dan siku (bip L Forearm) adalah hinge
+satu-sumbu bersih, sehingga rotasi Z lokalnya memberi kurva fleksi autentik — loading-response
+bump di stance dan lipatan swing asimetris, bukan sinus murni. Kurva dinormalisasi 0..1,
+dirotasi agar index 0 = heel strike, di-interpolasi **Catmull-Rom periodik**, lalu dipetakan
+ke rentang sendi Eric (`scripts/sk-loop-gen.mjs` untuk regenerasi). Amplitudo tetap milik Eric
+agar solver `reach()` menjaga telapak stance di tanah; bentuk referensi diblend masuk lewat
+`speedNorm` sehingga jalan tetap memakai kurva analitik. Siku lari menambah osilasi ±11°
+di sekitar hold 90°, berfase terhadap kaki masing-masing.
+
+**Kadens & stride:** `STRIDE_WALK 1,5 m` / `STRIDE_RUN 3,0 m` adalah panjang **satu siklus
+penuh (dua langkah)**, sedangkan `gait.phase` maju `2π` per siklus — pasangan yang konsisten
+membuat kaki stance menyapu tanah tepat sejauh jarak yang ditempuh (bebas foot-slide).
+`cadenceFor = clamp(v/stride, 0,2, 1,9)` siklus/s → ±128 langkah/menit jalan (1,6 m/s) dan
+±176 langkah/menit lari (4,4 m/s); batas 1,9 siklus/s mengikuti plateau frekuensi langkah
+Weyand 2000. Kecepatan dunia sengaja manusiawi terhadap panjang kaki ±0,85 m.
+
+QA: `scripts/gait-qa.mjs` memotret 10 pose beku lari + 3 jalan dari kamera samping. Karena
+path pause `GameScene` menulis `gait.moving = 0` tiap frame, harness **mem-pin field `gait`
+lewat accessor property** (getter membaca nilai beku, setter mengabaikan tulisan sim) selama
+potret, lalu memulihkan property data sebelum live run.
 
 #### Kerangka rotasi pose rig
 
@@ -460,9 +493,19 @@ terukur 45–63°. QA memakai freeze in-page per fase (`jumpState`/`vy`/`landT`)
 
 - `html { font-size: clamp(14px, 0.45vw + 9px, 26px) }` → 390 px = 14 px, 1440 px ≈ 15,5 px,
   3840 px = 26 px.
-- Card normal `min(92vw, 36rem)`; card lebar (Services) `min(94vw, 58rem)` dengan
-  `lg:grid-cols-3` → satu baris muat tiga layanan.
+- Layout split (≥768px): wrapper konten `md:w-[46%]`, pane 3D `fixed` menempati 54% kanan
+  (`left:46%`, tinggi penuh). Card di dalam kolom `w-full`; grid layanan memakai container
+  query (`@container` pada card, `@[40rem]:grid-cols-3`) sehingga jumlah kolom mengikuti
+  lebar kolom, bukan lebar viewport. Di mobile kolom lebar penuh dan card tetap `w-full`.
+- Card dipadatkan agar selalu muat di bawah nav tetap: tinggi card < tinggi viewport − nav,
+  sehingga snapping tengah tidak menyembunyikan judul di balik nav (Services dua kolom di
+  mobile, tiga kolom hanya bila kolom ≥40rem).
 - Setiap section `min-h-[110vh]` supaya karakter selalu punya ruang berhenti di tengah card.
+- PiP mobile: lebar `min(46vw,210px)` (diperbesar `min(86vw,400px)`), tinggi ≈1.18× lebar,
+  posisi + status diperbesar disimpan di `cakrawala-pip-v1`; drag memakai pointer capture
+  dan clamp ke viewport; `data-pip` membuat JourneyController mengabaikan gesture di atasnya.
+- Zoom kamera ortho `clamp(min(paneW,paneH)/10, 24, 96)` menjaga karakter tetap menonjol
+  baik di pane 54% maupun jendela PiP kecil.
 - Canvas `dpr={[1, 2]}` membatasi biaya piksel di layar 4K.
 
 ### 6.8 Referensi perhitungan gerak
@@ -474,8 +517,11 @@ variabel `speedNorm` (0–1) untuk menghasilkan gerak yang plausibel dan bebas f
 |---|---|
 | Perry J, Burnfield JM. *Gait Analysis: Normal and Pathological Function*, 2nd ed. Slack, 2010. | Pembagian stance/swing berjalan (±60/40) dan puncak fleksi lutut saat swing (±60°). |
 | Novacheck TF. *The biomechanics of running.* Gait & Posture 7(1):77–95, 1998. | Fase stance lari (±40%), swing lebih panjang, fleksi lutut swing dalam (±100–120°), lean badan. |
-| Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. *Faster top running speeds are achieved with greater ground forces not more rapid leg movements.* J Appl Physiol 89(5):1991–1999, 2000. | Frekuensi langkah cenderung mendatar; kecepatan lebih ditentukan panjang langkah → cadence dibatasi `MAX_CADENCE = 3,3` siklus/s. |
-| Cavanagh PR, Kram R. *Stride length in distance running: velocity, body dimensions, and added mass effects.* Med Sci Sports Exerc 21(4):467–479, 1989. | Panjang stride naik terhadap kecepatan → interpolasi `STRIDE_WALK 1,6` → `STRIDE_RUN 3,4`. |
+| Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. *Faster top running speeds are achieved with greater ground forces not more rapid leg movements.* J Appl Physiol 89(5):1991–1999, 2000. | Frekuensi langkah cenderung mendatar; kecepatan lebih ditentukan panjang langkah → cadence dibatasi `MAX_CADENCE = 1,9` siklus/s (±228 langkah/menit). |
+| Cavanagh PR, Kram R. *Stride length in distance running: velocity, body dimensions, and added mass effects.* Med Sci Sports Exerc 21(4):467–479, 1989. | Panjang stride naik terhadap kecepatan → interpolasi `STRIDE_WALK 1,5` → `STRIDE_RUN 3,0` meter per siklus penuh. |
+| Van Hooren B, dkk. *The Relationship Between Running Biomechanics and Running Economy: A Systematic Review and Meta-Analysis of Observational Studies.* Sports Med 54(5), 2024. | Kontak singkat & fleksi lutut swing yang efisien menandai lari ekonomis → puncak lutut di awal swing, bukan tengah. |
+| [Physio-pedia: Running Biomechanics](https://www.physio-pedia.com/Running_Biomechanics) | Fase *double float* (kedua kaki melayang) membedakan lari dari jalan → hop vertikal saat flight. |
+| [The Movement System: Biomechanics of Running](https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form) | Siku ±90° digerakkan ke belakang; kadens nyaman 155–160 langkah/menit → elbowFlex lari 1,57 rad & ayun lengan berlawanan kaki. |
 | Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. *Understanding the key phases of the countermovement jump force-time curve.* Strength Cond J 40(4):96–106, 2018. | Enam fase CMJ → mesin `jumpState` (dip, propulsion, flight, landing). |
 | Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. *Why is countermovement jump height greater than squat jump height?* Med Sci Sports Exerc 28(11):1402–1412, 1996. | Alasan memakai countermovement (dip) sebelum take-off, bukan squat jump langsung. |
 | Komi PV, Bosco C. *Utilization of stored elastic energy in leg extensor muscles by men and women.* Med Sci Sports Exerc 10(4):261–265, 1978. | Energi elastis fase braking → dip singkat 0,22 s lalu explode. |
@@ -541,6 +587,7 @@ Catatan kejujuran data:
 | `cakrawala-audio-v1` | `'off'` bila mute, `'on'` bila aktif (absen = aktif) | `src/game/audio.ts` |
 | `cakrawala-hud-deck-v1` | `'closed'` bila Control Deck dilipat | `src/game/GameHud.tsx` |
 | `cakrawala-lang` | `"id"` atau `"en"` | `src/lib/i18n.tsx` |
+| `cakrawala-pip-v1` | `{ x, y, expanded }` — posisi & status jendela 3D mobile | `src/three/World.tsx` |
 
 Tidak ada backend, analytics, atau cookie. Form kontak membuka aplikasi email pengunjung
 (`mailto:`), sehingga tidak ada data yang dikirim ke server.
@@ -581,17 +628,19 @@ server di `http://localhost:5199/cakrawala-web-profile/`. Screenshot ditulis ke 
 
 ```bash
 node scripts/shot.mjs       # 5 viewport: 390 / 1440 / 1920 / 2560 / 3840
+node scripts/layout-qa.mjs  # split 46/54, rail 11 titik, PiP drag/clamp/expand/persist, swipe vs PiP
 node scripts/verify2.mjs    # gait + shadow, wheel-up snap, jump/break, persistensi reload
 node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, Esc dua tahap
-node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/8/10, overflow 390
+node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/11/11, overflow 390
 node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute
 node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
 node scripts/mobile-play-qa.mjs # kontrol Play sentuh: tanpa lock, tap-aim, place/break, HUD bebas overlap
-node scripts/andrew-qa.mjs  # potret likeness Andrew + verifikasi arah hadap top-down + 390 sentuh
+node scripts/gait-qa.mjs    # 10 pose beku lari + 3 jalan dari kamera samping + live run
 ```
 
-Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, `grid-template-columns`
-services = 3, Pointer Lock aktif, blok bertambah setelah klik kanan, **Esc pertama membuka
+Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, kolom services
+adaptif (2 di kolom 46% pada 1440, 3 bila kolom ≥40rem), Pointer Lock aktif, blok bertambah
+setelah klik kanan, **Esc pertama membuka
 dialog jeda** (bukan keluar), **Batal** dan **Ya, hapus** berperilaku sesuai konfirmasi,
 **Lanjutkan** mengunci pointer kembali, dan **Esc kedua** mengembalikan `scrollY` ke stasiun
 Play tanpa kehilangan blok. `verify2.mjs` juga menekan Esc dua kali untuk memastikan alur jeda
@@ -624,8 +673,8 @@ keluar layar, dan Keluar mengembalikan journey dengan build tersimpan.
 | Zustand, Lenis, GSAP | MIT |
 | Lucide | ISC |
 | Playwright-core | Apache-2.0 |
-| Rig dasar “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
-| Likeness Andrew Ryan Sinaga (foto arsip PT Cartenz) + palet vertex & aksesori prosedural | Milik PT Cartenz Technology Indonesia |
+| Rig + tekstur “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
+| Loop lari referensi “Male Running (20 frames loop)” — Denys Almaral (Sketchfab) | **Free Standard** (bentuk kurva sendi, bukan aset yang dibundel) |
 | Logo Cakrawala, screenshot, dan data proyek | Milik PT Cartenz Technology Indonesia |
 | Logo mitra/kementerian | Milik masing-masing pemegang merek |
 
@@ -640,6 +689,8 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 | [cartenz.co.id](https://cartenz.co.id) | Posisi Cakrawala, alamat, kanal kontak. |
 | Perry & Burnfield 2010; Novacheck 1998 | Rumus/fase gerak **lari** (stance/swing, fleksi lutut, lean). |
 | Weyand et al. 2000; Cavanagh & Kram 1989 | Cadence & panjang stride gerak **lari**. |
+| Van Hooren et al. 2024; Physio-pedia; The Movement System | Bentuk kurva lutut swing, fase double float, siku 90° & kadens lari. |
+| [Denys Almaral — Male Running (20 frames loop)](https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd) | **Bentuk** kurva fleksi lutut & siku lari (runLoop.ts), disampel via Viewer API. |
 | Owen et al. 2018; Bobbert et al. 1996; Komi & Bosco 1978 | Fase & alasan countermovement gerak **lompat**. |
 | Harman et al. 1990; Lees et al. 2004 | Kontribusi arm swing gerak **lompat**. |
 | McHugh et al. 2024; Petushek 2011 | Kedalaman dip & absorpsi lutut mendarat. |
@@ -648,9 +699,8 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 > **Catatan lisensi model:** “Eric Rigged 001” dirilis dengan *Personal Use License*, bukan
 > lisensi komersial. Untuk penggunaan komersial jangka panjang, karakter ini sebaiknya diganti
 > dengan model berlisensi komersial (atau model internal Cartenz). Detail tercatat juga di
-> Footer → Tribute & Atribusi, bersama library lain yang dipakai. Likeness wajah/gaya
-> mengikuti foto arsip PT Cartenz (Andrew Ryan Sinaga, Managing Director) dan dibangun
-> prosedural di atas rig; rig dasarnya tetap berlisensi Personal Use.
+> Footer → Tribute & Atribusi, bersama library lain yang dipakai. Karakter dipakai apa adanya
+> dari scan (tekstur diffuse + normal bawaan); seluruh gerak dibangun prosedural di atas rig.
 
 Daftar tribute di UI bersifat wajib: setiap penambahan atau penghapusan aset/library harus
 disertai pembaruan teks `footer.tribute` di `src/content/id.json` dan `en.json`.

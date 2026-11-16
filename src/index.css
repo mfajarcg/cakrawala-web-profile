@@ -1,6 +1,18 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
+/* the substance column carries its own light, palette-derived field so the
+   split layout reads as two deliberate halves instead of text over void */
+body {
+  background: #e9eff3;
+}
+.journey-col {
+  background:
+    radial-gradient(42rem 26rem at -6% 0%, rgba(242, 178, 60, 0.09), transparent 62%),
+    radial-gradient(38rem 28rem at 106% 100%, rgba(64, 143, 180, 0.12), transparent 60%),
+    linear-gradient(180deg, #f4f7f9 0%, #e9eff3 100%);
+}
+
 /* physical-looking keycaps for the in-game control deck */
 .keycap {
   display: inline-flex;

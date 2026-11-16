@@ -8,11 +8,11 @@ page.on('pageerror', e => errors.push(String(e)))
 await page.goto('http://localhost:5199/cakrawala-web-profile/', { waitUntil: 'networkidle' })
 await page.waitForTimeout(2600)
 const cdp = await ctx.newCDPSession(page)
-const swipe = async (fromY, toY, steps = 12) => {
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 195, y: fromY }] })
+const swipe = async (fromY, toY, steps = 12, x = 195) => {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: fromY }] })
   for (let i = 1; i <= steps; i++) {
     const y = fromY + ((toY - fromY) * i) / steps
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 195, y }] })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] })
     await page.waitForTimeout(16)
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
@@ -44,7 +44,8 @@ s = await state()
 expect('swipe up returns to station 1', s.nearest === 1 && s.dist < 32, s)
 
 // long fast swipe spanning several stations lands locked on a checkpoint, never behind start
-await swipe(780, 60, 8)
+// (x=120: a clear content lane — the bottom-right corner is the draggable PiP surface)
+await swipe(780, 60, 8, 120)
 await page.waitForTimeout(3600)
 s = await state()
 expect('long swipe lands locked ahead', s.dist < 32 && s.nearest >= 2, s)

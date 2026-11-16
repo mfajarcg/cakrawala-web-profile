@@ -57,6 +57,27 @@ function Tree({ position, scale = 1 }: { position: [number, number, number]; sca
   )
 }
 
+function Rock({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  return (
+    <mesh position={position} scale={scale} rotation={[0.3, position[0] % 3, 0.2]}>
+      <icosahedronGeometry args={[0.5, 0]} />
+      <meshStandardMaterial color="#b9c7cf" flatShading />
+    </mesh>
+  )
+}
+
+function Lamp({ position }: { position: [number, number, number] }) {
+  return (
+    <group position={position}>
+      <Cylinder args={[0.05, 0.07, 2.5, 6]} position={[0, 1.25, 0]} color={INK} />
+      <mesh position={[0, 2.6, 0]}>
+        <sphereGeometry args={[0.16, 10, 8]} />
+        <meshStandardMaterial color={WARM} emissive={WARM} emissiveIntensity={1.4} flatShading />
+      </mesh>
+    </group>
+  )
+}
+
 function StationProp({ id }: { id: StationId }) {
   switch (id) {
     case 'hero':
@@ -225,6 +246,17 @@ export function Stations() {
           scale={0.8 + (i % 3) * 0.25}
         />
       ))}
+      {/* wayside scenery lining the walkway so every checkpoint view has
+          foreground interest: lamps glow warm, rocks and trees break the grid */}
+      {Array.from({ length: 26 }, (_, i) => {
+        const x = i * 5.2 + 3
+        const side = i % 2 === 0 ? 1 : -1
+        const kind = i % 4
+        if (kind === 0) return <Lamp key={`w${i}`} position={[x, 0, side * 4.4]} />
+        if (kind === 1) return <Rock key={`w${i}`} position={[x, 0.2, side * 5.6]} scale={0.7 + (i % 3) * 0.3} />
+        if (kind === 2) return <Tree key={`w${i}`} position={[x, 0, side * 6.6]} scale={0.7 + (i % 3) * 0.22} />
+        return <Lamp key={`w${i}`} position={[x, 0, side * 4.4]} />
+      })}
     </group>
   )
 }

@@ -8,8 +8,8 @@ import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } 
 
 const ORIGIN = ARENA_ORIGIN
 
-const WALK_SPEED = 3.6
-const RUN_SPEED = 7.4
+const WALK_SPEED = 1.6
+const RUN_SPEED = 4.4
 const ACCELERATION = 16
 const GRAVITY = 24
 const JUMP_SPEED = 7.6
@@ -77,7 +77,7 @@ export function GameScene() {
   useEffect(() => {
     if (!import.meta.env.DEV) return
     const w = window as unknown as Record<string, unknown>
-    w.__gameDebug = { player, camera, raycaster }
+    w.__gameDebug = { player, camera, raycaster, gait, characterPos }
     return () => {
       delete w.__gameDebug
     }

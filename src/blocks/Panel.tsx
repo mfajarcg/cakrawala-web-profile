@@ -2,37 +2,20 @@ import type { ReactNode } from 'react'
 import { STATIONS, type StationId } from '../journey/stations'
 
 /**
- * One journey etape: a tall scroll section with a floating content card.
- * The fixed 3D world stays behind; the card alternates left/right.
+ * One journey etape in the left substance column. On desktop the column owns
+ * 46% of the screen and the 3D world the rest; on mobile the card is full
+ * width and the world floats in a draggable PiP window.
  */
-export function Panel({
-  id,
-  center = false,
-  wide = false,
-  children,
-}: {
-  id: StationId
-  center?: boolean
-  wide?: boolean
-  children: ReactNode
-}) {
+export function Panel({ id, children }: { id: StationId; children: ReactNode }) {
   const station = STATIONS.find((s) => s.id === id)!
-  const sideClass = center
-    ? 'justify-center'
-    : station.side === 'left'
-      ? 'justify-start'
-      : 'justify-end'
-  const widthClass = wide ? 'w-[min(94vw,58rem)]' : 'w-[min(92vw,36rem)]'
 
   return (
     <section
       id={id}
       data-station={station.index}
-      className={`flex min-h-[110vh] w-full items-center px-[4vw] ${sideClass}`}
+      className="journey-col flex min-h-[110vh] w-full items-center justify-center px-[4vw] md:justify-start md:px-[3vw]"
     >
-      <div
-        className={`relative ${widthClass} rounded-2xl border border-black/5 bg-white/90 p-6 shadow-[0_1.5rem_4rem_rgba(16,20,24,0.12)] backdrop-blur-sm sm:p-10`}
-      >
+      <div className="@container relative w-full rounded-2xl border border-black/5 bg-white/95 p-6 shadow-[0_1.5rem_4rem_rgba(16,20,24,0.12)] backdrop-blur-sm sm:p-10">
         <span className="absolute -top-3 left-6 rounded-full bg-[#408fb4] px-3 py-1 text-xs font-bold tracking-widest text-white">
           {String(station.index).padStart(2, '0')} / 11
         </span>

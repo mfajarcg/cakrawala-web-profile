@@ -650,8 +650,8 @@ dibangun sebelum masuk ke arena.
 - `ctaNote` (ID + EN) kini menyebut tujuan secara eksplisit: **Tumpukan Bermakna**,
   lima lapis berurutan dari tanah ke langit (I Fondasi → II Memori → III Karya →
   IV Mutu → V Rawat), hukum fondasi (blok hanya berdiri di atas yang kokoh;
-  mencabut fondasi meruntuhkan yang bertumpu), dan persistensi browser — sambil
-  mempertahankan framing "bermain sebagai Andrew Ryan Sinaga di arena blok isometrik".
+  mencabut fondasi meruntuhkan yang bertumpu), dan persistensi browser — dengan
+  framing "bermain sebagai karakter Eric di arena blok isometrik" (lihat §19).
 - Panel `PlayMoment` menampilkan **ladder target berurutan** (angka Romawi +
   warna blok + nama lapis, urutan `LAYERS`) di bawah keterangan, menggantikan
   chip material yang sebelumnya tidak berurutan. Caption memakai
@@ -663,7 +663,11 @@ Screenshot panel pada 1440×900 dan 390×844: teks terbaca kontras baik, ladder
 satu baris di desktop dan wrap dua baris di ponsel tanpa overflow/clipping.
 `play-qa.mjs` (masuk via CTA, pause/hapus/resume/Esc) hijau, `tsc -b` + `build` bersih.
 
-## 18. Likeness karakter: Andrew Ryan Sinaga (Managing Director Cartenz)
+## 18. Likeness karakter: Andrew Ryan Sinaga (Managing Director Cartenz) — DICABUT, lihat §19
+
+> **Status: tidak berlaku.** Permintaan berikutnya mengembalikan karakter ke scan Eric
+> asli (rig + tekstur bawaan). Seluruh keputusan di bawah dipertahankan hanya sebagai
+> riwayat; kode, copy, tribute, dan QA likeness sudah dihapus pada §19.
 
 Permintaan: jadikan karakter 3D menyerupai foto Andrew Ryan Sinaga — rambut hitam
 pendek, kacamata persegi hitam, kemeja putih kerah band dengan lengan digulung
@@ -710,3 +714,164 @@ berjalan memverifikasi arah hadap = arah gerak (sumbu kamera up = arah gerak);
 di jarak permainan; senyum & rambut terbaca di potret; console error kosong.
 Regresi hijau: `play-qa`, `meaning-qa`, `jump-qa`, `mobile-play-qa`, `touch-qa`,
 `verify2` + `tsc -b` + `build`.
+
+## 19. Kembali ke Eric + betulkan lari (sendi normal berbasis riset)
+
+Permintaan: (a) kembalikan karakter menjadi Eric; (b) fokus betulkan cara Eric berlari
+agar sendi-sendinya bergerak normal, dengan referensi riset dari internet.
+
+### 19.1 Revert likeness
+
+- `Character.tsx` dipulihkan ke bentuk pra-likeness: `EricVisual` memakai tekstur
+  diffuse + normal bawaan scan (`MeshStandardMaterial`, roughness 0,78), tanpa palet
+  vertex, bedah vertex, maupun aksesori ter-parent.
+- `scripts/andrew-qa.mjs` dihapus; pengganti `scripts/gait-qa.mjs` (lihat 19.3).
+- Copy `play.ctaNote` ID/EN kembali menyebut "karakter Eric"; item tribute likeness
+  dihapus dan kredit rig kembali bersih ("Model karakter 3D Eric Rigged 001 …
+  Personal Use License"); README subseksi Likeness diganti subseksi gait, tabel
+  lisensi dan catatan model dibersihkan; §18 ditandai dicabut.
+
+### 19.2 Akar masalah lari & perbaikan
+
+Dua bug membuat lari terlihat aneh:
+
+1. **Turnover ganda.** `STRIDE_*` dulu panjang per *langkah*, padahal `gait.phase`
+   maju `2π` per *langkah* juga di driver lama — kombinasi dengan kurva lutut membuat
+   kaki tampak mengayuh dua kali lebih cepat dari jarak yang ditempuh. Kini stride =
+   panjang **siklus penuh (dua langkah)**: `STRIDE_WALK 1,5 m`, `STRIDE_RUN 3,0 m`,
+   dan `phase += cadence·2π·dt` dengan `cadence = v/stride` (clamp 0,2…1,9 siklus/s).
+2. **Kecepatan superhuman.** 7,4–10,5 m/s terhadap kaki ±0,85 m memaksa sapuan stance
+   lebih lebar dari amplitudo sendi → kaki selip. Kini `WALK_SPEED 1,6` /
+   `RUN_SPEED 4,4` m/s di game dan `JOURNEY_SPEED 3,4` m/s di journey → ±128 spm
+   jalan, ±176 spm lari (Novacheck 1998; The Movement System 155–160 spm nyaman).
+
+Kurva sendi baru `jointAt(u, speedNorm)` (satu sumber untuk jalan→lari): stance
+62%→40%; hip contact +0,52→+0,70 rad, toe-off −0,17→−0,35 rad, drive swing puncak
+0,78 rad di tengah swing; lutut stance loading 0,26→0,78 rad lalu push-off; lutut
+swing puncak 1,05→2,09 rad (≈60°→120°) **di awal swing** (`sin(π·s^0,65)^0,9`,
+Van Hooren 2024); ankle dorsifleksi saat contact lalu plantar −0,35→−0,44 rad saat
+toe-off; siku lari 1,57 rad (±90°) dengan ayun lengan berlawanan kaki; lean
+0,04·sn + 0,22·sn²; hop flight `sin(π·prog)·lerp(0,015; 0,07)` menandai double float
+(Physio-pedia). Solver `reach(hip, knee)` tetap menjaga telapak stance di tanah.
+
+Sumber baru masuk tribute grup "Gerak lari" + README §6.8/§9.1: Van Hooren et al.
+2024 (Sports Med 54(5), PMC11127892), Physio-pedia Running Biomechanics, The Movement
+System Biomechanics of Running; angka Weyand/Cavanagh diperbarui ke konstanta baru.
+
+### 19.3 QA gait
+
+`scripts/gait-qa.mjs`: masuk Play → pause → **pin field `gait` lewat accessor
+property** (path pause menulis `gait.moving = 0` tiap frame; getter membaca nilai
+beku, setter mengabaikan) → kamera samping tegak lurus facing → 10 pose beku lari
+(u = 0…0,9) + 3 jalan (sn 0,36) → pulihkan property data → live run Shift+W dua
+potret berjarak 260 ms untuk membuktikan turnover. Hasil visual: contact dengan
+tumit depan + heel recovery belakang, mid-stance lutut memberi, toe-off ekstensi +
+plantar fleksi, swing lutut ±120° terlipat, siku 90°, lean depan; frame walk tenang
+dengan ayun kecil; console error kosong.
+
+## 20. Loop lari 20-keyframe dari referensi Sketchfab
+
+Permintaan: perbaiki animasi berlari memakai sample loop
+https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd
+("Male Running (20 frames loop)" — Denys Almaral, Free Standard).
+
+### 20.1 Ekstraksi data referensi (bukan tebakan)
+
+- Model = satu SkinnedMesh biped 3ds Max (`bip_01 … bip R Toe0`), animasi "Take 001"
+  uid `d93cbbeb…` durasi **0,667 s = 20 frame @30fps** (1,5 siklus/s ≈ 180 langkah/menit).
+- Viewer API resmi hanya mengekspos node representasi (Group/MatrixTransform/Geometry);
+  visitor-nya **melewati Bone**, jadi `getNodeMap`/`getMatrix` tidak menjangkau skeleton.
+  Solusi: baca **scene graph osg asli** in-page (webpack `CUcO` resource singleton →
+  traverse anak sampai `osgAnimation.Bone`), sambil menggerakkan waktu lewat API `seekTo`.
+- Jebakan handshake yang dipecahkan: (a) API baru hanya terdaftar bila URL embed memakai
+  `api_version=1.12.0`; (b) `api.initialize` menuntut `instanceId` yang cocok → set
+  `api_id=cakrawala1`; (c) iframe lintas-origin dengan cookie pihak-ketiga diblokir masuk
+  mode "embed-sandboxed" (viewer tidak start) → pakai **halaman embed langsung**
+  (parent === window) di Playwright headless dengan SwiftShader; (d) hinge lutut/siku
+  berputar tentang **−Z**, sehingga sudut fleksi = magnitudo rotasi (trace-based acos),
+  bukan atan2 bertanda.
+- `scripts/sk-loop-extract.mjs` menulis 20 frame × 32 tulang (local+world) ke JSON;
+  `scripts/sk-loop-gen.mjs` menurunkan kurva ternormalisasi → `src/three/runLoop.ts`.
+
+### 20.2 Retarget ke rig Eric
+
+- Lutut (`bip L Calf`) dan siku (`bip L Forearm`) = hinge satu-sumbu bersih (stabilitas
+  sumbu 1,00) → kurva fleksi autentik. Hip/ankle multi-sumbu + offset rest pose tidak
+  bersih → **tetap kurva analitik Eric** yang sudah terverifikasi (solver reach() aman).
+- Kurva dirotasi agar **frame 6 = heel strike (u=0)**: lutut ±0,07 saat contact, bump
+  loading-response di u≈0,2, ekstensi 0 saat toe-off (u≈0,35), puncak lipatan 1,0 di
+  u≈0,75 — cocok stanceFrac lari 0,40. Interpolasi **Catmull-Rom periodik** (C1 di wrap).
+- `jointAt`: `knee = lerp(kneeAnalitik, kneeRef, speedNorm)` dengan
+  `kneeRef = 0,26 + shape·(2,09−0,26)` — amplitudo tetap Eric, bentuk dari referensi;
+  jalan (sn≈0) tidak berubah. Siku: hold 90° + osilasi ±11° (`ELBOW_SHAPE`) berfase per
+  kaki (`uL`/`uR`), tetap menyatu dengan blend pose lompat.
+- Kredit masuk tribute grup "Gerak lari" (ID+EN), README §6.3/§9 (tabel lisensi + sumber),
+  dan komentar `runLoop.ts`. Aset referensi **tidak dibundel** — hanya bentuk kurva.
+
+### 20.3 QA
+
+`gait-qa` hijau: 10 pose beku lari menunjukkan contact lutut sedikit fleksi, toe-off
+kaki belakang ekstensi, swing lipatan tumit-ke-bokong asimetris + flight; 3 pose jalan
+tetap tenang (referensi tidak bocor ke jalan); live run turnover benar; console kosong.
+`tsc -b` bersih.
+
+## 21. Logo Hero: cakrawala-white.svg di plate putih
+
+Penamaan file logo berbasis **latar**, bukan warna tinta: `cakrawala-white.svg` =
+mark **hitam** untuk latar putih (fill #000000); `cakrawala-black.svg` = mark putih
+untuk latar gelap. Permintaan user: ganti img Hero ke `cakrawala-white.svg`.Karena
+mark-nya hitam, plate harus **putih** (brand rule "black mark on pure white field"),
+bukan ink gelap — percobaan plate gelap menghasilkan hitam-di-hitam (kontras nol) dan
+dikoreksi. Hasil: emblem kuda-catur + laurel + handshake hitam tajam di plate putih,
+selaras dengan Nav; terverifikasi di 1440×900 dan 390×844 tanpa overflow.
+
+## 22. Layout split konsisten: kiri substansi, kanan dunia 3D
+
+### 22.1 Desktop (≥768px)
+
+- Wrapper konten (`src/App.tsx`): `relative z-10 md:w-[46%]` — seluruh teks stasiun
+  (Hero … Footer) hidup di kolom kiri; tidak ada lagi floating window di desktop.
+- Pane dunia (`src/three/World.tsx`): `fixed top/bottom/right-0`, `left:46%`, border-l +
+  shadow lembut; **satu Canvas tetap ter-mount** lintas layout (journey ↔ game ↔ mobile).
+- `Panel` jadi kartu penuh kolom: `@container` di kartu, isi memakai varian `@[40rem]:`
+  (queries resolve ke ANCESTOR container — jangan taruh `@container` dan varian di elemen
+  yang sama). Services: grid 2 kolom dasar, 3 kolom hanya bila kartu ≥40rem.
+- **Aturan clearance kartu**: tinggi kartu < viewport − nav(56px) agar snap-centering
+  tidak pernah menyembunyikan judul di bawah Nav. Services dipadatkan (p-2.5, teks
+  0.65–0.7rem) → 616px @390 ID, 741px @1440; 11 kartu lolos di 5 viewport × 2 locale.
+- StationRail: 11 dot di tepi kiri pane (amber pill aktif + glow), klik →
+  `scrollBridge.toStation(i)`. PovButton pindah ke dalam pane (`absolute bottom-3 right-3`).
+- CameraRig: lateral shift dihapus (pane sudah jadi ruang bebas) →
+  `lookTarget.copy(characterPos)`; zoom `clamp(min(w,h)/10, 24, 96)` → karakter ~130px
+  @1440, ~160px @2560.
+
+### 22.2 Mobile (<768px): PiP draggable
+
+- Konten full-width; dunia 3D jadi jendela kecil `fixed z-20 rounded-xl` dengan header
+  28px (grip + "Dunia 3D" + tombol expand). Collapsed `min(46vw,210)`, expanded
+  `min(86vw,400)`, tinggi `w×1.18`; drag via `setPointerCapture` di header
+  (`touch-action:none`), clamp ke viewport, posisi + expanded persist di
+  **`cakrawala-pip-v1`**; re-clamp saat resize / kembali dari game.
+- `data-pip` pada frame; JourneyController mengabaikan wheel (preventDefault) dan
+  touchstart/touchend yang berasal dari PiP → swipe di jendela 3D tidak membajak journey.
+
+### 22.3 Atmosfer pane
+
+Fog `#e9eff3 45–130` (warna lerps mengikuti langit fajar di Atmosphere); JourneyDust
+90 titik amber hangat mengikuti karakter (rotation.y lambat + bob sin); wayside scatter
+26 objek (Lamp emissive warm, Rock flat-shaded, Tree) di Stations. Journey-only.
+
+### 22.4 Jebakan pointer-events (KRITIS)
+
+Wrapper mode game = `pointer-events-none opacity-0`, tetapi **inheritance**: anak yang
+men-set `pointer-events-auto` tetap menangkap tap walau tak terlihat (wrapper z-10 ==
+World game z-10, wrapper belakangan di DOM → painted above). Panel section TIDAK boleh
+set pointer-events-auto; ini dulu membuat reticle mobile-play mati. Tercatat di README §4.1.
+
+### 22.5 QA
+
+`scripts/layout-qa.mjs` (baru, 27 assertion): split 46/54 @1440, rail 11 dot + klik,
+PoV dalam pane, kartu < viewport−nav di semua stasiun, breakpoint 767/768, PiP drag +
+expand + persist reload + swipe-on-Pip guard @390; pageerrors []. Regresi hijau:
+touch-qa (lane swipe dipindah x=120 — pojok kanan-bawah kini permukaan PiP),
+mobile-play-qa, play-qa, verify2, gait-qa, jump-qa, meaning-qa; shot.mjs 5 viewport.

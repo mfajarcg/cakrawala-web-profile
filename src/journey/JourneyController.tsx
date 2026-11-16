@@ -19,6 +19,9 @@ const SETTLE_MS = 200
 const inGame = () => useGame.getState().mode === 'game'
 // the full-screen tribute owns the wheel/keys/touch while it is open
 const blocked = () => inGame() || useTribute.getState().open
+// gestures on the draggable mobile 3D window belong to the window, not the journey
+const fromPip = (e: Event) =>
+  (e.target as HTMLElement | null)?.closest?.('[data-pip]') != null
 
 /**
  * Binds smooth scroll (wheel/touch) and arrow keys to one shared target
@@ -136,6 +139,10 @@ export function JourneyController() {
     let lastWheelAt = 0
     const onWheel = (e: WheelEvent) => {
       if (blocked() || e.ctrlKey || e.metaKey) return
+      if (fromPip(e)) {
+        e.preventDefault()
+        return
+      }
       e.preventDefault()
       const now = performance.now()
       // swallow the rest of the gesture while a checkpoint animation runs
@@ -182,7 +189,7 @@ export function JourneyController() {
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (blocked() || e.touches.length === 0) return
+      if (blocked() || fromPip(e) || e.touches.length === 0) return
       touch.active = true
       touch.startY = e.touches[0].clientY
       touch.station = nearestIndex()
@@ -196,7 +203,7 @@ export function JourneyController() {
     }
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (blocked()) return
+      if (blocked() || fromPip(e)) return
       touch.active = false
       const endY = e.changedTouches[0]?.clientY ?? touch.startY
       const dy = touch.startY - endY

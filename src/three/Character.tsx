@@ -6,19 +6,24 @@ import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
 import { getPath } from './path'
 import { cadenceFor, characterPos, characterYaw, gait } from './shared'
+import { ELBOW_SHAPE, KNEE_SHAPE, sampleLoop } from './runLoop'
 
 const BASE = import.meta.env.BASE_URL
 const MODEL_URL = `${BASE}models/eric/rp_eric_rigged_001_ue4.fbx`
 const TEX_DIR = `${BASE}models/eric/tex/`
 const MODEL_SCALE = 0.01 // the FBX is authored in centimetres
 
-// Gait parameters follow published biomechanics: walking cadence 100-120 spm
-// with a 60/40 stance-swing split and ~60° peak swing knee flexion; running
-// cadence 150-170 spm with ~40/60 stance-swing, ~120-130° swing knee flexion
-// and a forward trunk lean.
-const MAX_SPEED = 0.085 // progress units/s
-const ACCELERATION = 0.6 // progress units/s^2
-const RUN_SPEED = 10.5 // world units/s that counts as a full run
+// Gait parameters follow published biomechanics: walking cadence ~128 spm with
+// a 62/38 stance-swing split and ~60° peak swing knee flexion; running cadence
+// ~176 spm with ~40/60 stance-swing, ~120° swing knee flexion peaked early in
+// swing, an ankle plantarflexion push-off, flight phases and a forward trunk
+// lean (Perry & Burnfield 2010; Novacheck 1998; Physio-pedia Running Biomechanics).
+// The run knee/elbow flexion SHAPE is retargeted from the Sketchfab reference
+// "Male Running (20 frames loop)" by Denys Almaral (see runLoop.ts); amplitudes
+// stay calibrated to Eric's proportions so the reach() foot-lock holds.
+const RUN_SPEED = 4.4 // world m/s that counts as a full run (matches GameScene)
+const JOURNEY_SPEED = 3.4 // world m/s of a full-speed checkpoint hop
+const JOURNEY_ACCEL = 2.0 // world m/s^2
 const TURN_RATE = 9 // rad/s damp when re-facing
 
 // the rig ships in a 45° A-pose; bring the arms down near the body
@@ -49,7 +54,7 @@ export function Character() {
     <>
       <CharacterDriver />
       <Suspense fallback={null}>
-        <AndrewVisual />
+        <EricVisual />
       </Suspense>
     </>
   )
@@ -64,13 +69,15 @@ function CharacterDriver() {
   const sim = useRef({
     progress: 0,
     velocity: 0,
-    phase: 0, // stride phase: advances PI per step
+    phase: 0, // stride phase: advances TAU per full cycle (two steps)
     facing: 1, // +1 walking forward along path, -1 walking back
     yaw: 0,
   })
 
   const curve = useMemo(() => getPath(), [])
   const pathLength = useMemo(() => curve.getLength(), [curve])
+  const maxSpeed = JOURNEY_SPEED / pathLength
+  const accel = JOURNEY_ACCEL / pathLength
   const pos = useMemo(() => new THREE.Vector3(), [])
   const tan = useMemo(() => new THREE.Vector3(), [])
 
@@ -92,8 +99,8 @@ function CharacterDriver() {
       cut = true
     }
     const diff = targetP - s.progress
-    const desired = clamp(diff * 4, -MAX_SPEED, MAX_SPEED)
-    const dv = clamp(desired - s.velocity, -ACCELERATION * dt, ACCELERATION * dt)
+    const desired = clamp(diff * 4, -maxSpeed, maxSpeed)
+    const dv = clamp(desired - s.velocity, -accel * dt, accel * dt)
     s.velocity += dv
 
     // --- path position & facing
@@ -187,309 +194,49 @@ function poseBone(
 }
 
 /**
- * Knee flexion over one normalised gait cycle (0 = heel strike).
- * Walking holds a short loading-response bend through stance; running cycles
- * through a much deeper swing flexion.
+ * Sagittal joint targets over one normalised cycle (u = 0 at heel strike),
+ * flexion positive, walk and run parameter sets blended by speedNorm.
+ * Stance: hip extends linearly, knee absorbs then re-extends, ankle rolls
+ * from dorsiflexion into a plantarflexion push-off. Swing: knee flexes to its
+ * peak early (heel toward the butt) then extends before contact; the hip
+ * drives forward; the ankle dorsiflexes for toe clearance.
  */
-function kneeAt(u: number, speedNorm: number) {
-  const stanceFrac = lerp(0.62, 0.4, speedNorm)
+function jointAt(u: number, sn: number) {
+  const stanceFrac = lerp(0.62, 0.4, sn)
+  const hipIC = lerp(0.52, 0.7, sn)
+  const hipTO = lerp(-0.17, -0.35, sn)
+  const hipDrive = lerp(0.1, 0.78, sn)
+  const kneeIC = lerp(0.09, 0.26, sn)
+  const kneeMid = lerp(0.26, 0.78, sn)
+  const kneeTO = lerp(0.62, 0.3, sn)
+  const kneeSwing = lerp(1.05, 2.09, sn)
+  const ankIC = lerp(0, 0.05, sn)
+  const ankMid = lerp(0.17, 0.26, sn)
+  const ankTO = lerp(-0.35, -0.44, sn)
+  const ankClear = lerp(0.1, 0.17, sn)
+  // authentic run knee shape from the Sketchfab reference loop, mapped onto
+  // Eric's run range (0.26 rad extended → 2.09 rad swing fold); blended in by
+  // speed so walking keeps the analytic curve and running adopts the reference
+  const kneeRef = 0.26 + sampleLoop(KNEE_SHAPE, u) * (2.09 - 0.26)
   if (u < stanceFrac) {
     const s = u / stanceFrac
-    // loading response: knee gives then re-extends for push-off
-    return lerp(0.32, 0.5, speedNorm) * Math.sin(Math.PI * Math.min(1, s * 1.35))
+    const hip = lerp(hipIC, hipTO, s)
+    const kneeBase =
+      lerp(kneeIC, kneeTO, s) +
+      (kneeMid - lerp(kneeIC, kneeTO, 0.4)) * Math.pow(Math.sin(Math.PI * s), 1.1)
+    const ankle =
+      lerp(ankIC, ankTO, s) +
+      (ankMid - lerp(ankIC, ankTO, 0.45)) * Math.sin(Math.PI * s)
+    return { hip, knee: lerp(kneeBase, kneeRef, sn), ankle }
   }
   const s = (u - stanceFrac) / (1 - stanceFrac)
-  const peak = lerp(1.05, 2.05, speedNorm) // ~60° walk, ~117° run
-  return peak * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.92)), 0.85)
-}
-
-// --- Andrew Ryan Sinaga likeness -------------------------------------------------
-// The scan ships one diffuse atlas for the whole body, so outfit and skin are
-// repainted per vertex from dominant skin weights plus spatial face masks, and
-// the identifying accessories (glasses, smartwatch, rolled cuffs, band collar)
-// are rigid meshes parented to the bones so the gait and jump poses carry them.
-const SKIN = new THREE.Color('#c08a60')
-const SKIN_SHADOW = new THREE.Color('#8a6a4c')
-const SHIRT = new THREE.Color('#f2efe9')
-const HAIR = new THREE.Color('#161719')
-const PANTS = new THREE.Color('#23262b')
-const SHOE = new THREE.Color('#141518')
-const MOUTH = new THREE.Color('#6b3f33')
-const TEETH = new THREE.Color('#e9e3da')
-const EYE = new THREE.Color('#2e2620')
-
-interface Likeness {
-  eyeY: number
-  faceX: number
-  chinY: number
-  collarY: number
-  wristL: THREE.Vector3
-  dirL: THREE.Vector3
-  elbowL: THREE.Vector3
-  elbowR: THREE.Vector3
-  dirR: THREE.Vector3
-}
-
-function paintAndrew(fbx: THREE.Object3D): Likeness {
-  let mesh: THREE.SkinnedMesh | null = null
-  fbx.traverse((o) => {
-    if (!mesh && (o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o as THREE.SkinnedMesh
-  })
-  const m = mesh!
-  const geo = m.geometry
-  const pos = geo.attributes.position as THREE.BufferAttribute
-  const idx = geo.attributes.skinIndex as THREE.BufferAttribute
-  const wgt = geo.attributes.skinWeight as THREE.BufferAttribute
-  const names = m.skeleton.bones.map((b) => b.name)
-  const v = new THREE.Vector3()
-  const rootSpace = new THREE.Matrix4().copy(fbx.matrixWorld).invert().multiply(m.matrixWorld)
-  // bone space is centimetres; work in metres so face lines match real anatomy
-  const rest = (i: number) => v.fromBufferAttribute(pos, i).applyMatrix4(rootSpace).multiplyScalar(0.01)
-  const boneAt = (i: number) => {
-    let best = 0
-    let bw = -1
-    for (let k = 0; k < 4; k++) {
-      const w = wgt.getComponent(i, k)
-      if (w > bw) {
-        bw = w
-        best = idx.getComponent(i, k)
-      }
-    }
-    return names[best] ?? ''
-  }
-
-  // head extents first: every face line is derived from the skull, not guessed
-  let top = -Infinity
-  let chin = Infinity
-  for (let i = 0; i < pos.count; i++) {
-    if (boneAt(i) !== 'head') continue
-    rest(i)
-    top = Math.max(top, v.y)
-    chin = Math.min(chin, v.y)
-  }
-  const eyeY = chin + 0.52 * (top - chin)
-  const mouthY = chin + 0.24 * (top - chin)
-  const hairY = eyeY + 0.05
-  const earY = eyeY - 0.015
-  let faceX = 0
-  let sideT = 0
-  for (let i = 0; i < pos.count; i++) {
-    if (boneAt(i) !== 'head') continue
-    rest(i)
-    if (Math.abs(v.y - eyeY) < 0.012) {
-      faceX = Math.max(faceX, v.x)
-      sideT = Math.max(sideT, Math.abs(v.z))
-    }
-  }
-  sideT *= 0.78
-
-  // shirt-front reference so the scan's tie ridge can be pressed flush
-  let chestX = 0
-  for (let i = 0; i < pos.count; i++) {
-    if (boneAt(i) !== 'spine_02') continue
-    rest(i)
-    if (Math.abs(v.z) > 0.06 && Math.abs(v.z) < 0.1 && v.y > 1.25 && v.y < 1.45) {
-      chestX = Math.max(chestX, v.x)
-    }
-  }
-  const rootInvSpace = rootSpace
-    .clone()
-    .invert()
-    .multiply(new THREE.Matrix4().makeScale(100, 100, 100))
-  for (let i = 0; i < pos.count; i++) {
-    const bone = boneAt(i)
-    rest(i)
-    let moved = false
-    if (/^spine_/.test(bone) && Math.abs(v.z) < 0.04 && v.y > 1.12 && v.y < 1.53 && v.x > chestX) {
-      v.x = chestX
-      moved = true
-    }
-    if (
-      (bone === 'neck_01' || bone === 'clavicle_l' || bone === 'clavicle_r' || (bone === 'spine_03' && v.y > 1.5)) &&
-      v.y > 1.545
-    ) {
-      // fold the scan's spread collar down into a mandarin band
-      const r = Math.hypot(v.x - 0.005, v.z)
-      if (r > 0.062) {
-        const k = 0.062 / r
-        v.x = 0.005 + (v.x - 0.005) * k
-        v.z *= k
-        moved = true
-      }
-      if (v.y > chin + 0.012) {
-        v.y = chin + 0.012
-        moved = true
-      }
-    }
-    if (moved) {
-      v.applyMatrix4(rootInvSpace)
-      pos.setXYZ(i, v.x, v.y, v.z)
-    }
-  }
-  pos.needsUpdate = true
-
-  const colors = new Float32Array(pos.count * 3)
-  const c = new THREE.Color()
-  for (let i = 0; i < pos.count; i++) {
-    const bone = boneAt(i)
-    rest(i)
-    const az = Math.abs(v.z)
-    if (/^(foot|ball)_/.test(bone)) c.copy(SHOE)
-    else if (/^(thigh|calf)/.test(bone)) c.copy(PANTS)
-    else if (/^(pelvis|spine_|clavicle|upperarm)/.test(bone)) {
-      // below the waistline the scan's untucked shirt tail becomes trousers
-      c.copy(v.y < 1.07 ? PANTS : SHIRT)
-    } else if (/^(lowerarm|hand|thumb|index|middle|ring|pinky)/.test(bone)) c.copy(SKIN)
-    else if (bone === 'neck_01') c.copy(v.y < chin + 0.045 ? SHIRT : SKIN)
-    else if (bone === 'head') {
-      const smile = 0.012 * Math.pow(Math.min(az, 0.03) / 0.03, 2)
-      if (
-        v.y > hairY + (v.x > faceX * 0.5 ? 0.035 : 0) ||
-        (v.x < faceX * 0.25 && v.y > earY) ||
-        (az > sideT * 0.9 && v.y > earY + 0.008)
-      ) {
-        c.copy(HAIR)
-      } else if (v.x > faceX * 0.6 && az > 0.014 && az < 0.042 && Math.abs(v.y - eyeY) < 0.006) {
-        c.copy(EYE)
-      } else if (v.x > faceX * 0.55 && az < 0.03 && v.y > mouthY - 0.0045 + smile && v.y < mouthY + 0.0045 + smile) {
-        c.copy(az < 0.022 && v.y > mouthY - 0.001 + smile && v.y < mouthY + 0.004 + smile ? TEETH : MOUTH)
-      } else if (v.x > faceX * 0.25 && v.y > chin + 0.004 && v.y < mouthY - 0.012 && az < 0.05) {
-        c.copy(SKIN).lerp(SKIN_SHADOW, 0.18)
-      } else if (az > 0.045 && az < sideT && v.y > chin && v.y < earY && v.x > 0) {
-        c.copy(SKIN).lerp(SKIN_SHADOW, 0.15)
-      } else c.copy(SKIN)
-    } else c.copy(SKIN)
-    colors[i * 3] = c.r
-    colors[i * 3 + 1] = c.g
-    colors[i * 3 + 2] = c.b
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-  const rootInv = new THREE.Matrix4().copy(fbx.matrixWorld).invert()
-  const wp = (n: string) =>
-    fbx
-      .getObjectByName(n)!
-      .getWorldPosition(new THREE.Vector3())
-      .applyMatrix4(rootInv)
-      .multiplyScalar(0.01)
-  const handL = wp('hand_l')
-  const lowL = wp('lowerarm_l')
-  const lowR = wp('lowerarm_r')
-  const handR = wp('hand_r')
-  const dirL = handL.clone().sub(lowL).normalize()
-  const dirR = handR.clone().sub(lowR).normalize()
-  return {
-    eyeY,
-    faceX,
-    chinY: chin,
-    collarY: chin + 0.005,
-    wristL: handL.clone().addScaledVector(dirL, -0.03),
-    dirL,
-    elbowL: lowL.clone().addScaledVector(dirL, 0.03),
-    elbowR: lowR.clone().addScaledVector(dirR, 0.03),
-    dirR,
-  }
-}
-
-/** parent a rigid mesh to a bone with a fixed rest-world transform */
-function boneAttach(fbx: THREE.Object3D, boneName: string, obj: THREE.Object3D, world: THREE.Matrix4) {
-  const bone = fbx.getObjectByName(boneName)
-  if (!bone) return
-  // the cached FBX survives StrictMode remounts: replace, never accumulate
-  for (const old of [...bone.children]) {
-    if (!old.userData.andrew) continue
-    bone.remove(old)
-    old.traverse((o) => {
-      const me = o as THREE.Mesh
-      if (me.isMesh) {
-        me.geometry.dispose()
-        ;(me.material as THREE.Material).dispose()
-      }
-    })
-  }
-  obj.userData.andrew = true
-  // express both the bone and the desired transform in fbx-root space so the
-  // wrapper group's centimetre scale and live yaw never leak into the offset
-  const rootInv = new THREE.Matrix4().copy(fbx.matrixWorld).invert()
-  const boneInRoot = rootInv.clone().multiply(bone.matrixWorld)
-  obj.matrixAutoUpdate = false
-  // bone space is centimetres: scale the metre-authored accessory into it
-  obj.matrix
-    .copy(boneInRoot)
-    .invert()
-    .multiply(_s.makeScale(100, 100, 100))
-    .multiply(world)
-  obj.traverse((o) => {
-    o.frustumCulled = false
-  })
-  bone.add(obj)
-}
-
-const _m = new THREE.Matrix4()
-const _s = new THREE.Matrix4()
-const _x = new THREE.Vector3()
-const _y = new THREE.Vector3()
-const _z = new THREE.Vector3()
-
-function attachAndrew(fbx: THREE.Object3D, L: Likeness) {
-  const black = new THREE.MeshStandardMaterial({ color: '#101113', roughness: 0.5 })
-  const glass = new THREE.MeshStandardMaterial({
-    color: '#565c63',
-    roughness: 0.15,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 0.28,
-  })
-  const shirt = new THREE.MeshStandardMaterial({ color: SHIRT, roughness: 0.8, side: THREE.DoubleSide })
-  const screen = new THREE.MeshStandardMaterial({
-    color: '#0e2a33',
-    emissive: '#0e3a46',
-    emissiveIntensity: 0.7,
-    roughness: 0.3,
-  })
-  const box = (w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number) => {
-    const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
-    me.position.set(x, y, z)
-    return me
-  }
-
-  // rectangular glasses: black rims with tinted lenses proud of the frame face
-  const glasses = new THREE.Group()
-  for (const s of [-1, 1]) {
-    glasses.add(box(0.008, 0.04, 0.056, black, -0.001, 0, s * 0.033))
-    glasses.add(box(0.01, 0.032, 0.048, glass, 0.001, 0, s * 0.033))
-    glasses.add(box(0.1, 0.005, 0.006, black, -0.052, 0.014, s * 0.056))
-  }
-  glasses.add(box(0.008, 0.006, 0.018, black, 0, 0.01, 0))
-  boneAttach(fbx, 'head', glasses, _m.makeTranslation(L.faceX, L.eyeY, 0))
-
-  // smartwatch on the left wrist: strap ring around the forearm, face on top
-  const n = _y.set(0, 1, 0).addScaledVector(L.dirL, -L.dirL.y).normalize()
-  const xAxis = _x.crossVectors(n, L.dirL).normalize()
-  const basis = new THREE.Matrix4().makeBasis(xAxis, n, L.dirL)
-  const watch = new THREE.Group()
-  const strap = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.009, 10, 20), black)
-  strap.quaternion.setFromUnitVectors(_z.set(0, 0, 1), L.dirL)
-  watch.add(strap)
-  const face = box(0.03, 0.012, 0.036, black, 0, 0, 0)
-  face.quaternion.setFromRotationMatrix(basis)
-  face.position.copy(n).multiplyScalar(0.03)
-  watch.add(face)
-  const scr = box(0.022, 0.004, 0.028, screen, 0, 0, 0)
-  scr.quaternion.copy(face.quaternion)
-  scr.position.copy(n).multiplyScalar(0.037)
-  watch.add(scr)
-  boneAttach(fbx, 'hand_l', watch, _m.makeTranslation(L.wristL.x, L.wristL.y, L.wristL.z))
-
-  // rolled sleeve cuffs at both elbows
-  for (const [bone, at, dir] of [
-    ['lowerarm_l', L.elbowL, L.dirL],
-    ['lowerarm_r', L.elbowR, L.dirR],
-  ] as const) {
-    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.013, 10, 18), shirt)
-    cuff.quaternion.setFromUnitVectors(_z.set(0, 0, 1), dir)
-    boneAttach(fbx, bone, cuff, _m.makeTranslation(at.x, at.y, at.z))
-  }
+  const hip =
+    lerp(hipTO, hipIC, s) + hipDrive * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.85)), 1.1)
+  const kneeBase =
+    lerp(kneeTO, kneeIC, s) +
+    (kneeSwing - lerp(kneeTO, kneeIC, 0.35)) * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.65)), 0.9)
+  const ankle = lerp(ankTO, ankIC, s) + ankClear * Math.sin(Math.PI * s)
+  return { hip, knee: lerp(kneeBase, kneeRef, sn), ankle }
 }
 
 function useBlobShadow() {
@@ -509,9 +256,12 @@ function useBlobShadow() {
   }, [])
 }
 
-function AndrewVisual() {
+function EricVisual() {
   const fbx = useFBX(MODEL_URL)
-  const [norm] = useTexture([`${TEX_DIR}rp_eric_rigged_001_norm.jpg`])
+  const [dif, norm] = useTexture([
+    `${TEX_DIR}rp_eric_rigged_001_dif.jpg`,
+    `${TEX_DIR}rp_eric_rigged_001_norm.jpg`,
+  ])
   const root = useRef<THREE.Group>(null)
   const shadow = useRef<THREE.Mesh>(null)
   const blob = useBlobShadow()
@@ -522,10 +272,11 @@ function AndrewVisual() {
   const rig = useMemo(() => {
     fbx.updateMatrixWorld(true)
 
+    dif.colorSpace = THREE.SRGBColorSpace
     const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
+      map: dif,
       normalMap: norm,
-      roughness: 0.8,
+      roughness: 0.78,
       metalness: 0,
     })
     fbx.traverse((o) => {
@@ -534,7 +285,6 @@ function AndrewVisual() {
       mesh.material = material
       mesh.frustumCulled = false
     })
-    const likeness = paintAndrew(fbx)
 
     // The FBX is UE4-authored, so its character axes are NOT three's +X left /
     // +Z forward. Derive the true anatomical axes from bone landmarks so that
@@ -565,8 +315,6 @@ function AndrewVisual() {
       return h.applyAxisAngle(front, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
     }
 
-    attachAndrew(fbx, likeness)
-
     return {
       flex,
       front,
@@ -585,7 +333,7 @@ function AndrewVisual() {
       hingeL: hinge('l'),
       hingeR: hinge('r'),
     }
-  }, [fbx, norm])
+  }, [fbx, dif, norm])
 
   useFrame((state, delta) => {
     const g = root.current
@@ -596,24 +344,35 @@ function AndrewVisual() {
 
     // amplitude fades out quickly when coming to a standstill
     const walkBlend = clamp(speedNorm / 0.14, 0, 1) * moving
-    const hipAmp = lerp(0.3, 0.62, speedNorm) * walkBlend // ~34°..71° total travel
-    const swingFrac = lerp(0.38, 0.6, speedNorm)
+    const stanceFrac = lerp(0.62, 0.4, speedNorm)
+    const swingFrac = 1 - stanceFrac
 
     // each leg gets its own cycle position; the right leg is half a cycle behind
     const uL = ((phase / TAU) % 1 + 1) % 1
     const uR = (uL + 0.5) % 1
 
-    const hipL = -Math.cos(TAU * uL) * hipAmp // + = leg back
-    const hipR = -Math.cos(TAU * uR) * hipAmp
-    const kneeL = kneeAt(uL, speedNorm) * walkBlend
-    const kneeR = kneeAt(uR, speedNorm) * walkBlend
+    const jL = jointAt(uL, speedNorm)
+    const jR = jointAt(uR, speedNorm)
+    // pose sign: + about the flex axis swings a limb BACK, so flexion is negative
+    const hipL = -jL.hip * walkBlend
+    const hipR = -jR.hip * walkBlend
+    const kneeL = jL.knee * walkBlend
+    const kneeR = jR.knee * walkBlend
+    const ankleL = jL.ankle * walkBlend
+    const ankleR = jR.ankle * walkBlend
 
-    const armAmp = lerp(0.1, 0.72, speedNorm) * walkBlend
+    // arms counter-swing the legs; running holds the elbow near 90°
+    const armScale = lerp(0.35, 0.65, speedNorm) * walkBlend
     const idle = Math.sin(t * 1.7) * 0.02 * (1 - moving)
-    const armSwingL = Math.cos(TAU * uL) * armAmp + idle
-    const armSwingR = Math.cos(TAU * uR) * armAmp + idle
-    const elbowFlex = lerp(0.22, 1.5, speedNorm * speedNorm)
-    const lean = speedNorm * speedNorm * 0.32 * walkBlend
+    const armSwingL = jL.hip * armScale + idle
+    const armSwingR = jR.hip * armScale + idle
+    const elbowBase = lerp(0.22, 1.57, speedNorm * speedNorm)
+    // reference elbow carry oscillates ~±11° around the 90° run hold, each arm
+    // phased to its own leg (the elbow flexes as the arm sweeps back)
+    const elbowOsc = 0.4 * speedNorm * walkBlend
+    const elbowFlexL = elbowBase + (sampleLoop(ELBOW_SHAPE, uL) - 0.5) * elbowOsc
+    const elbowFlexR = elbowBase + (sampleLoop(ELBOW_SHAPE, uR) - 0.5) * elbowOsc
+    const lean = (speedNorm * speedNorm * 0.22 + speedNorm * 0.04) * walkBlend
 
     // --- countermovement jump pose blended over the stride: braking dip with
     // arms swept back, extension + tuck with arms overhead on the rise, reach
@@ -685,11 +444,12 @@ function AndrewVisual() {
     const hipFR = lerp(hipR, jp.hip, w)
     const kneeFL = lerp(kneeL, jp.knee, w)
     const kneeFR = lerp(kneeR, jp.knee, w)
-    const footFL = lerp(-(hipL + kneeL) * 0.85, jp.foot, w)
-    const footFR = lerp(-(hipR + kneeR) * 0.85, jp.foot, w)
+    const footFL = lerp(-(hipL + kneeL) * 0.9 - ankleL, jp.foot, w)
+    const footFR = lerp(-(hipR + kneeR) * 0.9 - ankleR, jp.foot, w)
     const armFL = lerp(armSwingL, jp.arm, w)
     const armFR = lerp(armSwingR, jp.arm, w)
-    const elbowF = lerp(elbowFlex, jp.elbow, w)
+    const elbowFL = lerp(elbowFlexL, jp.elbow, w)
+    const elbowFR = lerp(elbowFlexR, jp.elbow, w)
     const leanF = lerp(lean, jp.spine, w)
     const neckF = lerp(-lean * 0.75, jp.neck, w)
 
@@ -703,8 +463,8 @@ function AndrewVisual() {
 
     poseBone(rig.armL, rig.flex, armFL, rig.front, -ARM_ABDUCT)
     poseBone(rig.armR, rig.flex, armFR, rig.front, ARM_ABDUCT)
-    poseBone(rig.elbowL, rig.hingeL, elbowF, rig.flex, 0)
-    poseBone(rig.elbowR, rig.hingeR, elbowF, rig.flex, 0)
+    poseBone(rig.elbowL, rig.hingeL, elbowFL, rig.flex, 0)
+    poseBone(rig.elbowR, rig.hingeR, elbowFR, rig.flex, 0)
 
     poseBone(rig.spine, rig.flex, leanF, rig.flex, 0)
     poseBone(rig.neck, rig.flex, neckF, rig.flex, 0)
@@ -728,7 +488,12 @@ function AndrewVisual() {
                 stanceR ? reach(hipFR, kneeFR) : -Infinity,
               )
     const soleGap = HIP_HEIGHT - ANKLE_TO_SOLE - support
-    const bodyY = -soleGap + lift + flight * 0.025 * speedNorm * walkBlend
+    // flight apex between toe-off and the next contact: the body actually hops
+    const q = uL % 0.5
+    const flightProg = q >= stanceFrac ? (q - stanceFrac) / (0.5 - stanceFrac) : -1
+    const hop =
+      flightProg >= 0 ? Math.sin(Math.PI * flightProg) * lerp(0.015, 0.07, speedNorm) * walkBlend : 0
+    const bodyY = -soleGap + lift + hop
     const baseY = characterPos.current.y
 
     g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)

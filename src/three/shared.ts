@@ -21,11 +21,13 @@ export const gait = {
   impact: 0, // 0..1 touch-down speed relative to take-off speed
 }
 
-// ground distance covered by one full gait cycle (two steps) at each end of the
-// speed range; cadence is derived from these so a planted foot stays planted
-export const STRIDE_WALK = 1.6
-export const STRIDE_RUN = 3.4
-export const MAX_CADENCE = 3.3
+// ground distance covered by one full gait cycle (TWO steps) in metres;
+// cadence is derived from these so a planted foot stays planted. Walk cycle
+// 1.5 m at 1.6 m/s ≈ 128 spm; run cycle 3.0 m at 4.4 m/s ≈ 176 spm, inside the
+// published running cadence band (Novacheck 1998; Physio-pedia Running Biomechanics).
+export const STRIDE_WALK = 1.5
+export const STRIDE_RUN = 3.0
+export const MAX_CADENCE = 1.9 // cycles/s ≈ 228 spm sprint ceiling
 
 /** gait cycles/s for a given ground speed, so feet grip instead of skating */
 export function cadenceFor(speed: number, speedNorm: number) {
