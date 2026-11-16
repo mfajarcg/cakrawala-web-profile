@@ -26,13 +26,31 @@ for (const vp of VIEWPORTS) {
   // station 1 (hero)
   await page.screenshot({ path: `shots/${vp.name}-01-hero.png` })
 
-  // walk to the middle (Play Moment) and the end (Footer) via arrow keys
-  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowDown')
-  await page.waitForTimeout(1800)
+  // in-page links go through the journey controller, same as a real visitor
+  const click = (label) =>
+    page.evaluate((label) => {
+      const btn = [...document.querySelectorAll('header button')].find(
+        (b) => b.textContent.trim() === label,
+      )
+      btn?.click()
+    }, label)
+
+  // station 3 (Services) to check the wide three-column panel
+  await click('Layanan')
+  await page.waitForTimeout(3600)
+  await page.screenshot({ path: `shots/${vp.name}-03-services.png` })
+
+  // Tentang lands on About, one arrow step further is Play Character
+  await click('Tentang')
+  await page.waitForTimeout(3600)
+  await page.keyboard.press('ArrowDown')
+  await page.waitForTimeout(3000)
   await page.screenshot({ path: `shots/${vp.name}-09-play.png` })
 
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown')
-  await page.waitForTimeout(1800)
+  await click('Kontak')
+  await page.waitForTimeout(3600)
+  await page.keyboard.press('ArrowDown')
+  await page.waitForTimeout(3000)
   await page.screenshot({ path: `shots/${vp.name}-11-footer.png` })
 
   await page.close()

@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { jumpTo } from '../journey/jump'
 import { useI18n } from '../lib/i18n'
 import { Panel } from './Panel'
 
@@ -6,7 +7,7 @@ const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-black.svg`
 
 export function Hero() {
   const { t } = useI18n()
-  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  const jump = (id: string) => jumpTo(id)
 
   return (
     <Panel id="hero" center>

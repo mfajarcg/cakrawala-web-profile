@@ -2,6 +2,8 @@ import { OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import { GameScene } from '../game/GameScene'
+import { useGame } from '../game/store'
 import { STATIONS } from '../journey/stations'
 import { useJourney } from '../journey/store'
 import { Character } from './Character'
@@ -92,8 +94,12 @@ function PathRibbon() {
 }
 
 export function World() {
+  const mode = useGame((s) => s.mode)
   return (
-    <div className="fixed inset-0 -z-10" aria-hidden="true">
+    <div
+      className={`fixed inset-0 ${mode === 'game' ? 'z-10' : '-z-10'}`}
+      aria-hidden="true"
+    >
       <CanvasSetup />
     </div>
   )
@@ -101,37 +107,46 @@ export function World() {
 
 function CanvasSetup() {
   const pov = useJourney((s) => s.pov)
+  const mode = useGame((s) => s.mode)
+  const inGame = mode === 'game'
+
   return (
     <Canvas
       dpr={[1, 2]}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
     >
       <OrthographicCamera
-        makeDefault={pov === 'follow'}
+        makeDefault={!inGame && pov === 'follow'}
         position={[16, 16, 16]}
         zoom={30}
         near={-100}
         far={200}
       />
       <PerspectiveCamera
-        makeDefault={pov === 'fp'}
+        makeDefault={inGame || pov === 'fp'}
         fov={65}
         near={0.1}
         far={200}
       />
-      <color attach="background" args={['#e9eff3']} />
-      <ambientLight intensity={0.85} />
+      <color attach="background" args={[inGame ? '#d8e8f0' : '#e9eff3']} />
+      <ambientLight intensity={inGame ? 1.05 : 0.85} />
       <directionalLight position={[12, 24, 8]} intensity={1.15} />
-      {/* ground */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[130, -0.05, 0]}>
-        <planeGeometry args={[420, 220]} />
-        <meshStandardMaterial color="#dfe8ec" flatShading />
-      </mesh>
-      <gridHelper args={[420, 105, '#cfdce2', '#cfdce2']} position={[130, 0, 0]} />
-      <PathRibbon />
-      <Stations />
+      {inGame ? (
+        <GameScene />
+      ) : (
+        <>
+          {/* ground */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[65, -0.05, 0]}>
+            <planeGeometry args={[320, 180]} />
+            <meshStandardMaterial color="#dfe8ec" flatShading />
+          </mesh>
+          <gridHelper args={[320, 80, '#cfdce2', '#cfdce2']} position={[65, 0, 0]} />
+          <PathRibbon />
+          <Stations />
+          <CameraRig />
+        </>
+      )}
       <Character />
-      <CameraRig />
     </Canvas>
   )
 }

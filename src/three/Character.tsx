@@ -3,21 +3,22 @@ import { useFrame } from '@react-three/fiber'
 import { Suspense, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
+import { useGame } from '../game/store'
 import { getPath } from './path'
-import { characterPos, characterYaw, gait } from './shared'
+import { cadenceFor, characterPos, characterYaw, gait } from './shared'
 
 const BASE = import.meta.env.BASE_URL
 const MODEL_URL = `${BASE}models/eric/rp_eric_rigged_001_ue4.fbx`
 const TEX_DIR = `${BASE}models/eric/tex/`
 const MODEL_SCALE = 0.01 // the FBX is authored in centimetres
 
-// running model, from open biomechanics data:
-// cadence 150-170 spm recreational (~2.6 steps/s), stride 1.86-2.96 m,
-// full stride cycle ~0.5s; stance<swing when running; trunk leans forward.
-const MAX_SPEED = 0.28 // progress units/s — a full journey sprint takes ~4s
-const ACCELERATION = 0.95 // progress units/s^2 — ease-in/out curve
-const WALK_CADENCE = 2.0 // steps/s
-const RUN_CADENCE = 3.4 // steps/s
+// Gait parameters follow published biomechanics: walking cadence 100-120 spm
+// with a 60/40 stance-swing split and ~60° peak swing knee flexion; running
+// cadence 150-170 spm with ~40/60 stance-swing, ~120-130° swing knee flexion
+// and a forward trunk lean.
+const MAX_SPEED = 0.085 // progress units/s
+const ACCELERATION = 0.6 // progress units/s^2
+const RUN_SPEED = 10.5 // world units/s that counts as a full run
 const TURN_RATE = 9 // rad/s damp when re-facing
 
 // the rig ships in a 45° A-pose; bring the arms down near the body
@@ -33,6 +34,7 @@ const ANKLE_TO_SOLE = 0.127
 const X_AXIS = new THREE.Vector3(1, 0, 0)
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
 
+const TAU = Math.PI * 2
 const lerp = THREE.MathUtils.lerp
 const clamp = THREE.MathUtils.clamp
 
@@ -75,10 +77,21 @@ function CharacterDriver() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const { target, tick } = useJourney.getState()
+    if (useGame.getState().mode === 'game') return
     const s = sim.current
 
     // --- longitudinal dynamics: desired speed -> acceleration-capped velocity
-    const diff = clamp01(target) - s.progress
+    const targetP = clamp01(target)
+    const jump = targetP - s.progress
+    let cut = false
+    // a nav link can skip most of the path; walking it would leave the camera
+    // seconds behind the already-settled panel, so cut to the destination
+    if (Math.abs(jump) > 0.16) {
+      s.progress = targetP
+      s.velocity = 0
+      cut = true
+    }
+    const diff = targetP - s.progress
     const desired = clamp(diff * 4, -MAX_SPEED, MAX_SPEED)
     const dv = clamp(desired - s.velocity, -ACCELERATION * dt, ACCELERATION * dt)
     s.velocity += dv
@@ -93,6 +106,7 @@ function CharacterDriver() {
       s.facing = Math.sign(s.velocity)
     }
     const targetYaw = baseYaw + (s.facing < 0 ? Math.PI : 0)
+    if (cut) s.yaw = targetYaw
     const yawErr = Math.abs(Math.atan2(Math.sin(targetYaw - s.yaw), Math.cos(targetYaw - s.yaw)))
     s.yaw = dampAngle(s.yaw, targetYaw, TURN_RATE, dt)
 
@@ -100,18 +114,19 @@ function CharacterDriver() {
     const turnBrake = yawErr > 0.35 ? clamp(1 - (yawErr - 0.35) / 1.1, 0, 1) : 1
     s.progress = clamp01(s.progress + s.velocity * turnBrake * dt)
 
-    // the diorama crosses ~26 world units per station, so a cadence locked to
-    // world speed would strobe; drive the stride from human walking cadence
+    // cadence follows the actual ground speed, so the stride length matches the
+    // distance covered and the feet grip the ground
     const worldSpeed = Math.abs(s.velocity) * pathLength
-    const speedNorm = clamp(worldSpeed / 6.5, 0, 1)
-    const cadence = lerp(WALK_CADENCE, RUN_CADENCE, speedNorm)
-    s.phase += cadence * Math.PI * dt * Math.max(turnBrake, 0.15)
+    const speedNorm = clamp(worldSpeed / RUN_SPEED, 0, 1)
+    const cadence = cadenceFor(worldSpeed, speedNorm)
+    s.phase += cadence * TAU * dt * Math.max(turnBrake, 0.15)
 
     characterPos.current.set(pos.x, 0, pos.z)
     characterYaw.current = s.yaw
     gait.phase = s.phase
     gait.speedNorm = speedNorm
     gait.moving = speedNorm > 0.02 ? 1 : 0
+    gait.lift = 0
     tick(s.progress)
   })
 
@@ -161,6 +176,40 @@ function poseBone(
   p.bone.quaternion.copy(p.rest).premultiply(_qAcc)
 }
 
+/**
+ * Knee flexion over one normalised gait cycle (0 = heel strike).
+ * Walking holds a short loading-response bend through stance; running cycles
+ * through a much deeper swing flexion.
+ */
+function kneeAt(u: number, speedNorm: number) {
+  const stanceFrac = lerp(0.62, 0.4, speedNorm)
+  if (u < stanceFrac) {
+    const s = u / stanceFrac
+    // loading response: knee gives then re-extends for push-off
+    return lerp(0.32, 0.5, speedNorm) * Math.sin(Math.PI * Math.min(1, s * 1.35))
+  }
+  const s = (u - stanceFrac) / (1 - stanceFrac)
+  const peak = lerp(1.05, 2.05, speedNorm) // ~60° walk, ~117° run
+  return peak * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.92)), 0.85)
+}
+
+function useBlobShadow() {
+  return useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 64
+    const ctx = canvas.getContext('2d')!
+    const grd = ctx.createRadialGradient(32, 32, 2, 32, 32, 32)
+    grd.addColorStop(0, 'rgba(16,20,24,0.5)')
+    grd.addColorStop(0.55, 'rgba(16,20,24,0.2)')
+    grd.addColorStop(1, 'rgba(16,20,24,0)')
+    ctx.fillStyle = grd
+    ctx.fillRect(0, 0, 64, 64)
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.colorSpace = THREE.SRGBColorSpace
+    return tex
+  }, [])
+}
+
 function EricVisual() {
   const fbx = useFBX(MODEL_URL)
   const [dif, norm] = useTexture([
@@ -168,7 +217,10 @@ function EricVisual() {
     `${TEX_DIR}rp_eric_rigged_001_norm.jpg`,
   ])
   const root = useRef<THREE.Group>(null)
+  const shadow = useRef<THREE.Mesh>(null)
+  const blob = useBlobShadow()
   const pov = useJourney((s) => s.pov)
+  const mode = useGame((s) => s.mode)
 
   const rig = useMemo(() => {
     fbx.updateMatrixWorld(true)
@@ -220,54 +272,88 @@ function EricVisual() {
     const g = root.current
     if (!g) return
     const t = state.clock.elapsedTime
-    const { phase, speedNorm, moving } = gait
+    const { phase, speedNorm, moving, lift } = gait
 
     // amplitude fades out quickly when coming to a standstill
     const walkBlend = clamp(speedNorm / 0.14, 0, 1) * moving
-    const hipAmp = lerp(0.28, 0.6, speedNorm) * walkBlend
-    const kneeAmp = lerp(0.35, 1.2, speedNorm) * walkBlend
+    const hipAmp = lerp(0.3, 0.62, speedNorm) * walkBlend // ~34°..71° total travel
+    const swingFrac = lerp(0.38, 0.6, speedNorm)
 
-    const swingL = Math.sin(phase) * hipAmp // + = leg back
-    const swingR = Math.sin(phase + Math.PI) * hipAmp
-    // knee flexes through the swing half of its own cycle
-    const kneeL = Math.pow(Math.max(0, Math.sin(phase - Math.PI / 2)), 1.4) * kneeAmp
-    const kneeR = Math.pow(Math.max(0, Math.sin(phase + Math.PI / 2)), 1.4) * kneeAmp
+    // each leg gets its own cycle position; the right leg is half a cycle behind
+    const uL = ((phase / TAU) % 1 + 1) % 1
+    const uR = (uL + 0.5) % 1
 
-    const armAmp = lerp(0.08, 0.8, speedNorm) * walkBlend
+    const hipL = -Math.cos(TAU * uL) * hipAmp // + = leg back
+    const hipR = -Math.cos(TAU * uR) * hipAmp
+    const kneeL = kneeAt(uL, speedNorm) * walkBlend
+    const kneeR = kneeAt(uR, speedNorm) * walkBlend
+
+    const armAmp = lerp(0.1, 0.72, speedNorm) * walkBlend
     const idle = Math.sin(t * 1.7) * 0.02 * (1 - moving)
-    const armSwingL = -Math.sin(phase) * armAmp + idle
-    const armSwingR = -Math.sin(phase + Math.PI) * armAmp + idle
-    const elbowFlex = lerp(0.22, 1.25, speedNorm * speedNorm)
+    const armSwingL = Math.cos(TAU * uL) * armAmp + idle
+    const armSwingR = Math.cos(TAU * uR) * armAmp + idle
+    const elbowFlex = lerp(0.22, 1.5, speedNorm * speedNorm)
 
-    poseBone(rig.thighL, X_AXIS, swingL, X_AXIS, 0)
-    poseBone(rig.thighR, X_AXIS, swingR, X_AXIS, 0)
+    poseBone(rig.thighL, X_AXIS, hipL, X_AXIS, 0)
+    poseBone(rig.thighR, X_AXIS, hipR, X_AXIS, 0)
     poseBone(rig.calfL, X_AXIS, kneeL, X_AXIS, 0)
     poseBone(rig.calfR, X_AXIS, kneeR, X_AXIS, 0)
     // ankle keeps the sole roughly level with the ground
-    poseBone(rig.footL, X_AXIS, -(swingL + kneeL) * 0.8, X_AXIS, 0)
-    poseBone(rig.footR, X_AXIS, -(swingR + kneeR) * 0.8, X_AXIS, 0)
+    poseBone(rig.footL, X_AXIS, -(hipL + kneeL) * 0.85, X_AXIS, 0)
+    poseBone(rig.footR, X_AXIS, -(hipR + kneeR) * 0.85, X_AXIS, 0)
 
     poseBone(rig.armL, X_AXIS, armSwingL, Z_AXIS, -ARM_ABDUCT)
     poseBone(rig.armR, X_AXIS, armSwingR, Z_AXIS, ARM_ABDUCT)
     poseBone(rig.elbowL, rig.hingeL, elbowFlex, X_AXIS, 0)
     poseBone(rig.elbowR, rig.hingeR, elbowFlex, X_AXIS, 0)
 
-    const lean = speedNorm * speedNorm * 0.3 * walkBlend
+    const lean = speedNorm * speedNorm * 0.32 * walkBlend
     poseBone(rig.spine, X_AXIS, lean, X_AXIS, 0)
     poseBone(rig.neck, X_AXIS, -lean * 0.75, X_AXIS, 0)
 
-    // drop the pelvis just enough that the lowest foot rests on the ground
+    // drop the pelvis just enough that the stance foot rests on the ground;
+    // during the running flight phase both feet are tucked, so the body flies
     const reach = (hip: number, knee: number) =>
       L_THIGH * Math.cos(hip) + L_SHIN * Math.cos(hip + knee)
-    const stanceReach = Math.max(reach(swingL, kneeL), reach(swingR, kneeR))
-    const soleGap = HIP_HEIGHT - stanceReach - ANKLE_TO_SOLE
-    g.position.set(characterPos.current.x, -soleGap, characterPos.current.z)
+    const stanceL = uL < 1 - swingFrac
+    const stanceR = uR < 1 - swingFrac
+    const flight = stanceL || stanceR ? 0 : 1
+    const support = flight
+      ? HIP_HEIGHT - ANKLE_TO_SOLE
+      : Math.max(
+          stanceL ? reach(hipL, kneeL) : -Infinity,
+          stanceR ? reach(hipR, kneeR) : -Infinity,
+        )
+    const soleGap = HIP_HEIGHT - ANKLE_TO_SOLE - support
+    const bodyY = -soleGap + lift + flight * 0.025 * speedNorm * walkBlend
+    const baseY = characterPos.current.y
+
+    g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)
     g.rotation.y = characterYaw.current
+
+    if (shadow.current) {
+      const fade = clamp(1 - lift / 1.6, 0.25, 1)
+      // the path ribbon's top face sits at y≈0.033, so the shadow has to clear
+      // it or it disappears underneath
+      shadow.current.position.set(characterPos.current.x, baseY + 0.045, characterPos.current.z)
+      shadow.current.scale.setScalar(1 + lift * 0.35)
+      ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade
+    }
   })
 
   return (
-    <group ref={root} scale={MODEL_SCALE} visible={pov !== 'fp'}>
-      <primitive object={fbx} />
-    </group>
+    <>
+      <group ref={root} scale={MODEL_SCALE} visible={mode === 'game' || pov !== 'fp'}>
+        <primitive object={fbx} />
+      </group>
+      <mesh
+        ref={shadow}
+        rotation={[-Math.PI / 2, 0, 0]}
+        visible={mode === 'game' || pov !== 'fp'}
+      >
+        <planeGeometry args={[1.5, 1.5]} />
+        <meshBasicMaterial map={blob} transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+    </>
   )
 }

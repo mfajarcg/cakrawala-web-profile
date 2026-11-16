@@ -8,10 +8,12 @@ import { STATIONS, type StationId } from '../journey/stations'
 export function Panel({
   id,
   center = false,
+  wide = false,
   children,
 }: {
   id: StationId
   center?: boolean
+  wide?: boolean
   children: ReactNode
 }) {
   const station = STATIONS.find((s) => s.id === id)!
@@ -20,6 +22,7 @@ export function Panel({
     : station.side === 'left'
       ? 'justify-start'
       : 'justify-end'
+  const widthClass = wide ? 'w-[min(94vw,58rem)]' : 'w-[min(92vw,36rem)]'
 
   return (
     <section
@@ -27,7 +30,9 @@ export function Panel({
       data-station={station.index}
       className={`flex min-h-[110vh] w-full items-center px-[4vw] ${sideClass}`}
     >
-      <div className="relative w-[min(92vw,36rem)] rounded-2xl border border-black/5 bg-white/90 p-6 shadow-[0_1.5rem_4rem_rgba(16,20,24,0.12)] backdrop-blur-sm sm:p-10">
+      <div
+        className={`relative ${widthClass} rounded-2xl border border-black/5 bg-white/90 p-6 shadow-[0_1.5rem_4rem_rgba(16,20,24,0.12)] backdrop-blur-sm sm:p-10`}
+      >
         <span className="absolute -top-3 left-6 rounded-full bg-[#408fb4] px-3 py-1 text-xs font-bold tracking-widest text-white">
           {String(station.index).padStart(2, '0')} / 11
         </span>

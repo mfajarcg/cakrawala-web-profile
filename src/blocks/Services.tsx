@@ -24,10 +24,10 @@ const ICONS: Record<string, LucideIcon> = {
 export function Services() {
   const { t } = useI18n()
   return (
-    <Panel id="services">
+    <Panel id="services" wide>
       <h2 className="text-3xl font-black tracking-tight sm:text-4xl">{t.services.title}</h2>
       <p className="mt-2 text-sm text-[#101418]/70">{t.services.lead}</p>
-      <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+      <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {t.services.items.map((s) => {
           const Icon = ICONS[s.icon] ?? Compass
           return (

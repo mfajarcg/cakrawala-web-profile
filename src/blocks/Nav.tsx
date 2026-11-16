@@ -1,5 +1,6 @@
 import { Languages, Menu, X } from 'lucide-react'
 import { useState } from 'react'
+import { jumpTo } from '../journey/jump'
 import { useI18n } from '../lib/i18n'
 
 const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-white.svg`
@@ -10,7 +11,7 @@ export function Nav() {
 
   const jump = (id: string) => {
     setOpen(false)
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    jumpTo(id)
   }
 
   return (

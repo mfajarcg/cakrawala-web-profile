@@ -159,3 +159,27 @@ Waktu sisa < 2 hari kerja, jadi prioritas tegas:
 - **Boleh dikompromikan bila kepepet:** peta MapLibre → diganti tombol "Lihat di Google Maps"; partner logo dijadikan subset (±12 logo utama); Play Moment pakai preset level (bukan drag bebas); OG image sederhana.
 - **Urutan eksekusi:** Blocks statis + konten (rabu malam) → Journey core (kamis pagi) → 3D stasiun + karakter (kamis siang–malam) → Play Moment + polish (jumat pagi) → deploy & smoke test (jumat siang).
 - **Play Moment — "Build the Stack":** saat karakter tiba di stasiun 9, ia duduk idle dan muncul area sandbox 2D-look isometric. User men-drag blok dari tray (server, laptop, dokumen, cloud, gelas kopi) lalu melepasnya; blok jatuh dan bertumpuk dengan physics Matter.js — bisa ditabrak, didorong, runtuh. Setiap blok berlabel layanan nyata Cartenz (server = System Integration, cloud = Data Platform & Governance, dokumen = PMQA, laptop = Platform Development, kopi = O&M 😄) sehingga main sekaligus edukatif. Ada counter tinggi tumpukan + tombol reset + high score di localStorage. Input: touch, mouse, dan keyboard (panah pilih blok, Enter lepas). Aman untuk TV remote.
+
+## 10. Transisi Ganti Bahasa (ID ↔ EN) — "Epic Language Flip"
+
+**Pengalaman:** satu gerakan penuh layar yang terasa seperti "tirai dunia" — bukan sekadar fade.
+
+### Konsep visual
+1. **Cover** — layar tertutup panel tinta gelap (`#101418`) yang menyapu dari arah tombol bahasa memakai `clip-path: circle()` yang mengembang ke seluruh viewport (kurang lebih 500 ms, easing `power3.inOut`).
+2. **Midpoint** — di tengah layar gelap: logo perisai Cakrawala melakukan **flip 3D** (rotateY 180°) sementara huruf besar bergulir `"ID → EN"` / `"EN → ID"` melewati tengah layar seperti papan kedatangan bandara (efek roll / marquee vertikal). Di puncak cover, **state bahasa React di-swap** — scroll position dipertahankan.
+3. **Reveal** — panel gelap menyusut lewat `clip-path` ke arah berlawanan (atau iris ke logo), konten baru terlihat dengan **stagger cascade**: panel stasiun yang terlihat di viewport fade+slide masuk satu per satu (±60 ms antar panel, hanya panel dalam viewport via IntersectionObserver — hemat di TV/hp).
+4. Bonus kamera: saat cover, kamera 3D melakukan **dolly-in kecil** ke arah karakter (zoom +8 lalu balik) sehingga dunia ikut "bernafas". Opsional, hanya jika frame budget aman.
+
+### Spesifikasi teknis
+- **Durasi total:** 1,2–1,5 detik; seluruhnya `transform` + `opacity` + `clip-path` (composite-friendly, tanpa layout thrash).
+- **Implementasi:** `src/lib/languageTransition.ts` (zustand mini-store: `phase: 'idle' | 'cover' | 'swap' | 'reveal'`) + komponen `LanguageTransitionOverlay.tsx` (fixed inset-0 z-50, pointer-events hanya saat aktif). Timeline diorkestrasi GSAP; swap bahasa terjadi di callback `onComplete` fase cover.
+- **Trigger:** tombol EN/ID di Nav memanggil `transitionTo(nextLang)` — tidak lagi toggle instan.
+- **A11y:** `aria-live="polite"` mengumumkan "Bahasa diubah ke English/Indonesia"; fokus keyboard tidak hilang (overlay `aria-hidden` saat idle; tombol bahasa tetap fokusable setelah transisi).
+- **`prefers-reduced-motion`:** swap instan tanpa animasi apa pun.
+- **Risiko & mitigasi:** tinggi konten beda antar bahasa bisa menggeser scroll → kunci scroll (`overflow: hidden` di body selama transisi) lalu pulihkan; jangan animasikan semua 11 panel sekaligus — hanya yang visible; disable dolly kamera di phone bila FPS < 40.
+
+### Fase pengerjaan (masuk setelah Play Moment)
+1. Store fase + overlay cover/reveal (clip-path + logo flip + rolling letters).
+2. Integrasi trigger Nav, swap di midpoint, kunci scroll.
+3. Stagger reveal panel terlihat + uji 5 viewport & reduced-motion.
+4. Polish timing/easing berdasarkan feel di TV & phone.

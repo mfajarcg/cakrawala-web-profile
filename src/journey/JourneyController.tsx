@@ -1,5 +1,7 @@
 import Lenis from 'lenis'
 import { useEffect, useRef } from 'react'
+import { useGame } from '../game/store'
+import { scrollBridge } from './scroll'
 import { STATION_COUNT } from './stations'
 import { clamp01, useJourney } from './store'
 
@@ -7,21 +9,28 @@ import { clamp01, useJourney } from './store'
 const easeInOutCubic = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 
-const KEY_TRAVEL_S = 1.15
+// long enough that the character's stride tracks the ground instead of sliding;
+// short enough that checkpoint hops still feel like a gesture
+const KEY_TRAVEL_S = 1.9
+const WHEEL_QUIET_MS = 240
+const SETTLE_MS = 200
+
+const inGame = () => useGame.getState().mode === 'game'
 
 /**
- * Binds smooth scroll (wheel/touch) and arrow keys to one shared
- * target progress so both control the walking character.
- * Arrow keys snap to the next station and land dead-centre on its panel
- * so every floating window comes to a full, readable stop.
+ * Binds smooth scroll (wheel/touch) and arrow keys to one shared target
+ * progress so both control the walking character. Every gesture locks onto a
+ * checkpoint: wheel steps one station at a time in either direction, and any
+ * other scroll (touch, scrollbar, nav jump) settles on the nearest station so
+ * a floating window always comes to a full, readable stop.
  */
 export function JourneyController() {
   // station the arrow-key cursor is at — accumulates during key animation,
-  // re-synced from the character whenever the user wheels instead
+  // re-synced from the scroll position whenever the page is at rest
   const keyCursor = useRef(0)
 
   useEffect(() => {
-    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true })
+    const lenis = new Lenis({ lerp: 0.09, smoothWheel: false })
     const setTarget = useJourney.getState().setTarget
     keyCursor.current = useJourney.getState().activeStation
 
@@ -30,18 +39,100 @@ export function JourneyController() {
       return max > 0 ? clamp01(window.scrollY / max) : 0
     }
 
-    const onScroll = () => setTarget(progressFromScroll())
+    /** the scroll position that centres a station's floating card */
+    const stationTop = (index: number) => {
+      const el = document.querySelector<HTMLElement>(`[data-station="${index + 1}"]`)
+      if (!el) return null
+      return el.offsetTop + (el.offsetHeight - window.innerHeight) / 2
+    }
+
+    let lockUntil = 0
+    // arrow keys pressed during a hop are queued, so the character walks each
+    // checkpoint instead of the scroll leaving it behind
+    let pending: number | null = null
 
     const scrollToStation = (index: number) => {
-      // data-station uses the 1-based display index (01..11)
-      const el = document.querySelector<HTMLElement>(`[data-station="${index + 1}"]`)
-      if (!el) return
-      // centre the section's card in the viewport, whatever its height
-      const top = el.offsetTop + (el.offsetHeight - window.innerHeight) / 2
-      lenis.scrollTo(top, { duration: KEY_TRAVEL_S, easing: easeInOutCubic })
+      const top = stationTop(index)
+      if (top == null) return
+      lockUntil = performance.now() + KEY_TRAVEL_S * 1000 + 250
+      lenis.scrollTo(top, {
+        duration: KEY_TRAVEL_S,
+        easing: easeInOutCubic,
+        onComplete: () => {
+          lockUntil = 0
+          if (pending != null && pending !== index) {
+            const next = pending
+            pending = null
+            scrollToStation(next)
+            return
+          }
+          pending = null
+          // a native jump (nav link, scrollbar) can land while a hop lock is
+          // still active and then never re-trigger a scroll event; settle here
+          // so the panel always comes to rest on a checkpoint centre
+          settle()
+        },
+      })
+    }
+
+    let settleTimer = 0
+    const lastSnap = { index: -1, y: -1 }
+    const settle = () => {
+      if (inGame() || performance.now() < lockUntil) return
+      let best = 0
+      let bestDist = Number.POSITIVE_INFINITY
+      for (let i = 0; i < STATION_COUNT; i++) {
+        const top = stationTop(i)
+        if (top == null) continue
+        const dist = Math.abs(window.scrollY - top)
+        if (dist < bestDist) {
+          bestDist = dist
+          best = i
+        }
+      }
+      keyCursor.current = best
+      // Lenis lands within a few pixels of the requested centre; treat that as
+      // settled so a tiny drift never restarts the animation in a loop
+      if (bestDist < 32) {
+        lastSnap.index = best
+        lastSnap.y = window.scrollY
+        return
+      }
+      if (best === lastSnap.index && Math.abs(window.scrollY - lastSnap.y) < 48) return
+      lastSnap.index = best
+      lastSnap.y = window.scrollY
+      scrollToStation(best)
+    }
+
+    const onScroll = () => {
+      setTarget(progressFromScroll())
+      if (inGame() || performance.now() < lockUntil) return
+      window.clearTimeout(settleTimer)
+      settleTimer = window.setTimeout(settle, SETTLE_MS)
+    }
+
+    let wheelAccum = 0
+    let lastWheelAt = 0
+    const onWheel = (e: WheelEvent) => {
+      if (inGame() || e.ctrlKey || e.metaKey) return
+      e.preventDefault()
+      const now = performance.now()
+      // swallow the rest of the gesture while a checkpoint animation runs
+      if (now < lockUntil) return
+      if (now - lastWheelAt > WHEEL_QUIET_MS) wheelAccum = 0
+      lastWheelAt = now
+      wheelAccum += e.deltaY
+      if (Math.abs(wheelAccum) < 16) return
+      const dir = wheelAccum > 0 ? 1 : -1
+      wheelAccum = 0
+      const next = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
+      if (next === keyCursor.current) return
+      keyCursor.current = next
+      scrollToStation(next)
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (inGame()) return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return
       const dir =
@@ -52,15 +143,41 @@ export function JourneyController() {
             : 0
       if (dir === 0) return
       e.preventDefault()
+      // during a hop, remember only the next checkpoint so the character always
+      // walks each leg instead of the scroll racing ahead of it
+      if (performance.now() < lockUntil) {
+        if (pending != null) return
+        const queued = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
+        if (queued !== keyCursor.current) {
+          keyCursor.current = queued
+          pending = queued
+        }
+        return
+      }
       const next = Math.min(STATION_COUNT - 1, Math.max(0, keyCursor.current + dir))
       if (next === keyCursor.current) return
       keyCursor.current = next
       scrollToStation(next)
     }
 
-    // wheel/touch takes over: re-anchor the cursor at the character's station
-    const onWheel = () => {
-      keyCursor.current = useJourney.getState().activeStation
+    const onTouchEnd = () => {
+      if (inGame()) return
+      window.clearTimeout(settleTimer)
+      settleTimer = window.setTimeout(settle, 320)
+    }
+
+    scrollBridge.toStation = (index) => {
+      keyCursor.current = index
+      scrollToStation(index)
+    }
+    scrollBridge.lock = (locked) => {
+      if (locked) {
+        lenis.stop()
+        document.body.style.overflow = 'hidden'
+      } else {
+        document.body.style.overflow = ''
+        lenis.start()
+      }
     }
 
     let raf = 0
@@ -72,13 +189,19 @@ export function JourneyController() {
 
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('touchend', onTouchEnd, { passive: true })
 
     return () => {
       cancelAnimationFrame(raf)
+      window.clearTimeout(settleTimer)
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchend', onTouchEnd)
+      document.body.style.overflow = ''
+      scrollBridge.toStation = () => {}
+      scrollBridge.lock = () => {}
       lenis.destroy()
     }
   }, [])

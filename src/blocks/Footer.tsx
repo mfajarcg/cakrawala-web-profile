@@ -1,4 +1,5 @@
 import { ArrowUp } from 'lucide-react'
+import { jumpTo } from '../journey/jump'
 import { useI18n } from '../lib/i18n'
 import { Panel } from './Panel'
 
@@ -28,7 +29,7 @@ export function Footer() {
         </div>
 
         <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          onClick={() => jumpTo('hero')}
           className="mt-6 flex items-center gap-2 rounded-full border-2 border-[#101418]/15 px-5 py-2.5 text-sm font-bold transition hover:border-[#408fb4] hover:text-[#2e6f8e] focus-visible:outline-2 focus-visible:outline-[#101418]"
         >
           <ArrowUp size={16} />
