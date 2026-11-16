@@ -651,7 +651,7 @@ dibangun sebelum masuk ke arena.
   lima lapis berurutan dari tanah ke langit (I Fondasi → II Memori → III Karya →
   IV Mutu → V Rawat), hukum fondasi (blok hanya berdiri di atas yang kokoh;
   mencabut fondasi meruntuhkan yang bertumpu), dan persistensi browser — sambil
-  mempertahankan framing "bermain sebagai Eric di arena blok isometrik".
+  mempertahankan framing "bermain sebagai Andrew Ryan Sinaga di arena blok isometrik".
 - Panel `PlayMoment` menampilkan **ladder target berurutan** (angka Romawi +
   warna blok + nama lapis, urutan `LAYERS`) di bawah keterangan, menggantikan
   chip material yang sebelumnya tidak berurutan. Caption memakai
@@ -662,3 +662,51 @@ dibangun sebelum masuk ke arena.
 Screenshot panel pada 1440×900 dan 390×844: teks terbaca kontras baik, ladder
 satu baris di desktop dan wrap dua baris di ponsel tanpa overflow/clipping.
 `play-qa.mjs` (masuk via CTA, pause/hapus/resume/Esc) hijau, `tsc -b` + `build` bersih.
+
+## 18. Likeness karakter: Andrew Ryan Sinaga (Managing Director Cartenz)
+
+Permintaan: jadikan karakter 3D menyerupai foto Andrew Ryan Sinaga — rambut hitam
+pendek, kacamata persegi hitam, kemeja putih kerah band dengan lengan digulung
+(lengan bawah kulit terbuka), smartwatch hitam di pergelangan kiri, kulit tan,
+senyum. Rig, gait, dan pose CMJ tetap utuh.
+
+### 18.1 Kendala aset & keputusan
+
+- Scan `rp_eric_rigged_001` = **satu SkinnedMesh, satu material, satu atlas diffuse**
+  (61.626 vertex, tanpa geometry groups) → recolor per bagian lewat material tidak
+  mungkin. Keputusan: **palet vertex** berdasar dominant skin weight + mask spasial
+  wajah, normal map atlas dipertahankan, diffuse dilepas (`vertexColors: true`).
+- Wilayah: sepatu `foot/ball`, celana `thigh/calf`, kemeja `pelvis/spine/clavicle/
+  upperarm` (di bawah garis pinggang 1.07 m jadi celana — ekor kemeja scan yang
+  tidak dimasukkan), kulit `lowerarm/hand/jari`, leher `neck_01` (kerah putih),
+  kepala `head` dengan mask rambut/mata/senyum/gigi/stubble. Garis wajah diturunkan
+  dari extents vertex head (chin/top), bukan angka tebakan.
+- **Bedah vertex** (sekali, statis): ridge tie ditekan ke `chestX` (permukaan dada
+  referensi dari vertex spine_02 sisi), kerah spread dilipat jadi band mandarin
+  (clamp radius 0.062 m + tinggi chin+0.012 m, termasuk vertex clavicle).
+- **Aksesori rigid** ter-parent ke bone dengan matriks lokal tetap dihitung di ruang
+  rest: kacamata (rim box + lensa tinted opacity 0.28 + bridge + temple) di `head`;
+  smartwatch (torus strap + box face + screen emissive) di `hand_l`; cuff torus putih
+  di kedua `lowerarm`. Karena lokal tetap, gait/CMJ membawa aksesori tanpa kerja per
+  frame; pose rest vs posed tidak menggeser offset (motion bone cancels out).
+- **Jebakan satuan**: ruang bone FBX = sentimeter sedangkan offset/geometry ditulis
+  meter → attach mengalikan `S100`, mask wajah membaca `×0.01`, dan invers bedah
+  vertex = `rootSpace⁻¹ · S100`. Tanpa faktor ini aksesori render 1/100 ukuran dan
+  vertex yang diedit runtuh ke origin (terlihat sebagai tiang putih di antara kaki).
+- **StrictMode**: FBX di-cache drei lintas remount → aksesori di-tag `userData.andrew`
+  dan diganti (dispose geometry/material lama), bukan ditumpuk.
+- Komponen visual dinamai `AndrewVisual`; copy `play.ctaNote` ID/EN menyebut
+  "Andrew Ryan Sinaga, Managing Director Cartenz"; tribute menambah kredit foto
+  arsip perusahaan dan memperjelas rig dasar Renderpeople (Personal Use) + diffuse
+  diganti palet vertex. README §4 (subseksi Likeness), tabel lisensi, dan daftar QA
+  diperbarui.
+
+### 18.2 QA
+
+`scripts/andrew-qa.mjs`: pause membekukan simulasi → kamera ditempatkan manual
+(depan/samping/kepala dekat) dengan HUD disembunyikan sementara; top-down saat
+berjalan memverifikasi arah hadap = arah gerak (sumbu kamera up = arah gerak);
+390×844 sentuh untuk tampilan jarak nyata. Hasil: kacamata/watch/cuff/kerah terbaca
+di jarak permainan; senyum & rambut terbaca di potret; console error kosong.
+Regresi hijau: `play-qa`, `meaning-qa`, `jump-qa`, `mobile-play-qa`, `touch-qa`,
+`verify2` + `tsc -b` + `build`.

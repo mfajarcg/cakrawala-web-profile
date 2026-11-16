@@ -82,7 +82,7 @@ Canvas (fixed, React Three Fiber)
 ├─ .github/workflows/deploy.yml# build + deploy GitHub Pages dari main
 ├─ public/
 │  ├─ logo/                    # logo Cakrawala hitam & putih (SVG)
-│  └─ models/eric/             # rp_eric_rigged_001_ue4.fbx + tex/ (diffuse, normal)
+│  └─ models/eric/             # rp_eric_rigged_001_ue4.fbx + tex/ (normal; diffuse diganti palet vertex)
 ├─ src/
 │  ├─ App.tsx                  # shell: World + DOM blocks + HUD + fade
 │  ├─ main.tsx
@@ -133,7 +133,8 @@ Canvas (fixed, React Three Fiber)
 │  ├─ jump-qa.mjs              # uji CMJ per fase + tribute + overflow 390
 │  ├─ meaning-qa.mjs           # uji loop falsafah tumpukan blok
 │  ├─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
-│  └─ mobile-play-qa.mjs       # uji kontrol Play sentuh: tap-aim, place/break, HUD bebas overlap
+│  ├─ mobile-play-qa.mjs       # uji kontrol Play sentuh: tap-aim, place/break, HUD bebas overlap
+│  └─ andrew-qa.mjs            # potret likeness (depan/samping/kepala/top-down) + 390 sentuh
 └─ PLAN.md                     # rencana produk & catatan data
 ```
 
@@ -187,7 +188,7 @@ titik fokus kamera.
 |---|---|
 | `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Ground + grid + path + stasiun + arena + karakter selalu ada; kamera berganti sesuai mode. Mode situs: `OrthographicCamera` (16,16,16) + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
 | `path.ts` | `CatmullRomCurve3(STATIONS, closed=false, 'catmullrom', tension=0.15)`, di-cache. `getPointAt` / `getTangentAt` untuk posisi & arah hadap. |
-| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `EricVisual` (FBX, bone posing, bob pelvis, blob shadow). |
+| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `AndrewVisual` (FBX, bone posing, bob pelvis, blob shadow, likeness Andrew Ryan Sinaga: palet vertex + aksesori ter-parent ke bone). |
 | `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
 | `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
 | `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, moving, lift}` dan `cadenceFor()` — dipakai bersama situs dan game. |
@@ -383,7 +384,7 @@ Semua aturan makna adalah fungsi murni di `src/game/meaning.ts`:
 
 Lompat bukan sekadar translasi naik: rig memainkan empat fase sesuai kurva force-time CMJ
 (Owen et al. 2018): **braking dip → propulsion → flight → landing absorption**. State mesin
-(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `EricVisual` mem-blend pose lompat di
+(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `AndrewVisual` mem-blend pose lompat di
 atas stride dengan damp eksponensial (λ = 16 pose, λ = 12 bobot).
 
 | Fase | Durasi | Hip | Lutut | Lengan | Sumber |
@@ -405,6 +406,29 @@ Rumus fisika lompat ( projectile / flight-time / impulse–momentum ):
 | `h = g·t² / 8` (flight-time) | identik dengan dua di atas untuk take-off=landing | Linthorne 2001 |
 | `J = ∫F dt = m·Δv` | dasar take-off & absorpsi mendarat | Linthorne 2001; McGinnis 2013 |
 | `v += −g·dt; y += v·dt` | semi-implicit Euler, `g = 24` arcade | integrasi numerik standar |
+
+#### Likeness Andrew Ryan Sinaga
+
+Karakter di journey maupun Play adalah **Andrew Ryan Sinaga, Managing Director PT Cartenz**, mengikuti
+foto arsip perusahaan. Scan FBX hanya punya satu atlas diffuse untuk seluruh tubuh, jadi
+likeness dibangun tanpa texture baru:
+
+- **Palet vertex** (`paintAndrew`): warna per vertex dari *dominant skin weight* (sepatu,
+  celana, kemeja, kulit lengan/kepala) plus mask spasial wajah dalam ruang rest meter —
+  garis rambut, mata, senyum melengkung + gigi, stubble halus. Kemeja putih menggantikan
+  vest/tie scan; lengan bawah kulit terbuka (lengan digulung).
+- **Bedah vertex ringan**: ridge tie ditekan rata ke permukaan dada (`chestX`), dan kerah
+  spread scan dilipat turun menjadi band collar mandarin (clamp radius + tinggi).
+- **Aksesori rigid ter-parent ke bone** (`attachAndrew`): kacamata persegi hitam (rim +
+  lensa tinted + temple) di `head`, smartwatch hitam (strap torus + face emissive) di
+  `hand_l`, cuff gulungan lengan di kedua `lowerarm`. Transform lokal dihitung sekali di
+  ruang rest sehingga gait/CMJ membawa aksesori tanpa update per frame.
+- **Satuan**: ruang bone FBX berskala sentimeter; semua offset/geometry ditulis dalam meter
+  lalu dikali 100 saat di-attach (`S100`), dan mask wajah dibagi 100 saat dibaca. Aksesori
+  di-tag `userData.andrew` agar remount StrictMode mengganti, bukan menumpuk.
+
+QA: `scripts/andrew-qa.mjs` (potret depan/samping/kepala dari kamera beku saat pause,
+top-down berjalan untuk verifikasi arah hadap, plus 390×844 sentuh).
 
 #### Kerangka rotasi pose rig
 
@@ -563,6 +587,7 @@ node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/8/10, 
 node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute
 node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
 node scripts/mobile-play-qa.mjs # kontrol Play sentuh: tanpa lock, tap-aim, place/break, HUD bebas overlap
+node scripts/andrew-qa.mjs  # potret likeness Andrew + verifikasi arah hadap top-down + 390 sentuh
 ```
 
 Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, `grid-template-columns`
@@ -599,7 +624,8 @@ keluar layar, dan Keluar mengembalikan journey dengan build tersimpan.
 | Zustand, Lenis, GSAP | MIT |
 | Lucide | ISC |
 | Playwright-core | Apache-2.0 |
-| Model “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
+| Rig dasar “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
+| Likeness Andrew Ryan Sinaga (foto arsip PT Cartenz) + palet vertex & aksesori prosedural | Milik PT Cartenz Technology Indonesia |
 | Logo Cakrawala, screenshot, dan data proyek | Milik PT Cartenz Technology Indonesia |
 | Logo mitra/kementerian | Milik masing-masing pemegang merek |
 
@@ -622,7 +648,9 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 > **Catatan lisensi model:** “Eric Rigged 001” dirilis dengan *Personal Use License*, bukan
 > lisensi komersial. Untuk penggunaan komersial jangka panjang, karakter ini sebaiknya diganti
 > dengan model berlisensi komersial (atau model internal Cartenz). Detail tercatat juga di
-> Footer → Tribute & Atribusi, bersama library lain yang dipakai.
+> Footer → Tribute & Atribusi, bersama library lain yang dipakai. Likeness wajah/gaya
+> mengikuti foto arsip PT Cartenz (Andrew Ryan Sinaga, Managing Director) dan dibangun
+> prosedural di atas rig; rig dasarnya tetap berlisensi Personal Use.
 
 Daftar tribute di UI bersifat wajib: setiap penambahan atau penghapusan aset/library harus
 disertai pembaruan teks `footer.tribute` di `src/content/id.json` dan `en.json`.

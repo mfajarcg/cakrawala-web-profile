@@ -187,7 +187,7 @@
     "lead": "Masuk ke dunia blok 3D-nya: jalan, lari, lompat, lalu bangun infrastruktur digitalmu sendiri.",
     "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser. Susun Tumpukan Bermakna: Fondasi → Memori → Karya → Mutu → Rawat.",
     "cta": "Mulai Play Character",
-    "ctaNote": "Kamu bermain sebagai karakter Eric di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Memori → III Karya → IV Mutu → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
+    "ctaNote": "Kamu bermain sebagai Andrew Ryan Sinaga, Managing Director Cartenz, di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Memori → III Karya → IV Mutu → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
     "gameTitle": "Cakrawala Playground",
     "gameHint": "WASD / panah jalan · Shift lari · Spasi lompat · Klik kiri hancurkan · Klik kanan pasang · 1–5 pilih material · Esc jeda, Esc lagi keluar",
     "gameHintTouch": "Joystick kiri untuk jalan · geser sisi kanan untuk melihat · tombol aksi di kanan",
@@ -311,7 +311,8 @@
           { "text": "Zustand (MIT) — state perjalanan & game" },
           { "text": "Lucide (ISC) — ikon" },
           { "text": "Playwright-core (Apache-2.0) — QA screenshot & gameplay", "href": "https://playwright.dev" },
-          { "text": "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License", "href": "https://free3d.com" }
+          { "text": "Rig dasar karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License; atlas diffuse diganti palet vertex", "href": "https://free3d.com" },
+          { "text": "Wajah & gaya karakter: Andrew Ryan Sinaga, Managing Director PT Cartenz — foto arsip perusahaan; kacamata, jam tangan, kerah band, dan lengan digulung dibuat prosedural di atas rig" }
         ]
       },
       {

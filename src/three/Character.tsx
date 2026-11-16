@@ -49,7 +49,7 @@ export function Character() {
     <>
       <CharacterDriver />
       <Suspense fallback={null}>
-        <EricVisual />
+        <AndrewVisual />
       </Suspense>
     </>
   )
@@ -203,6 +203,295 @@ function kneeAt(u: number, speedNorm: number) {
   return peak * Math.pow(Math.sin(Math.PI * Math.pow(s, 0.92)), 0.85)
 }
 
+// --- Andrew Ryan Sinaga likeness -------------------------------------------------
+// The scan ships one diffuse atlas for the whole body, so outfit and skin are
+// repainted per vertex from dominant skin weights plus spatial face masks, and
+// the identifying accessories (glasses, smartwatch, rolled cuffs, band collar)
+// are rigid meshes parented to the bones so the gait and jump poses carry them.
+const SKIN = new THREE.Color('#c08a60')
+const SKIN_SHADOW = new THREE.Color('#8a6a4c')
+const SHIRT = new THREE.Color('#f2efe9')
+const HAIR = new THREE.Color('#161719')
+const PANTS = new THREE.Color('#23262b')
+const SHOE = new THREE.Color('#141518')
+const MOUTH = new THREE.Color('#6b3f33')
+const TEETH = new THREE.Color('#e9e3da')
+const EYE = new THREE.Color('#2e2620')
+
+interface Likeness {
+  eyeY: number
+  faceX: number
+  chinY: number
+  collarY: number
+  wristL: THREE.Vector3
+  dirL: THREE.Vector3
+  elbowL: THREE.Vector3
+  elbowR: THREE.Vector3
+  dirR: THREE.Vector3
+}
+
+function paintAndrew(fbx: THREE.Object3D): Likeness {
+  let mesh: THREE.SkinnedMesh | null = null
+  fbx.traverse((o) => {
+    if (!mesh && (o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o as THREE.SkinnedMesh
+  })
+  const m = mesh!
+  const geo = m.geometry
+  const pos = geo.attributes.position as THREE.BufferAttribute
+  const idx = geo.attributes.skinIndex as THREE.BufferAttribute
+  const wgt = geo.attributes.skinWeight as THREE.BufferAttribute
+  const names = m.skeleton.bones.map((b) => b.name)
+  const v = new THREE.Vector3()
+  const rootSpace = new THREE.Matrix4().copy(fbx.matrixWorld).invert().multiply(m.matrixWorld)
+  // bone space is centimetres; work in metres so face lines match real anatomy
+  const rest = (i: number) => v.fromBufferAttribute(pos, i).applyMatrix4(rootSpace).multiplyScalar(0.01)
+  const boneAt = (i: number) => {
+    let best = 0
+    let bw = -1
+    for (let k = 0; k < 4; k++) {
+      const w = wgt.getComponent(i, k)
+      if (w > bw) {
+        bw = w
+        best = idx.getComponent(i, k)
+      }
+    }
+    return names[best] ?? ''
+  }
+
+  // head extents first: every face line is derived from the skull, not guessed
+  let top = -Infinity
+  let chin = Infinity
+  for (let i = 0; i < pos.count; i++) {
+    if (boneAt(i) !== 'head') continue
+    rest(i)
+    top = Math.max(top, v.y)
+    chin = Math.min(chin, v.y)
+  }
+  const eyeY = chin + 0.52 * (top - chin)
+  const mouthY = chin + 0.24 * (top - chin)
+  const hairY = eyeY + 0.05
+  const earY = eyeY - 0.015
+  let faceX = 0
+  let sideT = 0
+  for (let i = 0; i < pos.count; i++) {
+    if (boneAt(i) !== 'head') continue
+    rest(i)
+    if (Math.abs(v.y - eyeY) < 0.012) {
+      faceX = Math.max(faceX, v.x)
+      sideT = Math.max(sideT, Math.abs(v.z))
+    }
+  }
+  sideT *= 0.78
+
+  // shirt-front reference so the scan's tie ridge can be pressed flush
+  let chestX = 0
+  for (let i = 0; i < pos.count; i++) {
+    if (boneAt(i) !== 'spine_02') continue
+    rest(i)
+    if (Math.abs(v.z) > 0.06 && Math.abs(v.z) < 0.1 && v.y > 1.25 && v.y < 1.45) {
+      chestX = Math.max(chestX, v.x)
+    }
+  }
+  const rootInvSpace = rootSpace
+    .clone()
+    .invert()
+    .multiply(new THREE.Matrix4().makeScale(100, 100, 100))
+  for (let i = 0; i < pos.count; i++) {
+    const bone = boneAt(i)
+    rest(i)
+    let moved = false
+    if (/^spine_/.test(bone) && Math.abs(v.z) < 0.04 && v.y > 1.12 && v.y < 1.53 && v.x > chestX) {
+      v.x = chestX
+      moved = true
+    }
+    if (
+      (bone === 'neck_01' || bone === 'clavicle_l' || bone === 'clavicle_r' || (bone === 'spine_03' && v.y > 1.5)) &&
+      v.y > 1.545
+    ) {
+      // fold the scan's spread collar down into a mandarin band
+      const r = Math.hypot(v.x - 0.005, v.z)
+      if (r > 0.062) {
+        const k = 0.062 / r
+        v.x = 0.005 + (v.x - 0.005) * k
+        v.z *= k
+        moved = true
+      }
+      if (v.y > chin + 0.012) {
+        v.y = chin + 0.012
+        moved = true
+      }
+    }
+    if (moved) {
+      v.applyMatrix4(rootInvSpace)
+      pos.setXYZ(i, v.x, v.y, v.z)
+    }
+  }
+  pos.needsUpdate = true
+
+  const colors = new Float32Array(pos.count * 3)
+  const c = new THREE.Color()
+  for (let i = 0; i < pos.count; i++) {
+    const bone = boneAt(i)
+    rest(i)
+    const az = Math.abs(v.z)
+    if (/^(foot|ball)_/.test(bone)) c.copy(SHOE)
+    else if (/^(thigh|calf)/.test(bone)) c.copy(PANTS)
+    else if (/^(pelvis|spine_|clavicle|upperarm)/.test(bone)) {
+      // below the waistline the scan's untucked shirt tail becomes trousers
+      c.copy(v.y < 1.07 ? PANTS : SHIRT)
+    } else if (/^(lowerarm|hand|thumb|index|middle|ring|pinky)/.test(bone)) c.copy(SKIN)
+    else if (bone === 'neck_01') c.copy(v.y < chin + 0.045 ? SHIRT : SKIN)
+    else if (bone === 'head') {
+      const smile = 0.012 * Math.pow(Math.min(az, 0.03) / 0.03, 2)
+      if (
+        v.y > hairY + (v.x > faceX * 0.5 ? 0.035 : 0) ||
+        (v.x < faceX * 0.25 && v.y > earY) ||
+        (az > sideT * 0.9 && v.y > earY + 0.008)
+      ) {
+        c.copy(HAIR)
+      } else if (v.x > faceX * 0.6 && az > 0.014 && az < 0.042 && Math.abs(v.y - eyeY) < 0.006) {
+        c.copy(EYE)
+      } else if (v.x > faceX * 0.55 && az < 0.03 && v.y > mouthY - 0.0045 + smile && v.y < mouthY + 0.0045 + smile) {
+        c.copy(az < 0.022 && v.y > mouthY - 0.001 + smile && v.y < mouthY + 0.004 + smile ? TEETH : MOUTH)
+      } else if (v.x > faceX * 0.25 && v.y > chin + 0.004 && v.y < mouthY - 0.012 && az < 0.05) {
+        c.copy(SKIN).lerp(SKIN_SHADOW, 0.18)
+      } else if (az > 0.045 && az < sideT && v.y > chin && v.y < earY && v.x > 0) {
+        c.copy(SKIN).lerp(SKIN_SHADOW, 0.15)
+      } else c.copy(SKIN)
+    } else c.copy(SKIN)
+    colors[i * 3] = c.r
+    colors[i * 3 + 1] = c.g
+    colors[i * 3 + 2] = c.b
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+
+  const rootInv = new THREE.Matrix4().copy(fbx.matrixWorld).invert()
+  const wp = (n: string) =>
+    fbx
+      .getObjectByName(n)!
+      .getWorldPosition(new THREE.Vector3())
+      .applyMatrix4(rootInv)
+      .multiplyScalar(0.01)
+  const handL = wp('hand_l')
+  const lowL = wp('lowerarm_l')
+  const lowR = wp('lowerarm_r')
+  const handR = wp('hand_r')
+  const dirL = handL.clone().sub(lowL).normalize()
+  const dirR = handR.clone().sub(lowR).normalize()
+  return {
+    eyeY,
+    faceX,
+    chinY: chin,
+    collarY: chin + 0.005,
+    wristL: handL.clone().addScaledVector(dirL, -0.03),
+    dirL,
+    elbowL: lowL.clone().addScaledVector(dirL, 0.03),
+    elbowR: lowR.clone().addScaledVector(dirR, 0.03),
+    dirR,
+  }
+}
+
+/** parent a rigid mesh to a bone with a fixed rest-world transform */
+function boneAttach(fbx: THREE.Object3D, boneName: string, obj: THREE.Object3D, world: THREE.Matrix4) {
+  const bone = fbx.getObjectByName(boneName)
+  if (!bone) return
+  // the cached FBX survives StrictMode remounts: replace, never accumulate
+  for (const old of [...bone.children]) {
+    if (!old.userData.andrew) continue
+    bone.remove(old)
+    old.traverse((o) => {
+      const me = o as THREE.Mesh
+      if (me.isMesh) {
+        me.geometry.dispose()
+        ;(me.material as THREE.Material).dispose()
+      }
+    })
+  }
+  obj.userData.andrew = true
+  // express both the bone and the desired transform in fbx-root space so the
+  // wrapper group's centimetre scale and live yaw never leak into the offset
+  const rootInv = new THREE.Matrix4().copy(fbx.matrixWorld).invert()
+  const boneInRoot = rootInv.clone().multiply(bone.matrixWorld)
+  obj.matrixAutoUpdate = false
+  // bone space is centimetres: scale the metre-authored accessory into it
+  obj.matrix
+    .copy(boneInRoot)
+    .invert()
+    .multiply(_s.makeScale(100, 100, 100))
+    .multiply(world)
+  obj.traverse((o) => {
+    o.frustumCulled = false
+  })
+  bone.add(obj)
+}
+
+const _m = new THREE.Matrix4()
+const _s = new THREE.Matrix4()
+const _x = new THREE.Vector3()
+const _y = new THREE.Vector3()
+const _z = new THREE.Vector3()
+
+function attachAndrew(fbx: THREE.Object3D, L: Likeness) {
+  const black = new THREE.MeshStandardMaterial({ color: '#101113', roughness: 0.5 })
+  const glass = new THREE.MeshStandardMaterial({
+    color: '#565c63',
+    roughness: 0.15,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.28,
+  })
+  const shirt = new THREE.MeshStandardMaterial({ color: SHIRT, roughness: 0.8, side: THREE.DoubleSide })
+  const screen = new THREE.MeshStandardMaterial({
+    color: '#0e2a33',
+    emissive: '#0e3a46',
+    emissiveIntensity: 0.7,
+    roughness: 0.3,
+  })
+  const box = (w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number) => {
+    const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
+    me.position.set(x, y, z)
+    return me
+  }
+
+  // rectangular glasses: black rims with tinted lenses proud of the frame face
+  const glasses = new THREE.Group()
+  for (const s of [-1, 1]) {
+    glasses.add(box(0.008, 0.04, 0.056, black, -0.001, 0, s * 0.033))
+    glasses.add(box(0.01, 0.032, 0.048, glass, 0.001, 0, s * 0.033))
+    glasses.add(box(0.1, 0.005, 0.006, black, -0.052, 0.014, s * 0.056))
+  }
+  glasses.add(box(0.008, 0.006, 0.018, black, 0, 0.01, 0))
+  boneAttach(fbx, 'head', glasses, _m.makeTranslation(L.faceX, L.eyeY, 0))
+
+  // smartwatch on the left wrist: strap ring around the forearm, face on top
+  const n = _y.set(0, 1, 0).addScaledVector(L.dirL, -L.dirL.y).normalize()
+  const xAxis = _x.crossVectors(n, L.dirL).normalize()
+  const basis = new THREE.Matrix4().makeBasis(xAxis, n, L.dirL)
+  const watch = new THREE.Group()
+  const strap = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.009, 10, 20), black)
+  strap.quaternion.setFromUnitVectors(_z.set(0, 0, 1), L.dirL)
+  watch.add(strap)
+  const face = box(0.03, 0.012, 0.036, black, 0, 0, 0)
+  face.quaternion.setFromRotationMatrix(basis)
+  face.position.copy(n).multiplyScalar(0.03)
+  watch.add(face)
+  const scr = box(0.022, 0.004, 0.028, screen, 0, 0, 0)
+  scr.quaternion.copy(face.quaternion)
+  scr.position.copy(n).multiplyScalar(0.037)
+  watch.add(scr)
+  boneAttach(fbx, 'hand_l', watch, _m.makeTranslation(L.wristL.x, L.wristL.y, L.wristL.z))
+
+  // rolled sleeve cuffs at both elbows
+  for (const [bone, at, dir] of [
+    ['lowerarm_l', L.elbowL, L.dirL],
+    ['lowerarm_r', L.elbowR, L.dirR],
+  ] as const) {
+    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.042, 0.013, 10, 18), shirt)
+    cuff.quaternion.setFromUnitVectors(_z.set(0, 0, 1), dir)
+    boneAttach(fbx, bone, cuff, _m.makeTranslation(at.x, at.y, at.z))
+  }
+}
+
 function useBlobShadow() {
   return useMemo(() => {
     const canvas = document.createElement('canvas')
@@ -220,12 +509,9 @@ function useBlobShadow() {
   }, [])
 }
 
-function EricVisual() {
+function AndrewVisual() {
   const fbx = useFBX(MODEL_URL)
-  const [dif, norm] = useTexture([
-    `${TEX_DIR}rp_eric_rigged_001_dif.jpg`,
-    `${TEX_DIR}rp_eric_rigged_001_norm.jpg`,
-  ])
+  const [norm] = useTexture([`${TEX_DIR}rp_eric_rigged_001_norm.jpg`])
   const root = useRef<THREE.Group>(null)
   const shadow = useRef<THREE.Mesh>(null)
   const blob = useBlobShadow()
@@ -236,11 +522,10 @@ function EricVisual() {
   const rig = useMemo(() => {
     fbx.updateMatrixWorld(true)
 
-    dif.colorSpace = THREE.SRGBColorSpace
     const material = new THREE.MeshStandardMaterial({
-      map: dif,
+      vertexColors: true,
       normalMap: norm,
-      roughness: 0.78,
+      roughness: 0.8,
       metalness: 0,
     })
     fbx.traverse((o) => {
@@ -249,6 +534,7 @@ function EricVisual() {
       mesh.material = material
       mesh.frustumCulled = false
     })
+    const likeness = paintAndrew(fbx)
 
     // The FBX is UE4-authored, so its character axes are NOT three's +X left /
     // +Z forward. Derive the true anatomical axes from bone landmarks so that
@@ -279,6 +565,8 @@ function EricVisual() {
       return h.applyAxisAngle(front, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
     }
 
+    attachAndrew(fbx, likeness)
+
     return {
       flex,
       front,
@@ -297,7 +585,7 @@ function EricVisual() {
       hingeL: hinge('l'),
       hingeR: hinge('r'),
     }
-  }, [fbx, dif, norm])
+  }, [fbx, norm])
 
   useFrame((state, delta) => {
     const g = root.current
