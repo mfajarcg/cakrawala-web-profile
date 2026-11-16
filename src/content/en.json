@@ -219,6 +219,7 @@
     "breakBlock": "Break",
     "placeBlock": "Place",
     "runLabel": "Run",
+    "touchHint": "Tap the screen to aim · drag the right side to look",
     "reset": "Reset",
     "score": "Stack height",
     "best": "Best",

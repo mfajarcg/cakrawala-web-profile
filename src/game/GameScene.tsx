@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { cadenceFor, characterPos, characterYaw, gait } from '../three/shared'
-import { input, lockState, resetInput } from './input'
+import { input, lockState, resetInput, setTapAim } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
 
@@ -89,6 +89,12 @@ export function GameScene() {
     const onClick = (e: MouseEvent) => {
       if (e.button !== 0) return
       if (useGame.getState().paused) return
+      // touch never takes pointer lock: the lock retargets every click to the
+      // canvas, which kills all HUD buttons. A tap aims instead.
+      if (window.matchMedia('(pointer: coarse)').matches) {
+        setTapAim(e.clientX, e.clientY)
+        return
+      }
       if (document.pointerLockElement === el) {
         input.breakQueued = true
         return
@@ -321,7 +327,7 @@ export function GameScene() {
       const isBreak = input.breakQueued
       input.breakQueued = false
       input.placeQueued = false
-      const locked = document.pointerLockElement != null || input.freeAim
+      const locked = document.pointerLockElement != null
       _ndc.set(locked ? 0 : input.aimX, locked ? 0 : input.aimY)
       raycaster.setFromCamera(_ndc, camera)
       const targets: THREE.Object3D[] = arenaRefs.blocks

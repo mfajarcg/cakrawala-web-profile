@@ -581,3 +581,58 @@ swipe panjang terkunci di checkpoint depan, sentuh baru di tengah hop mengambil
 alih dan tetap terkunci, tap tidak melompat stasiun, pageerror kosong.
 Catatan: CDP tidak mensimulasikan momentum, sehingga swipe panjang diuji sebagai
 "minimal satu langkah, terkunci" — perilaku momentum nyata ditangani clamp.
+
+## 16. Kontrol Play mode di layar sentuh (selesai)
+
+### 16.1 Masalah (dua penyebab, terlihat di screenshot Android)
+
+1. **Pointer lock mencuri klik.** Ketukan kanvas memanggil `requestPointerLock()`;
+   Chrome Android mengabulkannya (infobar "To show your cursor…"). Selama lock,
+   setiap event `click` compatibility di-retarget ke elemen terkunci (kanvas),
+   sehingga tombol HUD berbasis `onClick` (Menu, mute, hotbar) mati — hanya tombol
+   aksi berbasis `onPointerDown` (Lompat/Hancurkan/Pasang/Lari) yang hidup.
+2. **LookPad menutupi tombol.** `LookPad` (setengah kanan, `inset-y-0`) dirender
+   setelah top bar dalam DOM sehingga melukis **di atas** tombol Menu/mute dan
+   mencegat tap-nya (`intercepts pointer events`). Inilah sebabnya hanya tombol
+   aksi (dirender setelah LookPad) yang bisa diketuk.
+
+### 16.2 Keputusan
+
+- **Tanpa pointer lock di sentuh.** Cabang `onClick` kanvas untuk
+  `(pointer: coarse)` tidak pernah mengunci; ia membidik lewat tap. Efek HUD
+  additionally melepas lock liar bila ada (`touch && pointerLockElement → exit`),
+  dan `resume()` kembali lebih awal tanpa meminta lock.
+- **Tap = bidik, geser = lihat.** `setTapAim(clientX, clientY)` (input.ts) menjadi
+  satu sumber matematika aim: NDC dari rect kanvas + `input.pointAim` (koordinat
+  layar) + `emitAim()`. Dipakai cabang kanvas (setengah kiri) **dan** LookPad.
+  LookPad membedakan tap vs geser dengan ambang 6 px: tap → `setTapAim`; geser →
+  delta look dan menghapus `pointAim` (kembali ke crosshair tengah). Dengan ini
+  tap di mana pun (termasuk tengah, di atas LookPad) membidik.
+- **Reticle terlihat.** HUD berlangganan `subscribeAim` (`useSyncExternalStore`):
+  bila `touch && pointAim`, crosshair tengah disembunyikan dan cincin amber
+  (`data-reticle`) digambar tepat di titik tap; bila belum ada aim, chip petunjuk
+  `play.touchHint` tampil. Geser LookPad mengembalikan crosshair tengah + hint.
+- **Semua kontrol HUD pakai `press()`.** `onPointerDown` (preventDefault + aksi)
+  plus `onClick` hanya bila `detail === 0` (keyboard). Berlaku untuk mute, Menu,
+  slot hotbar, dan toggle ControlDeck — tetap hidup walau lock aktif, dan sekali
+  jalan untuk pointer maupun keyboard.
+- **LookPad di bawah kluster HUD.** `-z-10` dalam stacking context root HUD
+  (`fixed inset-0 z-40`): ia tetap di atas kanvas (menerima tap/geser setengah
+  kanan) tetapi di bawah top bar, hotbar, joystick, dan tombol aksi.
+- **Hotbar sentuh = strip vertikal kiri.** Varian desktop tetap di tengah-bawah;
+  varian sentuh (`data-hotbar="touch"`) di `bottom-44 left-2`: chip label
+  truncate + kolom 5 slot `h-11 w-11`. Terukur bebas overlap dengan joystick
+  (kiri-bawah) maupun kolom aksi (kanan-bawah).
+- **NoticeToast pindah ke `top-40` di sentuh** agar tidak menutupi hotbar/aksi.
+
+### 16.3 QA (`scripts/mobile-play-qa.mjs`, 390×844 `hasTouch`/`isMobile`)
+
+Lulus: masuk game; coarse terdeteksi; **tanpa lock** setelah tap; reticle tepat di
+koordinat tap dan mengikuti re-aim; Menu membuka jeda lewat pointer; Hapus
+semua/Ya/Lanjutkan bekerja; slot hotbar terpilih (`aria-pressed`); tap tanah +
+Pasang menempatkan sel yang diketuk (proyeksi kamera live → piksel); tap muka
+blok + Pasang menumpuk di atasnya; Hancurkan memecah sel yang diketuk; mute
+persist; geser LookPad memutar kamera dan menghapus reticle; joystick menggerakkan
+player; kluster HUD tidak overlap dan tidak keluar layar; Keluar kembali ke
+journey dengan build tersimpan; console error kosong. Regresi desktop tetap hijau
+(`meaning-qa`, `play-qa`, `jump-qa`, `verify2`, `touch-qa`) + `tsc -b` + `build`.

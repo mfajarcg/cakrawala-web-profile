@@ -15,16 +15,35 @@ import {
   useState,
   useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
 } from 'react'
 import { useI18n } from '../lib/i18n'
 import { audio } from './audio'
-import { input, lockState, resetInput } from './input'
+import { emitAim, input, lockState, resetInput, setTapAim, subscribeAim } from './input'
 import { LAYERS, LAYER_ROMAN, NOTICE_KEYS } from './meaning'
-import { BLOCK_COLORS, BLOCK_KINDS, useGame } from './store'
+import { BLOCK_COLORS, BLOCK_KINDS, useGame, type BlockKind } from './store'
 
 const DECK_KEY = 'cakrawala-hud-deck-v1'
+
+/**
+ * Fires on pointerdown so the control still works if a pointer lock is ever
+ * active (locked browsers retarget click, but not pointer events); keyboard
+ * activation arrives as a click with detail 0.
+ */
+function press(fn: () => void) {
+  return {
+    onPointerDown: (e: ReactPointerEvent) => {
+      e.preventDefault()
+      fn()
+    },
+    onClick: (e: ReactMouseEvent) => {
+      if (e.detail === 0) fn()
+    },
+  }
+}
 
 function usePointerLocked() {
   const [locked, setLocked] = useState(
@@ -53,6 +72,7 @@ export function GameHud() {
   const setPaused = useGame((s) => s.setPaused)
   const locked = usePointerLocked()
   const muted = useSyncExternalStore(audio.subscribe, () => audio.muted)
+  const pointAim = useSyncExternalStore(subscribeAim, () => input.pointAim)
   const [touch] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   )
@@ -188,6 +208,11 @@ export function GameHud() {
     if (celebrate && document.pointerLockElement) document.exitPointerLock()
   }, [celebrate])
 
+  // a stray lock on a touch device would steal every HUD click — drop it
+  useEffect(() => {
+    if (touch && document.pointerLockElement) document.exitPointerLock()
+  }, [touch, locked])
+
   const openMenu = () => {
     resetInput()
     setPaused(true)
@@ -197,6 +222,8 @@ export function GameHud() {
     setPaused(false)
     resetInput()
     lockState.lastLostAt = 0
+    // touch aims by tapping; locking would hide the cursor and eat HUD clicks
+    if (touch) return
     const canvas = document.querySelector<HTMLCanvasElement>('canvas')
     try {
       const result = canvas?.requestPointerLock?.() as unknown
@@ -225,7 +252,7 @@ export function GameHud() {
   return (
     <div className="pointer-events-none fixed inset-0 z-40 select-none text-white">
       {/* top bar */}
-      <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+      <div data-topbar className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
         <div className="rounded-xl border border-white/10 bg-[#101418]/85 px-4 py-2 shadow-lg backdrop-blur">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f2b23c]">
             {t.play.gameTitle}
@@ -266,7 +293,7 @@ export function GameHud() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => audio.toggle()}
+            {...press(() => audio.toggle())}
             aria-label={muted ? t.play.meaning.soundOff : t.play.meaning.soundOn}
             title={muted ? t.play.meaning.soundOff : t.play.meaning.soundOn}
             className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
@@ -280,7 +307,7 @@ export function GameHud() {
             </div>
           ) : (
             <button
-              onClick={openMenu}
+              {...press(openMenu)}
               className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-[#101418]/85 px-3.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
             >
               <Keyboard size={14} />
@@ -290,49 +317,76 @@ export function GameHud() {
         </div>
       </div>
 
-      {/* crosshair */}
-      {!paused && (
+      {/* crosshair — centre for lock/cursor aim; touch shows a reticle at the tap */}
+      {!paused && !(touch && pointAim) && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="h-4 w-4 rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(16,20,24,0.35)]" />
         </div>
       )}
-
-      {/* hotbar */}
-      <div className="absolute inset-x-0 bottom-5 flex flex-col items-center gap-1.5 px-4">
-        <p className="rounded-full bg-[#101418]/70 px-3 py-1 text-[0.65rem] font-bold text-white/85 backdrop-blur">
-          {LAYER_ROMAN[BLOCK_KINDS.indexOf(selected)]} · {t.play.meaning.layers[selected]} —{' '}
-          {t.play.blocks.find((b) => b.kind === selected)?.label ?? selected}
-        </p>
-        <div className="pointer-events-auto flex items-end gap-1.5 rounded-2xl bg-[#101418]/80 p-2 backdrop-blur">
-          {BLOCK_KINDS.map((kind, i) => {
-            const label = t.play.blocks.find((b) => b.kind === kind)?.label ?? kind
-            const active = selected === kind
-            return (
-              <button
-                key={kind}
-                onClick={() => select(kind)}
-                title={`${i + 1} · ${LAYER_ROMAN[i]} ${t.play.meaning.layers[kind]} · ${label}`}
-                aria-pressed={active}
-                className={`flex w-14 flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition ${
-                  active ? 'bg-white/20' : 'hover:bg-white/10'
-                }`}
-              >
-                <span
-                  className="relative h-7 w-7 rounded-md border-2 border-white/30"
-                  style={{ backgroundColor: BLOCK_COLORS[kind] }}
-                >
-                  <span className="absolute -right-2 -top-2 rounded bg-[#101418] px-0.5 text-[0.5rem] font-black text-[#f2b23c]">
-                    {LAYER_ROMAN[i]}
-                  </span>
-                </span>
-                <span className="text-[0.55rem] font-bold leading-none text-white/70">
-                  {i + 1}
-                </span>
-              </button>
-            )
-          })}
+      {!paused && touch && pointAim && (
+        <div
+          data-reticle
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+          style={{ left: pointAim.x, top: pointAim.y }}
+        >
+          <div className="h-7 w-7 rounded-full border-2 border-[#f2b23c] shadow-[0_0_0_1px_rgba(16,20,24,0.45),0_0_14px_rgba(242,178,60,0.55)]" />
+          <div className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f2b23c]" />
         </div>
-      </div>
+      )}
+      {touch && !pointAim && !paused && (
+        <div
+          data-touch-hint
+          className="pointer-events-none absolute inset-x-0 top-[57%] flex justify-center px-6"
+        >
+          <p className="max-w-[20rem] rounded-full border border-white/15 bg-[#101418]/80 px-4 py-1.5 text-center text-[0.65rem] font-semibold text-white/80 backdrop-blur">
+            {t.play.touchHint}
+          </p>
+        </div>
+      )}
+
+      {/* hotbar — desktop: bottom centre */}
+      {!touch && (
+        <div data-hotbar="desktop" className="absolute inset-x-0 bottom-5 flex flex-col items-center gap-1.5 px-4">
+          <p className="rounded-full bg-[#101418]/70 px-3 py-1 text-[0.65rem] font-bold text-white/85 backdrop-blur">
+            {LAYER_ROMAN[BLOCK_KINDS.indexOf(selected)]} · {t.play.meaning.layers[selected]} —{' '}
+            {t.play.blocks.find((b) => b.kind === selected)?.label ?? selected}
+          </p>
+          <div className="pointer-events-auto flex items-end gap-1.5 rounded-2xl bg-[#101418]/80 p-2 backdrop-blur">
+            {BLOCK_KINDS.map((kind, i) => (
+              <HotbarSlot
+                key={kind}
+                kind={kind}
+                i={i}
+                active={selected === kind}
+                onSelect={() => select(kind)}
+                touch={false}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* hotbar — touch: left vertical strip, clear of the joystick and actions */}
+      {touch && (
+        <div data-hotbar="touch" className="pointer-events-auto absolute bottom-44 left-2 flex flex-col items-start gap-1.5">
+          <p className="max-w-[11rem] truncate rounded-full bg-[#101418]/70 px-3 py-1 text-[0.65rem] font-bold text-white/85 backdrop-blur">
+            {LAYER_ROMAN[BLOCK_KINDS.indexOf(selected)]} · {t.play.meaning.layers[selected]} —{' '}
+            {t.play.blocks.find((b) => b.kind === selected)?.label ?? selected}
+          </p>
+          <div className="flex flex-col gap-1 rounded-2xl bg-[#101418]/80 p-1.5 backdrop-blur">
+            {BLOCK_KINDS.map((kind, i) => (
+              <HotbarSlot
+                key={kind}
+                kind={kind}
+                i={i}
+                active={selected === kind}
+                onSelect={() => select(kind)}
+                touch
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <NoticeToast />
       <CelebratePanel />
@@ -360,10 +414,57 @@ export function GameHud() {
   )
 }
 
+function HotbarSlot({
+  kind,
+  i,
+  active,
+  onSelect,
+  touch,
+}: {
+  kind: BlockKind
+  i: number
+  active: boolean
+  onSelect: () => void
+  touch: boolean
+}) {
+  const { t } = useI18n()
+  const label = t.play.blocks.find((b) => b.kind === kind)?.label ?? kind
+  return (
+    <button
+      {...press(onSelect)}
+      title={`${i + 1} · ${LAYER_ROMAN[i]} ${t.play.meaning.layers[kind]} · ${label}`}
+      aria-label={`${LAYER_ROMAN[i]} ${t.play.meaning.layers[kind]} · ${label}`}
+      aria-pressed={active}
+      className={
+        touch
+          ? `flex h-11 w-11 flex-col items-center justify-center gap-0.5 rounded-xl transition ${
+              active ? 'bg-white/20' : 'active:bg-white/10'
+            }`
+          : `flex w-14 flex-col items-center gap-1 rounded-xl px-1 py-1.5 transition ${
+              active ? 'bg-white/20' : 'hover:bg-white/10'
+            }`
+      }
+    >
+      <span
+        className="relative h-7 w-7 rounded-md border-2 border-white/30"
+        style={{ backgroundColor: BLOCK_COLORS[kind] }}
+      >
+        <span className="absolute -right-2 -top-2 rounded bg-[#101418] px-0.5 text-[0.5rem] font-black text-[#f2b23c]">
+          {LAYER_ROMAN[i]}
+        </span>
+      </span>
+      <span className="text-[0.55rem] font-bold leading-none text-white/70">{i + 1}</span>
+    </button>
+  )
+}
+
 function NoticeToast() {
   const { t } = useI18n()
   const notice = useGame((s) => s.notice)
   const [visible, setVisible] = useState(false)
+  const [touch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  )
 
   useEffect(() => {
     if (!notice) return
@@ -377,7 +478,9 @@ function NoticeToast() {
   return (
     <div
       key={notice.seq}
-      className="notice-toast pointer-events-none absolute inset-x-0 bottom-32 flex justify-center px-4"
+      className={`notice-toast pointer-events-none absolute inset-x-0 ${
+        touch ? 'top-40' : 'bottom-32'
+      } flex justify-center px-4`}
     >
       <div className="max-w-[26rem] rounded-2xl border border-[#f2b23c]/35 bg-[#101418]/90 px-5 py-3 text-center shadow-[0_1rem_2.5rem_rgba(0,0,0,0.4)] backdrop-blur-md">
         <p className="flex items-center justify-center gap-2 text-[0.6rem] font-black uppercase tracking-[0.28em] text-[#f2b23c]">
@@ -456,7 +559,7 @@ function ControlDeck({ open, onToggle }: { open: boolean; onToggle: () => void }
     return (
       <div className="pointer-events-auto absolute bottom-5 left-4 hidden lg:block">
         <button
-          onClick={onToggle}
+          {...press(onToggle)}
           className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101418]/85 px-3 py-2 text-[0.65rem] font-bold text-white/70 shadow-lg backdrop-blur transition hover:bg-[#101418] hover:text-white"
         >
           <Key danger>Esc</Key>
@@ -477,7 +580,7 @@ function ControlDeck({ open, onToggle }: { open: boolean; onToggle: () => void }
             {t.play.deckTitle}
           </p>
           <button
-            onClick={onToggle}
+            {...press(onToggle)}
             aria-label={t.play.deckTitle}
             className="rounded-md p-1 text-white/45 transition hover:bg-white/10 hover:text-white"
           >
@@ -727,19 +830,17 @@ function TouchControls() {
     <>
       <LookPad />
       <Joystick />
-      <div className="pointer-events-auto absolute bottom-24 right-4 flex flex-col items-end gap-2">
+      <div data-actions className="pointer-events-auto absolute bottom-24 right-4 flex flex-col items-end gap-2">
         <ActionButton label={t.play.jump} onPress={() => (input.jumpQueued = true)} />
         <ActionButton
           label={t.play.breakBlock}
           onPress={() => {
-            input.freeAim = true
             input.breakQueued = true
           }}
         />
         <ActionButton
           label={t.play.placeBlock}
           onPress={() => {
-            input.freeAim = true
             input.placeQueued = true
           }}
         />
@@ -772,6 +873,7 @@ function Joystick() {
 
   return (
     <div
+      data-joystick
       className="pointer-events-auto absolute bottom-6 left-5 flex h-32 w-32 touch-none items-center justify-center rounded-full border border-white/25 bg-[#101418]/50 backdrop-blur"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -815,25 +917,55 @@ function Joystick() {
 }
 
 function LookPad() {
-  const state = useRef<{ id: number; x: number; y: number } | null>(null)
+  const state = useRef<{
+    id: number
+    x: number
+    y: number
+    sx: number
+    sy: number
+    moved: boolean
+  } | null>(null)
 
   return (
     <div
-      className="pointer-events-auto absolute inset-y-0 right-0 w-1/2 touch-none"
+      data-lookpad
+      className="pointer-events-auto absolute inset-y-0 right-0 -z-10 w-1/2 touch-none"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
-        state.current = { id: e.pointerId, x: e.clientX, y: e.clientY }
+        state.current = {
+          id: e.pointerId,
+          x: e.clientX,
+          y: e.clientY,
+          sx: e.clientX,
+          sy: e.clientY,
+          moved: false,
+        }
       }}
       onPointerMove={(e) => {
         const s = state.current
         if (!s || s.id !== e.pointerId) return
-        input.lookX += e.clientX - s.x
-        input.lookY += e.clientY - s.y
+        const dx = e.clientX - s.x
+        const dy = e.clientY - s.y
         s.x = e.clientX
         s.y = e.clientY
+        if (!s.moved) {
+          // a tap aims; only a real drag turns the camera
+          if (Math.hypot(e.clientX - s.sx, e.clientY - s.sy) < 6) return
+          s.moved = true
+          if (input.pointAim) {
+            input.pointAim = null
+            input.aimX = 0
+            input.aimY = 0
+            emitAim()
+          }
+        }
+        input.lookX += dx
+        input.lookY += dy
       }}
-      onPointerUp={() => {
+      onPointerUp={(e) => {
+        const s = state.current
         state.current = null
+        if (s && s.id === e.pointerId && !s.moved) setTapAim(e.clientX, e.clientY)
       }}
       onPointerCancel={() => {
         state.current = null

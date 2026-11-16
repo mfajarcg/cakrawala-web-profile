@@ -13,8 +13,36 @@ export const input = {
   aimY: 0,
   /** true when pointer lock is unavailable, so aim comes from the cursor */
   freeAim: false,
+  /** screen-space aim set by a touch tap; null means the centre crosshair */
+  pointAim: null as { x: number; y: number } | null,
   breakQueued: false,
   placeQueued: false,
+}
+
+const aimListeners = new Set<() => void>()
+
+/** lets the HUD reticle follow tap-aim without polling the mutable input */
+export function subscribeAim(fn: () => void) {
+  aimListeners.add(fn)
+  return () => {
+    aimListeners.delete(fn)
+  }
+}
+
+export function emitAim() {
+  aimListeners.forEach((fn) => fn())
+}
+
+/** aim from a screen-space tap on the play canvas — touch never takes the lock */
+export function setTapAim(clientX: number, clientY: number) {
+  const canvas = document.querySelector('canvas')
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  input.aimX = ((clientX - rect.left) / rect.width) * 2 - 1
+  input.aimY = -((clientY - rect.top) / rect.height) * 2 + 1
+  input.pointAim = { x: clientX, y: clientY }
+  input.freeAim = true
+  emitAim()
 }
 
 export function resetInput() {
@@ -26,6 +54,8 @@ export function resetInput() {
   input.lookY = 0
   input.breakQueued = false
   input.placeQueued = false
+  input.pointAim = null
+  emitAim()
 }
 
 /**

@@ -132,7 +132,8 @@ Canvas (fixed, React Three Fiber)
 │  ├─ play-qa.mjs              # uji snap, kolom services, pause/hapus/resume, Esc dua tahap
 │  ├─ jump-qa.mjs              # uji CMJ per fase + tribute + overflow 390
 │  ├─ meaning-qa.mjs           # uji loop falsafah tumpukan blok
-│  └─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
+│  ├─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
+│  └─ mobile-play-qa.mjs       # uji kontrol Play sentuh: tap-aim, place/break, HUD bebas overlap
 └─ PLAN.md                     # rencana produk & catatan data
 ```
 
@@ -220,9 +221,17 @@ titik fokus kamera.
 
 Kontrol desktop ditampilkan di **Control Deck** kiri bawah: `WASD`/panah + `Shift`, `Space`
 lompat, `Klik kiri` hancurkan, `Klik kanan` pasang, `1–5` pilih material, dan `Esc` dengan
-catatan “Jeda, Esc lagi keluar”. Tombol **Hapus semua** memakai konfirmasi dua tahap. Di layar
-sentuh: joystick kiri, geser sisi kanan untuk melihat, tombol aksi di kanan, tombol Menu
-membuka panel jeda yang sama.
+catatan “Jeda, Esc lagi keluar”. Tombol **Hapus semua** memakai konfirmasi dua tahap.
+
+Di layar sentuh **tidak ada pointer lock** (lock akan me-retarget semua `click` ke kanvas dan
+mematikan tombol HUD). Sebagai gantinya: **ketuk di mana pun untuk membidik** — cincin amber
+muncul tepat di titik ketuk (`input.pointAim` + `setTapAim`), menggantikan crosshair tengah;
+**geser sisi kanan untuk melihat** (LookPad membedakan tap vs geser dengan ambang 6 px, dan
+geser mengembalikan aim ke tengah). Joystick kiri untuk bergerak, kolom aksi kanan
+(Lompat/Hancurkan/Pasang/Lari), hotbar material berupa strip vertikal kiri yang bebas overlap,
+dan tombol Menu membuka panel jeda yang sama. Semua tombol HUD memakai pola `press()`
+(`onPointerDown` + `onClick` hanya untuk keyboard) agar tetap hidup dalam keadaan apa pun;
+LookPad diletakkan di bawah kluster HUD (`-z-10`) supaya tidak mencegat ketukan tombol.
 
 ---
 
@@ -550,6 +559,7 @@ node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, 
 node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/8/10, overflow 390
 node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute
 node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
+node scripts/mobile-play-qa.mjs # kontrol Play sentuh: tanpa lock, tap-aim, place/break, HUD bebas overlap
 ```
 
 Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, `grid-template-columns`
@@ -567,6 +577,13 @@ mencegat raycast, koleksi Renungan enam entri, mute persisten, persistensi reloa
 390 px. `touch-qa.mjs` memakai `Input.dispatchTouchEvent` (CDP) pada konteks 390×844
 `hasTouch`: swipe pendek maju satu checkpoint, swipe naik kembali, swipe panjang terkunci di
 checkpoint depan, sentuh baru mengambil alih hop, dan tap tidak melompat stasiun.
+`mobile-play-qa.mjs` (390×844 `hasTouch`/`isMobile`) memproyeksikan sel dunia ke piksel lewat
+kamera live (`__gameDebug`) lalu mengetuknya: ia memastikan **tidak ada pointer lock**, reticle
+muncul tepat di titik ketuk dan mengikuti re-aim, Menu/jeda/hapus/resume bekerja lewat pointer,
+slot hotbar terpilih, tap tanah + Pasang menempatkan sel yang diketuk, tap muka blok menumpuk
+di atasnya, Hancurkan memecah sel yang diketuk, mute persisten, geser LookPad memutar kamera
+dan menghapus reticle, joystick menggerakkan pemain, kluster HUD tidak saling overlap maupun
+keluar layar, dan Keluar mengembalikan journey dengan build tersimpan.
 
 ---
 
