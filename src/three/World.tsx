@@ -12,12 +12,12 @@ import { Stations } from './Stations'
 const ISO_OFFSET = new THREE.Vector3(16, 16, 16)
 // screen-right direction in world space for our fixed iso camera
 const SCREEN_RIGHT = new THREE.Vector3(-1, 0, 1).normalize()
-const EYE_HEIGHT = 1.45
+const EYE_HEIGHT = 1.68
 // lateral viewpoint shift between station sides — eased with the same
 // acceleration-capped velocity model as the character so the camera
 // translation has a natural accel/decel instead of snapping
-const LAT_MAX_SPEED = 7 // world units/s
-const LAT_ACCELERATION = 11 // world units/s^2
+const LAT_MAX_SPEED = 13 // world units/s
+const LAT_ACCELERATION = 26 // world units/s^2
 
 function CameraRig() {
   const camera = useThree((s) => s.camera)
