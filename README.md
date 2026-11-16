@@ -217,7 +217,10 @@ titik fokus kamera.
    mercusuar + kartu "Cakrawala terbuka" + cahaya fajar permanen, dan berdiri di ketinggian
    ≥4 membuka vista. Enam aforisme peristiwa terkoleksi sebagai **Renungan** di menu jeda.
    Bunyi sintetis WebAudio (`audio.ts`, tanpa dependensi baru) menyertai tiap peristiwa
-   terlihat; satu tombol mute di kanan atas HUD, aktif default, persisten.
+   terlihat; satu tombol mute di kanan atas HUD, aktif default, persisten. Panel Play di
+   laman utama menyebut tujuan ini secara eksplisit (`play.ctaNote`) dan menampilkan
+   ladder target berurutan I–V beserta warna blok, sehingga pemain tahu apa yang harus
+   dibuat sebelum masuk ke arena.
 
 Kontrol desktop ditampilkan di **Control Deck** kiri bawah: `WASD`/panah + `Shift`, `Space`
 lompat, `Klik kiri` hancurkan, `Klik kanan` pasang, `1–5` pilih material, dan `Esc` dengan

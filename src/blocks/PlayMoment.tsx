@@ -1,5 +1,6 @@
 import { Play } from 'lucide-react'
-import { BLOCK_COLORS, BLOCK_KINDS, useGame } from '../game/store'
+import { LAYERS, LAYER_ROMAN } from '../game/meaning'
+import { BLOCK_COLORS, useGame } from '../game/store'
 import { useI18n } from '../lib/i18n'
 import { Panel } from './Panel'
 
@@ -20,6 +21,28 @@ export function PlayMoment() {
         <p className="mt-2 max-w-prose text-sm leading-relaxed text-white/75">
           {t.play.ctaNote}
         </p>
+
+        <div className="mt-5">
+          <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-white/50">
+            {t.play.meaning.objectiveLead}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {LAYERS.map((kind, i) => (
+              <span
+                key={kind}
+                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[0.65rem] font-bold text-white/80"
+              >
+                <span className="font-black text-[#f2b23c]">{LAYER_ROMAN[i]}</span>
+                <span
+                  className="h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: BLOCK_COLORS[kind] }}
+                />
+                {t.play.meaning.layers[kind]}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={enter}
           className="mt-5 flex items-center gap-2 rounded-full bg-[#f2b23c] px-6 py-3 text-sm font-black text-[#101418] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#e0a22c] focus-visible:outline-2 focus-visible:outline-white"
@@ -27,24 +50,6 @@ export function PlayMoment() {
           <Play size={16} fill="currentColor" />
           {t.play.cta}
         </button>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          {BLOCK_KINDS.map((kind) => {
-            const label = t.play.blocks.find((b) => b.kind === kind)?.label ?? kind
-            return (
-              <span
-                key={kind}
-                className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[0.65rem] font-bold text-white/80"
-              >
-                <span
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: BLOCK_COLORS[kind] }}
-                />
-                {label}
-              </span>
-            )
-          })}
-        </div>
 
         {saved > 0 && (
           <p className="mt-4 text-[0.7rem] font-semibold text-white/45">

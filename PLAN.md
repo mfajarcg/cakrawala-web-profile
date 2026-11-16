@@ -636,3 +636,29 @@ persist; geser LookPad memutar kamera dan menghapus reticle; joystick menggerakk
 player; kluster HUD tidak overlap dan tidak keluar layar; Keluar kembali ke
 journey dengan build tersimpan; console error kosong. Regresi desktop tetap hijau
 (`meaning-qa`, `play-qa`, `jump-qa`, `verify2`, `touch-qa`) + `tsc -b` + `build`.
+
+## 17. Keterangan laman utama menjelaskan apa yang harus dibuat (selesai)
+
+### 17.1 Masalah
+
+`play.ctaNote` lama hanya mengajak "hancurkan dan susun blok sesukamu" tanpa
+menyebut tujuan, sehingga pengunjung laman utama tidak tahu apa yang harus
+dibangun sebelum masuk ke arena.
+
+### 17.2 Keputusan
+
+- `ctaNote` (ID + EN) kini menyebut tujuan secara eksplisit: **Tumpukan Bermakna**,
+  lima lapis berurutan dari tanah ke langit (I Fondasi → II Memori → III Karya →
+  IV Mutu → V Rawat), hukum fondasi (blok hanya berdiri di atas yang kokoh;
+  mencabut fondasi meruntuhkan yang bertumpu), dan persistensi browser — sambil
+  mempertahankan framing "bermain sebagai Eric di arena blok isometrik".
+- Panel `PlayMoment` menampilkan **ladder target berurutan** (angka Romawi +
+  warna blok + nama lapis, urutan `LAYERS`) di bawah keterangan, menggantikan
+  chip material yang sebelumnya tidak berurutan. Caption memakai
+  `meaning.objectiveLead` ("Susun lima lapis dari tanah ke langit:").
+
+### 17.3 QA
+
+Screenshot panel pada 1440×900 dan 390×844: teks terbaca kontras baik, ladder
+satu baris di desktop dan wrap dua baris di ponsel tanpa overflow/clipping.
+`play-qa.mjs` (masuk via CTA, pause/hapus/resume/Esc) hijau, `tsc -b` + `build` bersih.
