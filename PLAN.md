@@ -183,3 +183,401 @@ Waktu sisa < 2 hari kerja, jadi prioritas tegas:
 2. Integrasi trigger Nav, swap di midpoint, kunci scroll.
 3. Stagger reveal panel terlihat + uji 5 viewport & reduced-motion.
 4. Polish timing/easing berdasarkan feel di TV & phone.
+
+## 11. HUD Play Character — Kontras, Control Deck, dan Menu Pause/Esc
+
+### 11.1 Masalah yang dilaporkan
+
+1. Tombol **"Hapus semua"** tidak kontras: hanya border `white/25` + teks `white/85` di atas
+   latar transparan, sehingga nyaris hilang di langit 3D yang terang.
+2. Petunjuk keyboard masih berupa satu paragraf kecil di pojok kiri atas — tidak terbaca,
+   tidak berkarakter, dan berdesakan dengan judul serta jumlah blok.
+3. **Esc** belum punya tempat yang jelas di petunjuk, padahal itu satu-satunya jalan keluar
+   yang cepat.
+4. Tombol **Keluar** dan **Hapus semua** tidak bisa diklik saat bermain.
+
+### 11.2 Akar masalah (dari kode)
+
+- `src/game/GameScene.tsx` memanggil `requestPointerLock()` pada klik canvas. Selama pointer
+  terkunci, OS menyembunyikan kursor dan **semua event kursor dikirim ke canvas**, bukan ke
+  HUD. `pointer-events-auto` pada tombol tidak menolong karena tidak ada kursor yang bisa
+  mencapainya.
+- `src/game/GameHud.tsx` menangani `case 'Escape': exit()`, tetapi browser memakai Esc untuk
+  **melepas pointer lock**. Perilaku keydown-nya berbeda antar-browser: di sebagian browser
+  Esc tidak sampai ke halaman saat terkunci, di browser lain sampai tetapi sudah terlambat
+  konsisten. Akibatnya Esc kadang keluar, kadang hanya membebaskan kursor, kadang tidak terjadi
+  apa-apa.
+
+### 11.3 Keputusan UX: Esc dua tahap
+
+Tidak mungkin membuat tombol HUD bisa diklik selama kursor terkunci (batasan Pointer Lock API).
+Solusi standar game: sediakan **menu jeda** yang otomatis muncul saat kursor dilepas.
+
+| Kondisi | Aksi Esc | Hasil |
+|---|---|---|
+| Sedang bermain (pointer terkunci) | Esc | Browser melepas lock → `pointerlockchange` → **menu jeda**: pemain berhenti, kursor kembali, semua tombol bisa diklik |
+| Menu jeda terbuka | Esc | Batal konfirmasi "Hapus semua" bila sedang terbuka; jika tidak, **keluar ke situs** dan kembali ke checkpoint Play |
+| Mode `freeAim` (lock ditolak browser) | Esc | Langsung keluar (kursor memang sudah bebas) |
+| Layar sentuh | Tombol **Menu** | Membuka panel jeda yang sama (paritas tanpa Esc) |
+
+Saat terkunci, dua tombol di kanan atas **diganti chip non-klik** `Esc · Menu` agar tidak ada
+affordance palsu (tombol yang terlihat bisa diklik tetapi tidak bisa). Tombol asli hanya
+muncul di panel jeda.
+
+Penanganan event: satu sumber kebenaran adalah `pointerlockchange`, bukan `keydown Escape`.
+`keydown Escape` hanya bertindak ketika **tidak** terkunci, agar tidak dobel aksi.
+
+### 11.4 Control Deck (panel petunjuk baru)
+
+Panel "epic" menggantikan paragraf petunjuk, khusus pointer halus (desktop); di layar sentuh
+tetap memakai `gameHintTouch` + tombol kontrol sentuh.
+
+- **Posisi:** kiri bawah, di atas joystick sentuh (desktop), lebar 20–23rem; hotbar material
+  tetap di tengah bawah.
+- **Gaya:** glass gelap `#101418/85` + `backdrop-blur`, garis aksen 3 px `#408fb4` di tepi atas,
+  corner tick tipis, label `KONTROL` dengan titik kuning `#f2b23c`, shadow lembut.
+- **Isi 3 grup, grid 2 kolom di dalam grup:**
+  - **GERAK** — keycap `W` `A` `S` `D` dalam formasi silang, `Shift` (lari).
+  - **AKSI** — `Space` (lompat), ikon klik kiri + `Klik kiri` (hancurkan), klik kanan +
+    `Klik kanan` (pasang).
+  - **SISTEM** — `1`–`5` (material), `Esc` dengan keycap merah `#a12f22` + label
+    **Jeda / Keluar**.
+- **Keycap:** `kbd` 1,9rem, sudut 6 px, gradien putih ke `#e6edf1`, border bawah 2 px
+  `#b9c7cf`, teks ink, `box-shadow` inset — terlihat seperti tombol fisik. Keycap `Esc`
+  memakai palet bahaya.
+- **Ringkas / lipat:** tombol chevron di header; state disimpan di
+  `localStorage['cakrawala-hud-deck-v1']`. Saat dilipat, menyisakan pill
+  `Esc · Kontrol` agar jalan keluar tetap terlihat.
+- **Motion:** fade + slide 12 px dalam 180 ms saat masuk; `prefers-reduced-motion` → tanpa
+  animasi.
+- **Top-left:** dikecilkan menjadi chip dunia: judul `Cakrawala Playground` + `Blok tersimpan:
+  N`. Paragraf hint lama dihapus dari sana.
+- **Responsif:** `< lg` atau `pointer: coarse` → deck disembunyikan; petunjuk sentuh
+  ditampilkan sekali di awal.
+
+### 11.5 Tombol "Hapus semua" yang kontras + aman
+
+- Permukaan **solid** `#f7f9fa`, teks `#a12f22`, ikon `Trash2`, border `#a12f22/35`,
+  shadow. Rasio kontras ≈ 7:1 (target WCAG AA ≥ 4,5:1).
+- Hover: isi `#a12f22`, teks putih. Fokus keyboard: ring 2 px `#f2b23c`.
+- **Konfirmasi dua tahap** karena aksi ini destruktif dan tidak ada undo:
+  klik pertama → tombol berubah menjadi `Yakin hapus N blok?` + tombol `Batal`; auto-batal
+  setelah 4 detik; `Esc` saat menu jeda membatalkan konfirmasi lebih dulu.
+  Teks jumlah blok diambil dari store agar jelas apa yang akan hilang.
+- Setelah dihapus, jumlah di HUD dan panel jeda langsung menjadi 0; tetap di menu jeda.
+
+### 11.6 Panel jeda
+
+- Overlay `role="dialog"` + `aria-modal="true"`, backdrop `#0b1216/55` + blur ringan.
+- Kartu tengah maks 26rem: judul **"Jeda"**, subjudul "Kursor aktif. Tekan Esc lagi untuk
+  keluar.", statistik `Blok tersimpan: N`, lalu tiga aksi:
+  1. **Lanjutkan** (primary, `autoFocus`) — meminta pointer lock lagi (klik = user gesture
+     yang sah).
+  2. **Hapus semua** (danger, aturan 11.5).
+  3. **Keluar ke situs** (secondary) — memanggil `exit()` seperti sekarang.
+- Selama jeda: `useFrame` melewati look, gerak, lompat, dan build/break; kamera diam; karakter
+  idle. `resetInput()` dipanggil agar tidak ada input “nyangkut” saat resume.
+- Fokus keyboard masuk ke tombol Lanjutkan; Tab berputar di dalam dialog (focus trap
+  sederhana); Esc menutup dialog = keluar.
+- `prefers-reduced-motion` → backdrop tanpa blur transisi.
+
+### 11.7 Perubahan kode
+
+| File | Perubahan |
+|---|---|
+| `src/game/store.ts` | Tambah `paused: boolean`, `setPaused()`; `enter()` selalu reset `paused = false`. |
+| `src/game/GameScene.tsx` | Listener `pointerlockchange`: jika sebelumnya terkunci lalu lock hilang → `setPaused(true)`; saat `paused` lewati input & build. Jangan memaksa lock saat resume (butuh gesture). Tidak lagi merender lantai/dinding/blok arena. |
+| `src/game/GameHud.tsx` | Hook status lock, panel jeda, Esc dua tahap, tombol kontras, konfirmasi hapus, Control Deck, chip `Esc · Menu` saat terkunci, tombol Menu di sentuh. Keycap mouse memakai label eksplisit `Klik kiri` / `Klik kanan`. |
+| `src/game/input.ts` | Tambah `lockState.lastLostAt` sebagai penjaga 300 ms agar Esc yang melepas lock tidak ikut keluar; `resetInput()` dipanggil saat jeda. |
+| `src/game/Arena.tsx`, `src/game/layout.ts` | Blok dirender di dunia journey (`ARENA_ORIGIN` = stasiun Play, `z − 4`); `arenaRefs` menyambungkan mesh ke `GameScene`. |
+| `src/three/World.tsx` | `<Arena />` dirender di **kedua** mode; kamera saja yang bertukar. |
+| `src/three/Stations.tsx` | Stasiun Play hanya menyisakan papan tanda; slab plaza 10×8 dihapus karena arena memakai tanah yang sama dengan jalur karakter. |
+| `src/content/id.json`, `en.json` | String baru: `menu`, `pauseTitle`, `pauseLead`, `resume`, `clearConfirm`, `clearYes`, `clearCancel`, `deckTitle`, `deckMove`, `deckAction`, `deckSystem`, `deckRun`, `deckJump`, `deckBreak`, `deckPlace`, `deckPick`, `deckEscTitle`, `deckEsc`, `escHint`, `mouseLeft`, `mouseRight`, `saved`. `gameHint` panjang tidak lagi tampil di HUD desktop (disimpan sebagai fallback). |
+| `README.md` | Perbarui kontrol game: Esc dua tahap, menu jeda, konfirmasi hapus, Control Deck, arena berbagi dunia. |
+| `scripts/play-qa.mjs` | Uji jeda, hapus, resume, dan keluar dua tahap. |
+
+Tidak ada library baru → tribute di Footer tidak berubah.
+
+### 11.8 Kriteria selesai
+
+1. Masuk game → klik kanan/kiri canvas → pointer lock aktif → tekan **Esc** → panel jeda
+   muncul, karakter berhenti, kursor terlihat, dan **semua tombol bisa diklik**.
+2. Klik **Hapus semua** → muncul konfirmasi jumlah blok → konfirmasi → HUD 0 dan
+   `localStorage['cakrawala-play-world-v1']` = `[]`; **Batal**/Esc tidak menghapus apa pun.
+3. Klik **Lanjutkan** → pointer lock kembali, WASD/look berfungsi, tidak ada gerakan
+   “tersangkut”.
+4. Dari panel jeda, tekan **Esc** → fade ke situs, scroll tepat di checkpoint Play, blok yang
+   tidak dihapus tetap ada saat masuk lagi.
+5. Control Deck terbaca di 1440/1920/2560/3840; di 390 px tersembunyi dan petunjuk sentuh
+   tampil; keycap `Esc` selalu terlihat.
+6. Kontras tombol hapus ≥ 4,5:1 (diverifikasi manual dari warna final).
+7. `scripts/play-qa.mjs` lulus: setelah lock, `document.exitPointerLock()` → panel jeda
+   terdeteksi; hapus → 0 blok; resume → `document.pointerLockElement` terisi lagi; Esc
+   (terkunci) → panel jeda; Esc kedua dari jeda → `scrollY` kembali ke stasiun 9.
+
+### 11.9 Risiko & mitigasi
+
+- **Esc tidak konsisten antar-browser** → jangan bergantung pada keydown saat terkunci; pakai
+  `pointerlockchange` sebagai pemicu jeda, keydown hanya untuk kondisi sudah bebas.
+- **Resume ditolak** karena bukan user gesture → resume hanya lewat klik tombol, bukan
+  otomatis saat jeda.
+- **Safari/Firefox** bisa menolak `requestPointerLock` → fallback `freeAim` tetap jalan; tombol
+  HUD memang selalu bisa diklik di mode itu.
+- **iPhone/tablet tanpa Esc** → tombol Menu membuka panel yang sama.
+- **Pointer lock hilang karena alt-tab** → dianggap jeda; aman, pemain tidak berjalan sendiri.
+
+### 11.10 Arena = ruang yang sudah dilalui karakter
+
+Arena bukan ruang baru. Blok dibangun tepat di jalur journey, di stasiun Play, sehingga situs
+dan mode main memakai satu dunia yang sama:
+
+- `ARENA_ORIGIN` = posisi stasiun Play (`x = 104`, `z = −0,5`, yaitu `PLAY.z − 4`), pusat sel
+  blok.
+- `<Arena />` hidup di dalam `<World />` dan dirender pada **kedua** mode; yang bertukar hanya
+  kamera (`CameraRig` ↔ `GameScene`) dan lapisan HUD.
+- Tanah arena adalah tanah grid yang sama; raycast blok memakai `arenaRefs.floor`, sebuah
+  plane tak terlihat, bukan lantai terpisah.
+- Karakter memakai satu model dan satu posisi modul (`characterPos`), jadi saat masuk mode main
+  ia berdiri di tempat ia berhenti di mode situs.
+- Slab plaza tan 10×8 di `Stations.tsx` dihapus: sebelumnya terlihat seperti ruang terpisah
+  yang melayang di atas grid.
+- Saat keluar, blok tetap terlihat di stasiun Play dan setelah reload (persisten di
+  `localStorage['cakrawala-play-world-v1']`).
+
+Kriteria: blok yang dibangun terlihat di mode situs tanpa masuk mode main; tidak ada mesh
+lantai/dinding tambahan; tanda stasiun (papan) tetap menjadi satu-satunya penanda arena.
+
+## 12. Perbaikan gerakan lompat (countermovement) + tribute sumber lengkap
+
+### 12.1 Masalah gerakan lompat lama
+
+`GameScene` lama hanya men-set `player.vy = JUMP_SPEED` lalu `gait.lift = y − surface`;
+`EricVisual` menambah `lift` ke `bodyY` tanpa mengubah pose. Hasilnya karakter **naik seperti
+lift/elevator**: kaki tetap lurus/idle, tidak ada ancang-ancang, tidak ada tuck di udara, tidak
+ada absorpsi saat mendarat. Ini terbaca sebagai cacat visual utama pada mode main.
+
+### 12.2 Riset internet (biomekanika lompat)
+
+Sumber terpublikasi yang dipakai (tautan aktif di Footer tribute & README §6.8/§9.1):
+
+| Sumber | Temuan yang dipakai |
+|---|---|
+| Owen NJ et al. *Understanding the key phases of the countermovement jump force-time curve.* Strength Cond J 40(4):96–106, 2018. doi:10.1519/SSC.0000000000000375 | Enam fase: weighing, unweighting, **braking**, **propulsion**, **flight**, **landing** → mesin state lompat. |
+| Bobbert MF et al. Med Sci Sports Exerc 28(11):1402–1412, 1996. | Countermovement (dip) menambah kerja push-off vs squat jump → wajib ada dip sebelum take-off. |
+| Komi PV, Bosco C. Med Sci Sports Exerc 10(4):261–265, 1978. | Energi elastis tersimpan saat braking → dip singkat lalu explode. |
+| Harman EA et al. Med Sci Sports Exerc 22(6):817–823, 1990. (pubmed 2287261) | Arm swing menambah ±10–11 cm tinggi lompat → lengan ayun belakang→overhead. |
+| Lees A et al. J Biomech 37(12):1929–1940, 2004. | Arm swing +8,6 cm (via Theia Markerless) → konfirmasi arah ayun. |
+| McHugh MP et al. 2024. PMC11208864. | Kedalaman countermovement & fleksi lutut braking → sudut hip/lutut dip. |
+| Petushek EJ. Tesis NMU, 2011. | Fleksi lutut saat mendarat (absorpsi) → pose landing. |
+| Linthorne NP. Am J Phys 69(11):1198–1206, 2001. | Rumus flight-time `h = g·t²/8` dan impulse–momentum `J = ∫F dt = m·Δv`. |
+| McGinnis PM. *Biomechanics of Sport and Exercise*, 3rd ed. 2013. | Projectile `h = v₀²/2g`, `t = 2v₀/g`. |
+
+Rumus fisika yang dipakai game (sudah ada, kini didokumentasikan eksplisit):
+`h = v₀²/2g = 7,6²/48 ≈ 1,20 unit`; `t_udara = 2v₀/g ≈ 0,63 s`; `h = g·t²/8`;
+`J = m·Δv`; integrasi semi-implicit Euler `v += −g·dt; y += v·dt`; damp eksponensial
+`x += (target−x)(1−e^{−λ·dt})`.
+
+### 12.3 Keputusan pose & state
+
+- Mesin lompat di `GameScene`: `jumpState 0 idle / 1 braking dip / 2 flight / 3 landing`.
+  `CROUCH_S = 0,22 s` (braking), `LAND_S = 0,3 s` (absorpsi). Take-off hanya setelah dip selesai.
+- `gait` diperluas: `jumpState, crouch, vy, airT, landT, impact`. `CharacterDriver` (mode situs)
+  mereset semuanya ke 0 agar pose lompat tidak bocor ke journey.
+- `EricVisual` mem-blend pose lompat di atas stride (damp λ=16 pose, λ=12 bobot):
+  dip (hip −0,85 / lutut 1,45 / lengan belakang +0,8 / spine 0,42), rise (tuck lutut 1,2 /
+  lengan overhead −2,35), fall (reach lutut 0,8 / lengan depan −0,95), landing (lutut 1,6 /
+  hip −0,95, bobot × impact).
+- Kedalaman dip & absorpsi lowering pelvis **otomatis** lewat solver kontak tanah
+  `reach(hip,knee)`, bukan offset hardcoded; shadow memberi pulse saat mendarat.
+- Touch-down nyata dibedakan dari frame berdiri via `hitSpeed > 3` (frame berdiri hanya
+  berdarah ~g·dt), sehingga jatuh dari blok juga memakai pose absorpsi.
+
+### 12.4 Tribute: semua sumber, termasuk dokumen perusahaan & rumus
+
+Footer tribute berubah dari daftar datar menjadi **lima grup** (`footer.tributeGroups`,
+item `{text, href?, mono?}`), dirender grid 2 kolom (grup rumus fisika span penuh):
+
+1. **Teknologi & aset** — React/TS/Vite/Tailwind, three/R3F, GSAP/Lenis, Zustand, Lucide,
+   Playwright-core, model Eric (Personal Use).
+2. **Dokumen perusahaan** — deck company profile Cartenz (PPTX, ±42 logo slide 2),
+   cartenz.co.id, PLAN.md §3/§8, merek logo mitra.
+3. **Gerak lari — sumber & rumus** — Perry & Burnfield 2010, Novacheck 1998, Weyand 2000,
+   Cavanagh & Kram 1989 + rumus cadence/stride/fleksi lutut (mono).
+4. **Gerak lompat — sumber & rumus** — Owen 2018, Bobbert 1996, Komi & Bosco 1978,
+   Harman 1990, Lees 2004, McHugh 2024, Petushek 2011, Linthorne 2001 + rumus
+   `h=v₀²/2g`, `t=2v₀/g`, `h=g·t²/8`, `J=m·Δv` (mono).
+5. **Rumus fisika & integrasi** — Euler semi-implicit, damp eksponensial, clamp akselerasi,
+   phase terkunci tanah, raycast face-normal (mono).
+
+`Panel` Footer memakai `wide` (58rem) agar dua kolom kutipan terbaca. README §6.5 (tabel pose
++ rumus), §6.8 (baris referensi lompat), §7.1, §9/§9.1 diselaraskan.
+
+### 12.5 Perubahan kode
+
+| File | Perubahan |
+|---|---|
+| `src/three/shared.ts` | `gait` + field lompat (`jumpState/crouch/vy/airT/landT/impact`). |
+| `src/game/GameScene.tsx` | Mesin CMJ (dip→explode→flight→absorb), publish state lompat, `moving=0` saat dip/absorb. |
+| `src/three/Character.tsx` | Blend pose lompat di atas stride; reset state lompat di mode situs; shadow landing pulse. |
+| `src/blocks/Footer.tsx` | Render `tributeGroups` (grid, link, mono), `Panel wide`. |
+| `src/content/id.json`, `en.json` | `tribute` → `tributeGroups` lima grup lengkap. |
+| `README.md`, `PLAN.md` | Dokumentasi pose/rumus/referensi lompat + tribute sumber. |
+
+Tidak ada library baru → tidak ada perubahan lisensi di luar penambahan Playwright (sudah ada).
+
+### 12.6 Kriteria selesai
+
+1. Tekan Spasi → terlihat **dip** (lutut menekuk, lengan ke belakang) sebelum badan naik.
+2. Saat rise → kaki tuck + lengan overhead; saat fall → kaki reach + lengan depan.
+3. Saat mendarat → lutut/hip absorpsi singkat lalu kembali idle/stride; shadow pulse.
+4. Lompat berulang & lompat sambil lari tidak menghasilkan pose "nyangkut" atau kaki selip.
+5. Jatuh dari blok memakai pose absorpsi yang sama.
+6. Mode situs tidak pernah menampilkan pose lompat (state direset driver).
+7. Footer tribute menampilkan lima grup dengan tautan sumber aktif dan rumus mono; terbaca
+   di 390 px (satu kolom) dan ≥768 px (dua kolom).
+8. `tsc -b`, `npm run build`, `play-qa.mjs`, `verify2.mjs` lulus tanpa console error.
+
+### 12.7 Perbaikan kerangka pose & verifikasi visual (selesai)
+
+Gejala "kaki tetap lurus saat lompat" ternyata **dua hal berbeda**:
+
+1. **Kerangka rotasi pose.** `poseBone` kini mem-post-multiply rotasi terhadap sumbu anatomis
+   karakter yang dipetakan ke kerangka rest tulang: `q = q_rest · R(invRestWorldQ · sumbu, sudut)`
+   dengan `invRestWorldQ = (q_parent · q_rest)⁻¹` (dihitung sekali saat mount, ketika FBX masih
+   lepas dari group root sehingga skala 0,01 + yaw root tidak mencemari kerangka). Identitas
+   `Q·R(Q⁻¹v, θ) = R(v, θ)·Q` membuat rotasi world tepat tentang sumbu fleksi sagittal — bukan
+   sumbu twist tulang yang tak terlihat. Sumbu diturunkan dari landmark (`head−pelvis`,
+   `ball_l−foot_l`), bukan hardcoded basis UE4.
+2. **Artefak kamera QA.** Kamera tepat di depan/belakang karakter mem-foreshorten seluruh gerak
+   sagittal: squat 45° dan tuck 63° terbaca "kaki lurus" dari sudut itu. Verifikasi akhir memakai
+   kamera samping (orbit `player.yaw` ≠ `facing`) dan freeze in-page per fase CMJ, plus piksel
+   jujur `toDataURL()` (DEV `preserveDrawingBuffer`). Hasil terukur: dip lutut ≈45–83°, apex tuck
+   ≈63° dengan lengan overhead, fall reach, landing absorpsi ≈92°; run cycle tetap grounded
+   (fleksi swing ≈117°, lean badan, ayun lengan berlawanan).
+
+Hook debug DEV (`__poseDebug`, `__poseOff`, `__timeScale`, `__camDist`, `__jumpDebug`, `skinInfo`)
+dan skrip probe sementara dihapus setelah verifikasi; regresi dijalankan lewat `play-qa.mjs`,
+`jump-qa.mjs`, `verify2.mjs` (semua lulus, console error kosong, tribute 5 grup / 8 tautan /
+10 rumus mono, tanpa overflow horizontal di 390 px).
+
+### 12.8 Risiko & mitigasi
+
+- **Dip menambah latency lompat** (0,22 s) → terasa "berat" bila terlalu lama; 0,22 s sesuai
+  braking CMJ dan masih responsif; QA memverifikasi frame rise tepat setelah dip.
+- **Pose blend bertabrakan dengan stride** → bobot `w` dan damp memastikan transisi mulus;
+  `moving=0` saat dip/absorb agar stride tidak ikut menggerakkan kaki.
+- **Kutipan salah atribusi** → semua entri tribute memakai penulis/tahun/jurnal yang
+  diverifikasi lewat pencarian web (Owen 2018 Strength Cond J, bukan JSCR 2014).
+
+## 13. Gameplay bermakna — falsafah tumpukan blok (selesai)
+
+### 13.1 Ide falsafah yang diwujudkan
+
+Arena bukan sekadar sandbox menumpuk kubus: lima jenis blok adalah **lima lapis
+sistem yang hidup**, dibangun dari tanah ke langit dalam urutan yang jujur:
+
+| Lapis | Jenis blok | Makna (ID / EN) | Layanan Cartenz |
+|---|---|---|---|
+| I | server | Fondasi / Foundation | Infrastruktur & data center |
+| II | cloud | Memori / Memory | Cloud & migrasi |
+| III | laptop | Karya / Craft | Pengembangan aplikasi |
+| IV | doc | Mutu / Quality | Dokumentasi & tata kelola |
+| V | gear | Rawat / Care | Managed service & dukungan |
+
+Aturan dan konsekuensi (semuanya di `src/game/meaning.ts`, murni & teruji):
+
+1. **Hukum fondasi** — `isSupported`: blok hanya berdiri di tanah atau di atas blok
+   lain. Penempatan melayang ditolak (`notice: reject` + bunyi deny).
+2. **Niat menumpuk** — klik sisi vertikal blok berarti "teruskan di atasnya":
+   target otomatis naik satu sel bila sel atas kosong (`GameScene.tsx`), sehingga
+   menara lima lapis dapat dibangun dari tanah tanpa memanjat; bila sel atas
+   sudah terisi, klik sisi menghasilkan sel samping yang melayang → hukum
+   fondasi tetap punya gigi.
+3. **Runtuh berantai** — `cascade`: mencabut fondasi menjatuhkan seluruh yang
+   bertumpu padanya (iterasi sampai stabil), dengan notice + bunyi collapse.
+4. **Pindaian makna** — `scanMeaning`: run terpanjang dari tanah ke atas dalam
+   urutan kanonik I→V = `progress` (0–5); `height` = kolom tertinggi; `best`
+   persisten. Tangga makna HUD menyalakan chip romawi I–V sesuai progress.
+5. **Hadiah cakrawala** — progress 5 memunculkan **mercusuar** (cap amber
+   berdenyut, beam aditif, cincin tanah, 42 mote naik; di luar grup raycast
+   sehingga cahaya bukan blok), kartu perayaan "Cakrawala terbuka", dan
+   **cahaya fajar** permanen (`Atmosphere` di `World.tsx`: latar & warna lampu
+   di-lerp ke amber). Berdiri di ketinggian ≥4 juga membuka vista — janji brand:
+   semakin kokoh yang dibangun, semakin luas yang dilihat.
+6. **Renungan** — enam aforisme (`first, pair, reject, collapse, complete, vista`)
+   muncul sebagai toast saat peristiwanya terjadi dan terkoleksi permanen di
+   menu pause (daftar Renungan, scrollbar gelap berpalet).
+7. **Bunyi sintetis** — `src/game/audio.ts` (WebAudio native, tanpa dependensi
+   baru): place thock, break, deny, collapse, arpeggio complete, swell vista.
+   Aktif default; satu tombol mute terlihat di kanan atas HUD, persisten
+   (`cakrawala-audio-v1`). Tribute tidak berubah karena tidak ada aset/library baru.
+
+### 13.2 Persistensi & state
+
+- `cakrawala-play-world-v1` — blok (sudah ada).
+- `cakrawala-meaning-v1` — `{best, done, vista, unlocked[]}` dengan validasi saat load.
+- `cakrawala-audio-v1` — `'off'` bila mute.
+- Perayaan hanya sekali (`done`); vista permanen; rebuild tetap memunculkan mercusuar.
+
+### 13.3 QA deterministik (`scripts/meaning-qa.mjs`)
+
+Aim crosshair dihitung closed-form dari model kamera orbit
+(`yawT = atan2(−dx, −dz)`, `pitchT = asin(−0,13889/√(1+m²)) − atan m`,
+`m = (F.y−1,15)/hypot(dx,dz)`), dikirim sebagai `MouseEvent('mousemove')`
+sintetis dengan delta dibulatkan dan dilacak agar galat tidak menumpuk.
+**Pelajaran QA:** `page.mouse.click(x,y)` menggerakkan mouse virtual terlebih
+dahulu — di bawah pointer lock gerakan itu menyuntik delta look nyata dan
+merusak aim; gunakan `mouse.down/up` tanpa move. Hook ground-truth DEV-only
+`window.__gameDebug = {player, camera, raycaster}` di `GameScene.tsx`.
+
+Cakupan lulus: fondasi→lima lapis berurutan, toast first/pair, kartu perayaan +
+kursor bebas + tangga 5/5, meta persisten, mute/unmute persisten, reject tanpa
+mengubah dunia, cascade −5 blok, mercusuar tidak mencegat ray (blok y5 tetap
+terpasang), Renungan 6 entri, keluar ke journey membawa blok, reload persisten,
+HUD & pause 390 px tanpa overflow, console error kosong. Regresi `play-qa`,
+`jump-qa`, `verify2` tetap lulus; `npx tsc -b` dan `npm run build` bersih.
+
+## 14. Identitas visual — logo hitam di atas latar putih (selesai)
+
+Keputusan: marka hitam `logo/cakrawala-black.svg` **selalu** duduk di atas bidang
+putih murni, bukan langsung di atas kertas situs (`#f7f9fa`) maupun panel gelap.
+Implementasi: plat `bg-white` rounded-2xl dengan border `#101418]/10` dan shadow
+lembut membungkus `<img>` di `Hero.tsx` (h-20/sm:h-24, padding p-3) dan
+`Footer.tsx` (h-16, p-2.5). Alasan: SVG berlatar transparan; tanpa plat, kontras
+marka bergantung pada latar panel dan bisa tenggelam di permukaan gelap.
+Verifikasi: computed background `rgb(255,255,255)` di kedua lokasi, screenshot
+hero 1440/390 dan plat footer; tanpa overflow horizontal.
+
+## 15. Scroll layar sentuh mengunci checkpoint (selesai)
+
+### 15.1 Masalah
+
+`settle()` lama memilih stasiun **ternearest** setelah scroll diam. Di mobile,
+swipe setengah layar berhenti di antara dua stasiun dan tertarik **kembali** ke
+stasiun asal (terukur: y 505 → 44) — gestur terasa dibatalkan, bukan dikunci.
+
+### 15.2 Keputusan
+
+Kontrak sentuh = kontrak wheel: **satu swipe = minimal satu checkpoint searah
+gestur**, dan momentum tidak pernah dilawan mundur.
+
+- `touchstart`: tandai `touch.active`, simpan stasiun awal (`nearestIndex`),
+  batalkan hop yang sedang berjalan (`lockUntil = 0`, `pending = null`,
+  `lenis.scrollTo(scrollY, {immediate:true, force:true})`) sehingga jari baru
+  selalu mengambil alih.
+- `touchend`/`touchcancel`: hitung `dy = startY − endY`; `|dy| ≥ 24 px` menentukan
+  arah (selain itu = tap → settle nearest seperti semula).
+- `settle()`: bila ada arah gestur, clamp stasiun nearest ke
+  `[stasiunAwal+1 … akhir]` (swipe turun) atau `[0 … stasiunAwal−1]` (swipe naik);
+  momentum yang membawa lebih jauh tetap dihormati (tidak mundur), lalu
+  `scrollToStation` mengunci pusat kartu. Debounce `onScroll` (200 ms) menunda
+  settle sampai momentum benar-benar habis; `touch.active` menahan settle selama
+  jari masih di layar.
+
+### 15.3 QA (`scripts/touch-qa.mjs`, emulasi CDP `Input.dispatchTouchEvent`, 390×844 hasTouch)
+
+Lulus: swipe pendek maju satu stasiun (dist 0), swipe naik kembali satu stasiun,
+swipe panjang terkunci di checkpoint depan, sentuh baru di tengah hop mengambil
+alih dan tetap terkunci, tap tidak melompat stasiun, pageerror kosong.
+Catatan: CDP tidak mensimulasikan momentum, sehingga swipe panjang diuji sebagai
+"minimal satu langkah, terkunci" — perilaku momentum nyata ditangani clamp.

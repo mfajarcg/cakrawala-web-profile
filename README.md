@@ -21,8 +21,8 @@ masuk ke dalam dunia itu lewat mode **Play Character**.
 | Checkpoint snap | Satu gesture wheel/arrow key = satu stasiun. Scroll selalu berhenti di tengah card. |
 | Kamera | Orthographic isometrik yang mengikuti karakter, bergeser ke sisi berlawanan card dengan akselerasi/de-selerasi. |
 | First-person | Tombol PoV mengganti kamera ke perspektif mata karakter (tinggi 1,68 unit). |
-| Play Character | Tombol di stasiun 9 memudarkan situs lalu mengganti scene menjadi arena voxel ala Roblox. Bangunan tersimpan di `localStorage`. |
-| Exit | `Esc` memudarkan game dan mengembalikan scroll tepat ke checkpoint Play; blok yang dibangun tetap ada. |
+| Play Character | Tombol di stasiun 9 memudarkan situs lalu berpindah ke mode main. Arenanya bukan ruang baru: blok dibangun di tanah yang sama dengan jalur karakter, jadi hasil bangunan tetap terlihat saat kembali ke situs. |
+| Exit | `Esc` dua tahap: Esc pertama membuka menu jeda dan melepas pointer lock, Esc kedua keluar ke checkpoint Play. Blok yang dibangun tetap ada. |
 | Tribute | Setiap library/aset yang dipakai dicatat di blok Footer → Tribute & Atribusi. |
 
 Dua lapisan yang harus dipahami:
@@ -41,8 +41,9 @@ JourneyController  ──►  Lenis.scrollTo(stationTop, duration)
   └──────────────────►  CameraRig (ortho follow / first person)
 
 Canvas (fixed, React Three Fiber)
-  site mode: World + PathRibbon + Stations + Character  (z = −10, di belakang DOM)
-  game mode: GameScene + Character                      (z = 10, di depan, DOM disembunyikan)
+  kedua mode: World + PathRibbon + Stations + Arena + Character
+  site mode: + CameraRig (ortho follow / first person)
+  game mode: + GameScene (player, kamera, raycast) — DOM disembunyikan
 ```
 
 ---
@@ -58,7 +59,7 @@ Canvas (fixed, React Three Fiber)
 | 3D | three.js | 0.187 | Scene, kurva, orthographic/perspective camera, raycasting |
 | 3D React | @react-three/fiber | 9.8 | Render scene deklaratif, `useFrame` loop |
 | 3D helper | @react-three/drei | 10.7 | `useFBX`, `useTexture`, `OrthographicCamera`, `PerspectiveCamera` |
-| State | Zustand | 5.1 | Store journey (`progress/target/activeStation/pov`) dan game (`mode/cover/blocks/selected`) |
+| State | Zustand | 5.1 | Store journey (`progress/target/activeStation/pov`) dan game (`mode/cover/paused/blocks/selected`) |
 | Smooth scroll | Lenis | 1.3.27 | `scrollTo` berbasis durasi + easing untuk hop antar-checkpoint |
 | Ikon | lucide-react | 1.72 | Ikon DOM (ISC) |
 | QA | playwright-core | 1.65 | Screenshot 5 viewport + uji gameplay memakai Edge sistem |
@@ -114,9 +115,13 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ Stations.tsx          # prop voxel tiap stasiun + pohon
 │  │  └─ shared.ts             # characterPos/characterYaw/gait + cadenceFor()
 │  ├─ game/
-│  │  ├─ store.ts              # mode, cover, blocks, selected + localStorage
+│  │  ├─ store.ts              # mode, cover, paused, blocks, selected + localStorage
+│  │  ├─ meaning.ts            # hukum fondasi, scanMeaning, cascade, kunci renungan
+│  │  ├─ audio.ts              # bunyi sintetis WebAudio + mute persisten
+│  │  ├─ layout.ts             # ARENA_ORIGIN (stasiun Play) + arenaRefs
+│  │  ├─ Arena.tsx             # blok yang dirender di dunia journey, kedua mode
 │  │  ├─ GameScene.tsx         # loop pemain, kamera, raycast, collision, place/break
-│  │  ├─ GameHud.tsx           # kontrol, material 1–5, tombol keluar/hapus (mouse + touch)
+│  │  ├─ GameHud.tsx           # Control Deck, menu jeda, material 1–5, hapus/keluar
 │  │  ├─ GameFade.tsx          # cover hitam 300 ms saat swap scene
 │  │  └─ input.ts              # state input bersama DOM ↔ game loop
 │  ├─ lib/i18n.tsx             # LanguageProvider, dictionary id/en, persist
@@ -124,7 +129,10 @@ Canvas (fixed, React Three Fiber)
 ├─ scripts/
 │  ├─ shot.mjs                 # screenshot 5 viewport → shots/
 │  ├─ verify2.mjs              # uji gait, wheel-up, jump/break, persistensi
-│  └─ play-qa.mjs              # uji snap, kolom services, pointer lock, return ke checkpoint
+│  ├─ play-qa.mjs              # uji snap, kolom services, pause/hapus/resume, Esc dua tahap
+│  ├─ jump-qa.mjs              # uji CMJ per fase + tribute + overflow 390
+│  ├─ meaning-qa.mjs           # uji loop falsafah tumpukan blok
+│  └─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
 └─ PLAN.md                     # rencana produk & catatan data
 ```
 
@@ -136,8 +144,13 @@ Canvas (fixed, React Three Fiber)
 
 - `<JourneyController />` dan `<World />` selalu ter-mount.
 - 11 blok DOM dibungkus `<div aria-hidden={inGame}>`; saat mode game, div diberi
-  `opacity-0 pointer-events-none` sehingga canvas game (z-10) mengambil alih.
+  `opacity-0 pointer-events-none` sehingga canvas mengambil alih.
+- Yang benar-benar berganti antar-mode hanya kamera (`CameraRig` ↔ `GameScene`) dan HUD;
+  dunia, karakter, dan blok arena tetap dirender dari scene yang sama.
 - `<GameHud />` hanya dirender saat `mode === 'game'`; `<GameFade />` selalu ada sebagai cover.
+- Aturan brand: marka hitam `logo/cakrawala-black.svg` di Hero dan Footer selalu duduk di atas
+  plat `bg-white` rounded-2xl (border `#101418]/10` + shadow lembut), bukan langsung di atas
+  kertas situs atau panel gelap — SVG-nya berlatar transparan.
 
 ### 4.2 `JourneyController` — checkpoint snapping
 
@@ -148,7 +161,8 @@ Canvas (fixed, React Three Fiber)
 | Kunci selama hop | durasi + 250 ms; wheel/scroll diabaikan |
 | Ambang wheel | akumulasi 16 px |
 | Jendela satu gesture | reset akumulasi setelah 240 ms tanpa wheel |
-| Settle setelah scroll manual | 200 ms idle (touch: 320 ms) |
+| Settle setelah scroll manual | 200 ms idle; sentuh menunggu momentum benar-benar habis |
+| Swipe (layar sentuh) | satu gestur = minimal satu checkpoint searah arah swipe (absolut dy ≥ 24 px); momentum tidak pernah dilawan mundur; `touchstart` membatalkan hop yang sedang berjalan |
 | Toleransi “sudah di tengah” | 32 px |
 | Guard anti-loop | berhenti jika jarak ke posisi snap terakhir < 48 px |
 | Arrow key saat hop | hanya satu hop diantrikan (`pending`), karakter selalu berjalan tiap etape |
@@ -161,7 +175,7 @@ memanggil `jumpTo(id)` → `scrollBridge.toStation(index)`.
 | Store | State | Ditulis oleh | Dibaca oleh |
 |---|---|---|---|
 | `journey/store.ts` | `progress`, `target`, `activeStation`, `pov` | controller (`setTarget`), driver (`tick`) | Character, CameraRig, Nav |
-| `game/store.ts` | `mode`, `cover`, `blocks`, `selected` | PlayMoment, HUD, GameScene | App, World, GameScene |
+| `game/store.ts` | `mode`, `cover`, `paused`, `blocks`, `selected` | PlayMoment, HUD, GameScene | App, World, GameScene |
 
 `activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk menentukan sisi card dan
 titik fokus kamera.
@@ -170,10 +184,11 @@ titik fokus kamera.
 
 | File | Peran |
 |---|---|
-| `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Mode situs: `OrthographicCamera` (16,16,16) + ground + grid + path + stasiun + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
+| `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Ground + grid + path + stasiun + arena + karakter selalu ada; kamera berganti sesuai mode. Mode situs: `OrthographicCamera` (16,16,16) + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
 | `path.ts` | `CatmullRomCurve3(STATIONS, closed=false, 'catmullrom', tension=0.15)`, di-cache. `getPointAt` / `getTangentAt` untuk posisi & arah hadap. |
 | `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait) + `EricVisual` (FBX, bone posing, bob pelvis, blob shadow). |
-| `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, arena, resepsionis, gerbang akhir) + pohon tersebar. |
+| `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
+| `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
 | `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, moving, lift}` dan `cadenceFor()` — dipakai bersama situs dan game. |
 
 ### 4.5 Mode Play Character
@@ -181,16 +196,33 @@ titik fokus kamera.
 1. `PlayMoment` memanggil `useGame.enter()`.
 2. `swap()` menyalakan cover, menunggu **320 ms** agar cover pekat, lalu mengganti `mode`.
 3. `scrollBridge.lock(true)` menghentikan Lenis dan menyembunyikan DOM.
-4. `GameScene` berjalan: pemain voxel, kamera orang ketiga (jarak 5,4 · tinggi 1,9), raycast
-   untuk pasang/hancurkan blok, collision grid.
-5. `Esc` (atau tombol Keluar) memanggil `exit()`: cover 320 ms → mode `site` →
-   `scrollBridge.lock(false)` → `scrollBridge.toStation(PLAY_STATION)`.
-6. Setiap perubahan blok langsung disimpan ke `localStorage['cakrawala-play-world-v1']`.
+4. Tidak ada scene baru: `Arena` sudah dirender di dunia journey pada stasiun Play. `GameScene`
+   hanya menambahkan kontrol pemain, kamera orang ketiga (jarak 5,4 · tinggi 1,9), raycast
+   pasang/hancurkan, dan collision grid. Karakter memakai `characterPos` yang sama, jadi ia
+   mulai dari tempat ia berhenti di mode situs.
+5. **Esc dua tahap.** Saat pointer terkunci, Esc melepas lock (`pointerlockchange`) dan membuka
+   menu jeda: loop berhenti, kursor kembali, semua tombol bisa diklik. Esc kedua di menu jeda
+   memanggil `exit()`: cover 320 ms → mode `site` → `scrollBridge.toStation(PLAY_STATION)`.
+   `lockState.lastLostAt` (300 ms) mencegah Esc yang sama melakukan dua aksi.
+6. `Lanjutkan` meminta pointer lock lagi dari klik pengguna (bukan otomatis) agar diizinkan
+   browser; bila lock ditolak, aim jatuh ke `freeAim`.
+7. Setiap perubahan blok langsung disimpan ke `localStorage['cakrawala-play-world-v1']`, dan
+   blok itu tetap terlihat di stasiun Play setelah keluar maupun setelah reload.
+8. **Lapisan falsafah.** Lima jenis blok adalah lima lapis sistem hidup — I Fondasi (server),
+   II Memori (cloud), III Karya (laptop), IV Mutu (doc), V Rawat (gear). Hukum fondasi
+   (`isSupported`) menolak blok melayang; klik sisi vertikal berarti "teruskan di atasnya";
+   mencabut fondasi meruntuhkan yang bertumpu (`cascade`). `scanMeaning` mengukur run
+   terpanjang berurutan dari tanah (tangga makna HUD 0–5); menyelesaikannya memunculkan
+   mercusuar + kartu "Cakrawala terbuka" + cahaya fajar permanen, dan berdiri di ketinggian
+   ≥4 membuka vista. Enam aforisme peristiwa terkoleksi sebagai **Renungan** di menu jeda.
+   Bunyi sintetis WebAudio (`audio.ts`, tanpa dependensi baru) menyertai tiap peristiwa
+   terlihat; satu tombol mute di kanan atas HUD, aktif default, persisten.
 
-Kontrol: `WASD`/panah, `Shift` lari, `Spasi` lompat, klik kiri hancurkan, klik kanan pasang,
-`1–5` pilih material, `Esc` keluar. Di layar sentuh: joystick kiri, geser sisi kanan untuk
-melihat, tombol aksi di kanan. Bila Pointer Lock tidak tersedia, aim memakai posisi kursor
-(`freeAim`).
+Kontrol desktop ditampilkan di **Control Deck** kiri bawah: `WASD`/panah + `Shift`, `Space`
+lompat, `Klik kiri` hancurkan, `Klik kanan` pasang, `1–5` pilih material, dan `Esc` dengan
+catatan “Jeda, Esc lagi keluar”. Tombol **Hapus semua** memakai konfirmasi dua tahap. Di layar
+sentuh: joystick kiri, geser sisi kanan untuk melihat, tombol aksi di kanan, tombol Menu
+membuka panel jeda yang sama.
 
 ---
 
@@ -310,11 +342,73 @@ Sekarang shadow berada di `baseY + 0,045`, skala `1 + lift×0,35`, opacity `0,8 
 | Kecepatan lompat | 7,6 m/s | tinggi puncak `v²/2g = 7,6²/48 ≈ 1,20` unit, lama udara `2v/g ≈ 0,63` s |
 | Radius / tinggi pemain | 0,34 / 1,72 | collision AABB per sel |
 | Kamera game | jarak 5,4 · tinggi 1,9 | perspektif fov 65 |
+| Origin arena | `(104, 0, −0,5)` — `PLAY.z − 4` | sel lokal `x,z` dipetakan ke dunia sekitar stasiun Play; arena memakai tanah journey yang sama |
 
 Penempatan blok memakai **face normal** hasil raycast: `cell = floor(hitPoint ± normal × 0,5)`,
 lalu ditolak bila sel sudah terisi (`cellKey = "x,y,z"`) atau di luar arena. Data disimpan
 setelah setiap aksi; loader memvalidasi tipe, batas arena, dan duplikat sebelum menerima data.
 Arena awal berisi 11 blok (alas 3×3 + tumpukan 2) agar dunia tidak terasa kosong.
+
+#### Hukum fondasi, pindaian makna, runtuh berantai
+
+Semua aturan makna adalah fungsi murni di `src/game/meaning.ts`:
+
+- **Dukungan:** `isSupported(c, occupied) = c.y === 0 || occupied.has("x,y−1,z")`.
+  Penempatan yang gagal dukungan memicu notice `reject` + bunyi deny, dunia tidak berubah.
+- **Niat menumpuk:** bila raycast mengenai sisi vertikal (`normal.y === 0`) dan sel di atas
+  blok kosong, target naik ke atas blok itu; bila terisi, target tetap sel samping sehingga
+  hukum fondasi tetap dapat menolak.
+- **Pindaian:** per kolom `(x,z)`, jalan `y = 0…4` selama `kind === LAYERS[y]`;
+  `progress = max(run.length)`, `column = run` pemenang (untuk mercusuar),
+  `height = max(y+1)` seluruh blok; `best = max(best, height)` persisten.
+- **Runtuh:** `cascade(blocks, removed)` mengulang filter `isSupported` sampai stabil;
+  `fell = len(before) − len(kept) − direct` menentukan notice/bunyi collapse vs break.
+- **Vista:** `player.y ≥ 4` atau `progress === 5` membuka `vista` (sekali, persisten);
+  `Atmosphere` di `World.tsx` me-lerp latar `#e9eff3 → #f5e2c4` dan lampu
+  `#ffffff → #ffd9a0` dengan damp λ1,1 hanya selama mode game.
+
+#### Lompat countermovement (CMJ)
+
+Lompat bukan sekadar translasi naik: rig memainkan empat fase sesuai kurva force-time CMJ
+(Owen et al. 2018): **braking dip → propulsion → flight → landing absorption**. State mesin
+(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `EricVisual` mem-blend pose lompat di
+atas stride dengan damp eksponensial (λ = 16 pose, λ = 12 bobot).
+
+| Fase | Durasi | Hip | Lutut | Lengan | Sumber |
+|---|---|---|---|---|---|
+| Braking dip | `CROUCH_S = 0,22 s` | −0,85 rad | 1,45 rad (≈83°) | ayun ke belakang +0,8 rad | Owen 2018; McHugh 2024; Komi & Bosco 1978 |
+| Propulsion / rise | sampai apex | −0,15 → −0,6 rad | 0,2 → 1,2 rad (tuck) | belakang → overhead −2,35 rad | Harman 1990; Lees 2004 |
+| Fall / reach | sisa flight | −0,42 rad | 0,8 rad | depan −0,95 rad (balance) | Petushek 2011 |
+| Landing absorption | `LAND_S = 0,3 s` | −0,95 rad | 1,6 rad (≈92°) | depan −0,7 rad | Petushek 2011; impulse–momentum |
+
+Kedalaman dip lowering pelvis otomatis lewat solver kontak tanah (`reach(hip, knee)`), bukan
+offset hardcoded; bobot absorpsi mendarat diskalakan oleh `impact = v_touchdown / v_takeoff`.
+
+Rumus fisika lompat ( projectile / flight-time / impulse–momentum ):
+
+| Rumus | Nilai di game | Sumber |
+|---|---|---|
+| `h = v₀² / 2g` | `7,6² / 48 ≈ 1,20` unit | Linthorne 2001; McGinnis 2013 |
+| `t_udara = 2v₀ / g` | `2·7,6 / 24 ≈ 0,63 s` | Linthorne 2001 |
+| `h = g·t² / 8` (flight-time) | identik dengan dua di atas untuk take-off=landing | Linthorne 2001 |
+| `J = ∫F dt = m·Δv` | dasar take-off & absorpsi mendarat | Linthorne 2001; McGinnis 2013 |
+| `v += −g·dt; y += v·dt` | semi-implicit Euler, `g = 24` arcade | integrasi numerik standar |
+
+#### Kerangka rotasi pose rig
+
+Rig UE4 tidak memakai basis tulang three.js, jadi setiap sendi di-pose terhadap **sumbu
+anatomis karakter** (fleksi sagittal, depan, atas) yang diturunkan dari landmark tulang
+(`head−pelvis` = atas, `ball_l−foot_l` = depan, `cross(atas, depan)` = fleksi). Sumbu tersebut
+diubah ke kerangka rest tulang lewat `invRestWorldQ = (q_parent · q_rest)⁻¹`, lalu rotasi
+di-post-multiply: `q = q_rest · R(sumbu_lokal, sudut)`. Identitas `Q·R(Q⁻¹v, θ) = R(v, θ)·Q`
+menjamin rotasi world benar-benar terjadi tentang sumbu anatomis, bukan tentang sumbu twist
+tulang (yang tak terlihat pada kaki lurus). Sudut sendi tetap sama untuk lari dan lompat;
+solver `reach(hip, knee)` menjaga telapak kaki stance menempel tanah.
+
+Verifikasi visual wajib dari **kamera samping**: dari kamera depan/belakang, gerak sagittal
+(maju/mundur) ter-foreshorten sehingga squat/tuck terlihat seperti kaki lurus walau sudut lutut
+terukur 45–63°. QA memakai freeze in-page per fase (`jumpState`/`vy`/`landT`) + piksel jujur
+`canvas.toDataURL()` agar latensi screenshot tidak menggeser fase yang difoto.
 
 ### 6.6 Transisi situs ↔ game
 
@@ -323,7 +417,8 @@ Arena awal berisi 11 blok (alas 3×3 + tumpukan 2) agar dunia tidak terasa koson
 | Cover mulai pekat → scene swap | 320 ms (cover `opacity` 300 ms) |
 | Cover memudar | pada 420 ms |
 | Kunci scroll | selama mode `game` |
-| Kembali | `toStation(PLAY_STATION)` setelah unlock |
+| Escape tahap 1 | lepas pointer lock → menu jeda; loop berhenti |
+| Escape tahap 2 | `exit()` → `toStation(PLAY_STATION)` setelah unlock |
 
 ### 6.7 Ukuran responsif
 
@@ -345,6 +440,15 @@ variabel `speedNorm` (0–1) untuk menghasilkan gerak yang plausibel dan bebas f
 | Novacheck TF. *The biomechanics of running.* Gait & Posture 7(1):77–95, 1998. | Fase stance lari (±40%), swing lebih panjang, fleksi lutut swing dalam (±100–120°), lean badan. |
 | Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. *Faster top running speeds are achieved with greater ground forces not more rapid leg movements.* J Appl Physiol 89(5):1991–1999, 2000. | Frekuensi langkah cenderung mendatar; kecepatan lebih ditentukan panjang langkah → cadence dibatasi `MAX_CADENCE = 3,3` siklus/s. |
 | Cavanagh PR, Kram R. *Stride length in distance running: velocity, body dimensions, and added mass effects.* Med Sci Sports Exerc 21(4):467–479, 1989. | Panjang stride naik terhadap kecepatan → interpolasi `STRIDE_WALK 1,6` → `STRIDE_RUN 3,4`. |
+| Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. *Understanding the key phases of the countermovement jump force-time curve.* Strength Cond J 40(4):96–106, 2018. | Enam fase CMJ → mesin `jumpState` (dip, propulsion, flight, landing). |
+| Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. *Why is countermovement jump height greater than squat jump height?* Med Sci Sports Exerc 28(11):1402–1412, 1996. | Alasan memakai countermovement (dip) sebelum take-off, bukan squat jump langsung. |
+| Komi PV, Bosco C. *Utilization of stored elastic energy in leg extensor muscles by men and women.* Med Sci Sports Exerc 10(4):261–265, 1978. | Energi elastis fase braking → dip singkat 0,22 s lalu explode. |
+| Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. *The effects of arms and countermovement on vertical jumping.* Med Sci Sports Exerc 22(6):817–823, 1990. | Arm swing menambah ±10–11 cm → lengan ayun belakang→overhead saat rise. |
+| Lees A, Vanrenterghem J, De Clercq D. *Understanding how an arm swing enhances performance in the vertical jump.* J Biomech 37(12):1929–1940, 2004. | Arm swing +8,6 cm → konfirmasi arah ayun lengan. |
+| McHugh MP et al. *Effect of countermovement depth on the neuromechanics of countermovement jumps.* 2024. | Kedalaman dip & fleksi lutut braking → sudut hip/lutut fase dip. |
+| Petushek EJ. *2D video vs electrogoniometry: CMJ and landing knee flexion angle.* Tesis, Northern Michigan University, 2011. | Fleksi lutut saat mendarat → pose absorpsi landing. |
+| Linthorne NP. *Analysis of standing vertical jumps using a force platform.* Am J Phys 69(11):1198–1206, 2001. | Rumus flight-time `h = g·t²/8` dan impulse–momentum `J = m·Δv`. |
+| McGinnis PM. *Biomechanics of Sport and Exercise*, 3rd ed. Human Kinetics, 2013. | Projectile motion `h = v₀²/2g`, `t = 2v₀/g` dan impulse–momentum mendarat. |
 | [three.js CatmullRomCurve3](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3) | Kurva path, `tension`, `getPointAt`, `getTangentAt`. |
 | [Lenis](https://github.com/darkroomengineering/lenis) | `scrollTo(target, { duration, easing })` dan perilaku `lerp: 0.09, smoothWheel: false`. |
 | [React Three Fiber — hooks](https://r3f.docs.pmnd.rs/api/hooks) | `useFrame` delta (di-clamp 50 ms) dan `useThree` untuk kamera/ukuran. |
@@ -361,9 +465,10 @@ yang di-hardcode di komponen.
 
 | Sumber | Isi yang dipakai |
 |---|---|
-| Dokumen/deck resmi PT Cartenz Technology Indonesia | Profil perusahaan, portofolio proyek, sertifikasi, capaian, daftar klien. |
+| Deck company profile PT Cartenz Technology Indonesia (PPTX) | Profil perusahaan, portofolio proyek, sertifikasi, capaian, daftar klien, ±42 logo mitra (slide 2). |
 | Website resmi [cartenz.co.id](https://cartenz.co.id) | Posisi Cakrawala sebagai unit IT consulting, alamat Wisma Bumiputera Lt. 9 (Kav. 76), kanal kontak. |
 | `PLAN.md` §3 dan §8 | Pemetaan 12 blok ke data nyata dan keputusan editorial (tahun 2014, alamat, warna brand, bahasa default). |
+| Literatur biomekanika (§6.8, §9.1) | Asal rumus gerak **lari** & **lompat** serta rumus fisika; ditampilkan juga di Footer tribute. |
 
 ### 7.2 Data yang ditampilkan
 
@@ -396,6 +501,9 @@ Catatan kejujuran data:
 | Key | Isi | Ditulis oleh |
 |---|---|---|
 | `cakrawala-play-world-v1` | Array blok `{ x, y, z, kind }` | `src/game/store.ts` |
+| `cakrawala-meaning-v1` | `{ best, done, vista, unlocked[] }` — rekor tinggi, status selesai, koleksi renungan | `src/game/store.ts` |
+| `cakrawala-audio-v1` | `'off'` bila mute, `'on'` bila aktif (absen = aktif) | `src/game/audio.ts` |
+| `cakrawala-hud-deck-v1` | `'closed'` bila Control Deck dilipat | `src/game/GameHud.tsx` |
 | `cakrawala-lang` | `"id"` atau `"en"` | `src/lib/i18n.tsx` |
 
 Tidak ada backend, analytics, atau cookie. Form kontak membuka aplikasi email pengunjung
@@ -438,12 +546,27 @@ server di `http://localhost:5199/cakrawala-web-profile/`. Screenshot ditulis ke 
 ```bash
 node scripts/shot.mjs       # 5 viewport: 390 / 1440 / 1920 / 2560 / 3840
 node scripts/verify2.mjs    # gait + shadow, wheel-up snap, jump/break, persistensi reload
-node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pointer lock, place, Esc → checkpoint
+node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, Esc dua tahap
+node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/8/10, overflow 390
+node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute
+node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
 ```
 
 Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, `grid-template-columns`
-services = 3, Pointer Lock aktif, blok bertambah setelah klik kanan, dan `scrollY` kembali ke
-stasiun Play setelah `Esc` tanpa kehilangan data.
+services = 3, Pointer Lock aktif, blok bertambah setelah klik kanan, **Esc pertama membuka
+dialog jeda** (bukan keluar), **Batal** dan **Ya, hapus** berperilaku sesuai konfirmasi,
+**Lanjutkan** mengunci pointer kembali, dan **Esc kedua** mengembalikan `scrollY` ke stasiun
+Play tanpa kehilangan blok. `verify2.mjs` juga menekan Esc dua kali untuk memastikan alur jeda
+→ keluar.
+
+`meaning-qa.mjs` menghitung aim crosshair secara closed-form dari model kamera orbit lalu
+mengirim delta look sintetis (klik tanpa gerak mouse, karena pointer lock mengubah gerakan
+mouse virtual menjadi delta look nyata). Ia membangun kolom lima lapis berurutan, memastikan
+penolakan fondasi, runtuh berantai, kartu perayaan + kursor bebas, mercusuar yang tidak
+mencegat raycast, koleksi Renungan enam entri, mute persisten, persistensi reload, dan HUD
+390 px. `touch-qa.mjs` memakai `Input.dispatchTouchEvent` (CDP) pada konteks 390×844
+`hasTouch`: swipe pendek maju satu checkpoint, swipe naik kembali, swipe panjang terkunci di
+checkpoint depan, sentuh baru mengambil alih hop, dan tap tidak melompat stasiun.
 
 ---
 
@@ -453,11 +576,28 @@ stasiun Play setelah `Esc` tanpa kehilangan data.
 |---|---|
 | React, React DOM, Vite, Tailwind CSS | MIT |
 | three.js, @react-three/fiber, @react-three/drei | MIT |
-| Zustand, Lenis | MIT |
+| Zustand, Lenis, GSAP | MIT |
 | Lucide | ISC |
+| Playwright-core | Apache-2.0 |
 | Model “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
 | Logo Cakrawala, screenshot, dan data proyek | Milik PT Cartenz Technology Indonesia |
 | Logo mitra/kementerian | Milik masing-masing pemegang merek |
+
+### 9.1 Sumber ilmiah & dokumen (gerak, fisika, data)
+
+Daftar lengkap juga tampil di situs pada **Footer → Tribute & Atribusi** (lima grup:
+teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
+
+| Sumber | Dipakai untuk |
+|---|---|
+| Deck company profile PT Cartenz Technology Indonesia (PPTX) | Seluruh fakta/angka/layanan + ±42 logo mitra (slide 2). |
+| [cartenz.co.id](https://cartenz.co.id) | Posisi Cakrawala, alamat, kanal kontak. |
+| Perry & Burnfield 2010; Novacheck 1998 | Rumus/fase gerak **lari** (stance/swing, fleksi lutut, lean). |
+| Weyand et al. 2000; Cavanagh & Kram 1989 | Cadence & panjang stride gerak **lari**. |
+| Owen et al. 2018; Bobbert et al. 1996; Komi & Bosco 1978 | Fase & alasan countermovement gerak **lompat**. |
+| Harman et al. 1990; Lees et al. 2004 | Kontribusi arm swing gerak **lompat**. |
+| McHugh et al. 2024; Petushek 2011 | Kedalaman dip & absorpsi lutut mendarat. |
+| Linthorne 2001; McGinnis 2013 | **Rumus fisika**: flight-time `h=g·t²/8`, impulse–momentum `J=m·Δv`, projectile `h=v₀²/2g`. |
 
 > **Catatan lisensi model:** “Eric Rigged 001” dirilis dengan *Personal Use License*, bukan
 > lisensi komersial. Untuk penggunaan komersial jangka panjang, karakter ini sebaiknya diganti
