@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { STATIONS } from '../journey/stations'
 import { scrollBridge } from '../journey/scroll'
+import { audio } from './audio'
+import { cascade, isSupported, NOTICE_KEYS, scanMeaning, type NoticeKey } from './meaning'
 
 export const BLOCK_KINDS = ['server', 'cloud', 'doc', 'laptop', 'gear'] as const
 export type BlockKind = (typeof BLOCK_KINDS)[number]
@@ -31,6 +33,41 @@ export const ARENA_MAX_Y = 10
 export const PLAY_STATION = STATIONS.findIndex((s) => s.id === 'play')
 
 const STORE_KEY = 'cakrawala-play-world-v1'
+const MEANING_KEY = 'cakrawala-meaning-v1'
+
+interface MeaningMeta {
+  best: number
+  done: boolean
+  vista: boolean
+  unlocked: NoticeKey[]
+}
+
+function loadMeta(): MeaningMeta {
+  const fallback: MeaningMeta = { best: 0, done: false, vista: false, unlocked: [] }
+  try {
+    const raw = localStorage.getItem(MEANING_KEY)
+    if (raw == null) return fallback
+    const p = JSON.parse(raw)
+    return {
+      best: Number.isInteger(p?.best) && p.best >= 0 ? p.best : 0,
+      done: p?.done === true,
+      vista: p?.vista === true,
+      unlocked: Array.isArray(p?.unlocked)
+        ? p.unlocked.filter((k: unknown): k is NoticeKey => NOTICE_KEYS.includes(k as NoticeKey))
+        : [],
+    }
+  } catch {
+    return fallback
+  }
+}
+
+function saveMeta(m: MeaningMeta) {
+  try {
+    localStorage.setItem(MEANING_KEY, JSON.stringify(m))
+  } catch {
+    // storage unavailable — meaning stays in memory for this session
+  }
+}
 
 export function cellKey(c: Cell) {
   return `${c.x},${c.y},${c.z}`
@@ -94,14 +131,37 @@ interface GameState {
   mode: Mode
   /** full-screen cover opacity target used by the fade between site and game */
   cover: boolean
+  /** true while the pause menu holds the cursor, so the loop freezes */
+  paused: boolean
   blocks: PlacedBlock[]
   selected: BlockKind
+  /** longest ground-up ordered layer run, 0..5 — the structure's meaning */
+  progress: number
+  /** cells of that run, for the beacon; null when no ordered run exists */
+  column: Cell[] | null
+  /** tallest column in the arena */
+  height: number
+  /** persisted record height */
+  best: number
+  /** persisted: a meaningful stack has been completed at least once */
+  done: boolean
+  /** transient completion card */
+  celebrate: boolean
+  /** persisted: the horizon has been opened (dawn light stays) */
+  vista: boolean
+  /** persisted collection of aphorisms, shown as Renungan in the pause menu */
+  unlocked: NoticeKey[]
+  /** transient aphorism toast; seq lets the HUD replay identical keys */
+  notice: { key: NoticeKey; seq: number } | null
   enter: () => void
   exit: () => void
+  setPaused: (paused: boolean) => void
   select: (kind: BlockKind) => void
   place: (cells: Cell[]) => void
   remove: (cells: Cell[]) => void
   clear: () => void
+  dismissCelebrate: () => void
+  openVista: () => void
 }
 
 let swapTimer: ReturnType<typeof setTimeout> | undefined
@@ -115,7 +175,7 @@ export const useGame = create<GameState>((set, get) => {
     set({ cover: true })
     // switch scenes only once the cover is fully opaque, then fade back in
     swapTimer = setTimeout(() => {
-      set({ mode })
+      set({ mode, paused: false })
       if (mode === 'game') {
         scrollBridge.lock(true)
       } else {
@@ -126,13 +186,66 @@ export const useGame = create<GameState>((set, get) => {
     coverTimer = setTimeout(() => set({ cover: false }), 420)
   }
 
+  const meta = loadMeta()
+  let noticeSeq = 0
+
+  const persist = () => {
+    const { best, done, vista, unlocked } = get()
+    saveMeta({ best, done, vista, unlocked })
+  }
+
+  const say = (key: NoticeKey) => {
+    noticeSeq += 1
+    set({ notice: { key, seq: noticeSeq } })
+  }
+
+  const unlock = (key: NoticeKey) => {
+    const { unlocked } = get()
+    if (unlocked.includes(key)) return false
+    set({ unlocked: [...unlocked, key] })
+    persist()
+    return true
+  }
+
+  /** recompute meaning after any structural change and fire its milestones */
+  const rescan = (before: number) => {
+    const { blocks, best, done } = get()
+    const scan = scanMeaning(blocks)
+    const height = scan.height
+    const nextBest = Math.max(best, height)
+    set({ progress: scan.progress, column: scan.column, height, best: nextBest })
+    if (nextBest !== best) persist()
+    if (scan.progress >= 2 && before < 2) {
+      if (unlock('pair')) say('pair')
+    }
+    if (scan.progress === 5 && !done) {
+      set({ done: true, vista: true, celebrate: true })
+      unlock('complete')
+      unlock('vista')
+      persist()
+      say('complete')
+      audio.complete()
+    }
+  }
+
   return {
     mode: 'site',
     cover: false,
+    paused: false,
     blocks: loadBlocks(),
     selected: 'server',
+    progress: 0,
+    column: null,
+    height: 0,
+    best: meta.best,
+    done: meta.done,
+    celebrate: false,
+    vista: meta.vista,
+    unlocked: meta.unlocked,
+    notice: null,
     enter: () => swap('game'),
     exit: () => swap('site'),
+    setPaused: (paused) => set({ paused }),
     select: (kind) => set({ selected: kind }),
     place: (cells) => {
       const { blocks } = get()
@@ -140,24 +253,65 @@ export const useGame = create<GameState>((set, get) => {
       const added: PlacedBlock[] = []
       for (const c of cells) {
         if (taken.has(cellKey(c))) continue
+        // the foundation law: an idea without support does not stand
+        if (!isSupported(c, taken)) {
+          unlock('reject')
+          say('reject')
+          audio.deny()
+          return
+        }
         taken.add(cellKey(c))
         added.push({ ...c, kind: get().selected })
       }
       if (!added.length) return
+      const wasEmpty = blocks.length === 0
+      const before = get().progress
       const next = [...blocks, ...added]
       saveBlocks(next)
       set({ blocks: next })
+      audio.place()
+      if (wasEmpty && unlock('first')) say('first')
+      rescan(before)
     },
     remove: (cells) => {
       const drop = new Set(cells.map(cellKey))
-      const next = get().blocks.filter((b) => !drop.has(cellKey(b)))
-      if (next.length === get().blocks.length) return
-      saveBlocks(next)
-      set({ blocks: next })
+      const blocks = get().blocks
+      const direct = blocks.filter((b) => drop.has(cellKey(b))).length
+      if (!direct) return
+      const { kept } = cascade(blocks, drop)
+      const fell = blocks.length - kept.length - direct
+      const before = get().progress
+      saveBlocks(kept)
+      set({ blocks: kept })
+      if (fell > 0) {
+        unlock('collapse')
+        say('collapse')
+        audio.collapse()
+      } else {
+        audio.break()
+      }
+      rescan(before)
     },
     clear: () => {
       saveBlocks([])
-      set({ blocks: [] })
+      set({ blocks: [], celebrate: false })
+      audio.break()
+      rescan(get().progress)
+    },
+    dismissCelebrate: () => set({ celebrate: false }),
+    openVista: () => {
+      if (get().vista) return
+      set({ vista: true })
+      unlock('vista')
+      say('vista')
+      audio.vista()
     },
   }
 })
+
+// the opening structure already carries a foundation: reflect it on first load
+{
+  const s = useGame.getState()
+  const scan = scanMeaning(s.blocks)
+  useGame.setState({ progress: scan.progress, column: scan.column, height: scan.height })
+}

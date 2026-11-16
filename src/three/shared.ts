@@ -12,6 +12,13 @@ export const gait = {
   speedNorm: 0, // 0 idle .. 1 full run
   moving: 0, // 0 when standing
   lift: 0, // world units of the body above its surface (game jumps)
+  /** countermovement jump: 0 idle, 1 braking dip, 2 flight, 3 landing absorption */
+  jumpState: 0,
+  crouch: 0, // 0..1 dip depth while braking
+  vy: 0, // vertical velocity; sign splits rise from fall
+  airT: 0, // seconds since take-off
+  landT: 0, // seconds since touch-down
+  impact: 0, // 0..1 touch-down speed relative to take-off speed
 }
 
 // ground distance covered by one full gait cycle (two steps) at each end of the

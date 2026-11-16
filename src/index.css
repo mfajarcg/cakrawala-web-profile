@@ -1,2 +1,93 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
+
+/* physical-looking keycaps for the in-game control deck */
+.keycap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.4rem;
+  border: 1px solid #b9c7cf;
+  border-bottom-width: 3px;
+  border-radius: 0.375rem;
+  background: linear-gradient(#ffffff, #e6edf1);
+  box-shadow:
+    inset 0 1px 0 #ffffff,
+    0 1px 2px rgba(16, 20, 24, 0.18);
+  color: #101418;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.keycap-danger {
+  border-color: #7d2219;
+  background: linear-gradient(#c2503f, #a12f22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 2px rgba(16, 20, 24, 0.35);
+  color: #ffffff;
+}
+
+/* the page scrollbar belongs to the palette, not to the browser */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #408fb4 #e3ebef;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-track {
+  background: #e3ebef;
+}
+html::-webkit-scrollbar-thumb {
+  border: 2px solid #e3ebef;
+  border-radius: 999px;
+  background: linear-gradient(#408fb4, #2e6f8e);
+}
+html::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(#f2b23c, #d99a26);
+}
+
+/* dark contemplation surfaces (pause menu, reflections list) */
+.renungan-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(242, 178, 60, 0.5) rgba(255, 255, 255, 0.06);
+}
+.renungan-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.renungan-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+.renungan-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(242, 178, 60, 0.45);
+}
+.renungan-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(242, 178, 60, 0.8);
+}
+
+/* aphorism toast: rises like a thought, then settles */
+.notice-toast > div {
+  animation: notice-rise 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes notice-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.9rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice-toast > div {
+    animation: none;
+  }
+}
+

@@ -31,7 +31,7 @@ const L_SHIN = 0.422
 const HIP_HEIGHT = 0.969
 const ANKLE_TO_SOLE = 0.127
 
-const X_AXIS = new THREE.Vector3(1, 0, 0)
+const Y_AXIS = new THREE.Vector3(0, 1, 0)
 const Z_AXIS = new THREE.Vector3(0, 0, 1)
 
 const TAU = Math.PI * 2
@@ -127,6 +127,12 @@ function CharacterDriver() {
     gait.speedNorm = speedNorm
     gait.moving = speedNorm > 0.02 ? 1 : 0
     gait.lift = 0
+    gait.jumpState = 0
+    gait.crouch = 0
+    gait.vy = 0
+    gait.airT = 0
+    gait.landT = 0
+    gait.impact = 0
     tick(s.progress)
   })
 
@@ -136,8 +142,8 @@ function CharacterDriver() {
 interface Poser {
   bone: THREE.Bone
   rest: THREE.Quaternion
-  /** inverse of the bone's parent world rotation at rest, in character space */
-  invParentQ: THREE.Quaternion
+  /** inverse of the bone's own rest rotation in character space */
+  invRestWorldQ: THREE.Quaternion
 }
 
 /** a joint that can be posed about axes expressed in character space */
@@ -147,11 +153,15 @@ function makePoser(model: THREE.Object3D, name: string): Poser | null {
   if (!bone || !parent) return null
   const parentQ = new THREE.Quaternion()
   parent.getWorldQuaternion(parentQ)
-  return { bone, rest: bone.quaternion.clone(), invParentQ: parentQ.invert() }
+  const rest = bone.quaternion.clone()
+  return {
+    bone,
+    rest,
+    invRestWorldQ: parentQ.multiply(rest).invert(),
+  }
 }
 
 const _axis = new THREE.Vector3()
-const _qAcc = new THREE.Quaternion()
 const _qRot = new THREE.Quaternion()
 
 /**
@@ -166,14 +176,14 @@ function poseBone(
   angleB: number,
 ) {
   if (!p) return
-  _qAcc.identity()
-  _axis.copy(axisA).applyQuaternion(p.invParentQ)
-  _qAcc.multiply(_qRot.setFromAxisAngle(_axis, angleA))
+  // express the character-space axis in the bone's rest-world frame and
+  // post-multiply, so the net world rotation is about the character axis
+  _axis.copy(axisA).applyQuaternion(p.invRestWorldQ)
+  p.bone.quaternion.copy(p.rest).multiply(_qRot.setFromAxisAngle(_axis, angleA))
   if (Math.abs(angleB) > 1e-4) {
-    _axis.copy(axisB).applyQuaternion(p.invParentQ)
-    _qAcc.multiply(_qRot.setFromAxisAngle(_axis, angleB))
+    _axis.copy(axisB).applyQuaternion(p.invRestWorldQ)
+    p.bone.quaternion.multiply(_qRot.setFromAxisAngle(_axis, angleB))
   }
-  p.bone.quaternion.copy(p.rest).premultiply(_qAcc)
 }
 
 /**
@@ -219,6 +229,7 @@ function EricVisual() {
   const root = useRef<THREE.Group>(null)
   const shadow = useRef<THREE.Mesh>(null)
   const blob = useBlobShadow()
+  const jumpPose = useRef({ hip: 0, knee: 0, foot: 0, arm: 0, elbow: 0, spine: 0, neck: 0, w: 0 })
   const pov = useJourney((s) => s.pov)
   const mode = useGame((s) => s.mode)
 
@@ -239,6 +250,24 @@ function EricVisual() {
       mesh.frustumCulled = false
     })
 
+    // The FBX is UE4-authored, so its character axes are NOT three's +X left /
+    // +Z forward. Derive the true anatomical axes from bone landmarks so that
+    // "flexion" really swings limbs in the sagittal plane instead of twisting
+    // them about their long axis (which is invisible on a straight leg).
+    const worldPos = (name: string) => {
+      const v = new THREE.Vector3()
+      fbx.getObjectByName(name)?.getWorldPosition(v)
+      return v
+    }
+    const up = worldPos('head').sub(worldPos('pelvis'))
+    if (up.lengthSq() < 1e-8) up.copy(Y_AXIS)
+    up.normalize()
+    const front = worldPos('ball_l').sub(worldPos('foot_l'))
+    front.addScaledVector(up, -front.dot(up))
+    if (front.lengthSq() < 1e-8) front.copy(Z_AXIS)
+    front.normalize()
+    const flex = new THREE.Vector3().crossVectors(up, front).normalize()
+
     // elbow hinge: perpendicular to the A-pose arm and the forward axis,
     // then carried along by the arm's abduction
     const hinge = (side: 'l' | 'r') => {
@@ -246,11 +275,13 @@ function EricVisual() {
       const b = new THREE.Vector3()
       fbx.getObjectByName(`upperarm_${side}`)!.getWorldPosition(a)
       fbx.getObjectByName(`lowerarm_${side}`)!.getWorldPosition(b)
-      const h = new THREE.Vector3().crossVectors(b.sub(a).normalize(), Z_AXIS).normalize()
-      return h.applyAxisAngle(Z_AXIS, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
+      const h = new THREE.Vector3().crossVectors(b.sub(a).normalize(), front).normalize()
+      return h.applyAxisAngle(front, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
     }
 
     return {
+      flex,
+      front,
       thighL: makePoser(fbx, 'thigh_l'),
       calfL: makePoser(fbx, 'calf_l'),
       footL: makePoser(fbx, 'foot_l'),
@@ -268,9 +299,10 @@ function EricVisual() {
     }
   }, [fbx, dif, norm])
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const g = root.current
     if (!g) return
+    const dt = Math.min(delta, 0.05)
     const t = state.clock.elapsedTime
     const { phase, speedNorm, moving, lift } = gait
 
@@ -293,37 +325,120 @@ function EricVisual() {
     const armSwingL = Math.cos(TAU * uL) * armAmp + idle
     const armSwingR = Math.cos(TAU * uR) * armAmp + idle
     const elbowFlex = lerp(0.22, 1.5, speedNorm * speedNorm)
-
-    poseBone(rig.thighL, X_AXIS, hipL, X_AXIS, 0)
-    poseBone(rig.thighR, X_AXIS, hipR, X_AXIS, 0)
-    poseBone(rig.calfL, X_AXIS, kneeL, X_AXIS, 0)
-    poseBone(rig.calfR, X_AXIS, kneeR, X_AXIS, 0)
-    // ankle keeps the sole roughly level with the ground
-    poseBone(rig.footL, X_AXIS, -(hipL + kneeL) * 0.85, X_AXIS, 0)
-    poseBone(rig.footR, X_AXIS, -(hipR + kneeR) * 0.85, X_AXIS, 0)
-
-    poseBone(rig.armL, X_AXIS, armSwingL, Z_AXIS, -ARM_ABDUCT)
-    poseBone(rig.armR, X_AXIS, armSwingR, Z_AXIS, ARM_ABDUCT)
-    poseBone(rig.elbowL, rig.hingeL, elbowFlex, X_AXIS, 0)
-    poseBone(rig.elbowR, rig.hingeR, elbowFlex, X_AXIS, 0)
-
     const lean = speedNorm * speedNorm * 0.32 * walkBlend
-    poseBone(rig.spine, X_AXIS, lean, X_AXIS, 0)
-    poseBone(rig.neck, X_AXIS, -lean * 0.75, X_AXIS, 0)
+
+    // --- countermovement jump pose blended over the stride: braking dip with
+    // arms swept back, extension + tuck with arms overhead on the rise, reach
+    // for the ground on the fall, then knee/hip absorption on touch-down
+    const jp = jumpPose.current
+    const js = gait.jumpState
+    let tHip = 0
+    let tKnee = 0
+    let tFoot = 0
+    let tArm = 0
+    let tElbow = 0
+    let tSpine = 0
+    let tNeck = 0
+    let tW = 0
+    if (js === 1) {
+      const c = gait.crouch
+      tHip = -0.85 * c
+      tKnee = 1.45 * c
+      tFoot = -(tHip + tKnee) * 0.9
+      tArm = 0.8 * c
+      tElbow = 0.5 * c
+      tSpine = 0.42 * c
+      tNeck = -0.3 * c
+      tW = c
+    } else if (js === 2) {
+      tW = 1
+      if (gait.vy > 0) {
+        const up = clamp(gait.airT / 0.22, 0, 1)
+        tHip = lerp(-0.15, -0.6, up)
+        tKnee = lerp(0.2, 1.2, up)
+        tFoot = -(tHip + tKnee) * 0.45
+        tArm = lerp(0.8, -2.35, up)
+        tElbow = lerp(0.5, 0.25, up)
+        tSpine = 0.1
+        tNeck = -0.08
+      } else {
+        tHip = -0.42
+        tKnee = 0.8
+        tFoot = -(tHip + tKnee) * 0.8
+        tArm = -0.95
+        tElbow = 0.55
+        tSpine = 0.22
+        tNeck = -0.16
+      }
+    } else if (js === 3) {
+      const l = (1 - clamp(gait.landT / 0.3, 0, 1)) * (0.5 + 0.5 * gait.impact)
+      tHip = -0.95 * l
+      tKnee = 1.6 * l
+      tFoot = -(tHip + tKnee) * 0.9
+      tArm = -0.7 * l
+      tElbow = 0.6 * l
+      tSpine = 0.45 * l
+      tNeck = -0.32 * l
+      tW = l
+    }
+    const k = 1 - Math.exp(-16 * dt)
+    const kw = 1 - Math.exp(-12 * dt)
+    jp.hip += (tHip - jp.hip) * k
+    jp.knee += (tKnee - jp.knee) * k
+    jp.foot += (tFoot - jp.foot) * k
+    jp.arm += (tArm - jp.arm) * k
+    jp.elbow += (tElbow - jp.elbow) * k
+    jp.spine += (tSpine - jp.spine) * k
+    jp.neck += (tNeck - jp.neck) * k
+    jp.w += (tW - jp.w) * kw
+    const w = jp.w
+
+    const hipFL = lerp(hipL, jp.hip, w)
+    const hipFR = lerp(hipR, jp.hip, w)
+    const kneeFL = lerp(kneeL, jp.knee, w)
+    const kneeFR = lerp(kneeR, jp.knee, w)
+    const footFL = lerp(-(hipL + kneeL) * 0.85, jp.foot, w)
+    const footFR = lerp(-(hipR + kneeR) * 0.85, jp.foot, w)
+    const armFL = lerp(armSwingL, jp.arm, w)
+    const armFR = lerp(armSwingR, jp.arm, w)
+    const elbowF = lerp(elbowFlex, jp.elbow, w)
+    const leanF = lerp(lean, jp.spine, w)
+    const neckF = lerp(-lean * 0.75, jp.neck, w)
+
+    poseBone(rig.thighL, rig.flex, hipFL, rig.flex, 0)
+    poseBone(rig.thighR, rig.flex, hipFR, rig.flex, 0)
+    poseBone(rig.calfL, rig.flex, kneeFL, rig.flex, 0)
+    poseBone(rig.calfR, rig.flex, kneeFR, rig.flex, 0)
+    // ankle keeps the sole roughly level with the ground
+    poseBone(rig.footL, rig.flex, footFL, rig.flex, 0)
+    poseBone(rig.footR, rig.flex, footFR, rig.flex, 0)
+
+    poseBone(rig.armL, rig.flex, armFL, rig.front, -ARM_ABDUCT)
+    poseBone(rig.armR, rig.flex, armFR, rig.front, ARM_ABDUCT)
+    poseBone(rig.elbowL, rig.hingeL, elbowF, rig.flex, 0)
+    poseBone(rig.elbowR, rig.hingeR, elbowF, rig.flex, 0)
+
+    poseBone(rig.spine, rig.flex, leanF, rig.flex, 0)
+    poseBone(rig.neck, rig.flex, neckF, rig.flex, 0)
 
     // drop the pelvis just enough that the stance foot rests on the ground;
-    // during the running flight phase both feet are tucked, so the body flies
+    // during flight both feet are tucked, so the body flies
     const reach = (hip: number, knee: number) =>
       L_THIGH * Math.cos(hip) + L_SHIN * Math.cos(hip + knee)
     const stanceL = uL < 1 - swingFrac
     const stanceR = uR < 1 - swingFrac
-    const flight = stanceL || stanceR ? 0 : 1
-    const support = flight
-      ? HIP_HEIGHT - ANKLE_TO_SOLE
-      : Math.max(
-          stanceL ? reach(hipL, kneeL) : -Infinity,
-          stanceR ? reach(hipR, kneeR) : -Infinity,
-        )
+    const flight = js === 2 ? 1 : stanceL || stanceR ? 0 : 1
+    const support =
+      js === 2
+        ? HIP_HEIGHT - ANKLE_TO_SOLE
+        : js === 1 || js === 3
+          ? reach(hipFL, kneeFL)
+          : flight
+            ? HIP_HEIGHT - ANKLE_TO_SOLE
+            : Math.max(
+                stanceL ? reach(hipFL, kneeFL) : -Infinity,
+                stanceR ? reach(hipFR, kneeFR) : -Infinity,
+              )
     const soleGap = HIP_HEIGHT - ANKLE_TO_SOLE - support
     const bodyY = -soleGap + lift + flight * 0.025 * speedNorm * walkBlend
     const baseY = characterPos.current.y
@@ -333,10 +448,11 @@ function EricVisual() {
 
     if (shadow.current) {
       const fade = clamp(1 - lift / 1.6, 0.25, 1)
+      const landPulse = js === 3 ? (1 - clamp(gait.landT / 0.3, 0, 1)) * 0.3 * gait.impact : 0
       // the path ribbon's top face sits at y≈0.033, so the shadow has to clear
       // it or it disappears underneath
       shadow.current.position.set(characterPos.current.x, baseY + 0.045, characterPos.current.z)
-      shadow.current.scale.setScalar(1 + lift * 0.35)
+      shadow.current.scale.setScalar(1 + lift * 0.35 + landPulse)
       ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade
     }
   })

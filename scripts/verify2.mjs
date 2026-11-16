@@ -97,6 +97,10 @@ const broke = await count()
 console.log('blocks', { seeded, placed, broke })
 await page.screenshot({ path: 'shots/game-03-built.png' })
 
+// Esc pauses, a second Esc leaves the playground
+await page.keyboard.press('Escape')
+await page.waitForTimeout(500)
+console.log('after esc one', await page.evaluate(() => ({ dialog: !!document.querySelector('[role="dialog"]'), locked: !!document.pointerLockElement })))
 await page.keyboard.press('Escape')
 await page.waitForTimeout(1500)
 console.log('after exit', await page.evaluate(() => ({ y: Math.round(scrollY), overflow: document.body.style.overflow })))

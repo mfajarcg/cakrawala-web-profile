@@ -185,12 +185,33 @@
   "play": {
     "title": "Play Character",
     "lead": "Step into the block world: walk, run, jump, then build your own digital infrastructure.",
-    "hint": "Every block is one of our real services. Your build is saved automatically in this browser.",
+    "hint": "Every block is one of our real services. Your build is saved automatically in this browser. Raise the Meaningful Stack: Foundation → Memory → Craft → Quality → Care.",
     "cta": "Start Play Character",
     "ctaNote": "You play as the Eric character in an isometric block arena. Break and stack blocks freely — everything is saved in this browser, so your build is still there when you come back.",
     "gameTitle": "Cakrawala Playground",
-    "gameHint": "WASD / arrows walk · Shift run · Space jump · Left-click break · Right-click place · 1–5 pick material · Esc exit",
+    "gameHint": "WASD / arrows walk · Shift run · Space jump · Left-click break · Right-click place · 1–5 pick material · Esc pauses, Esc again exits",
     "gameHintTouch": "Left joystick walks · drag the right side to look · action buttons on the right",
+    "menu": "Menu",
+    "pauseTitle": "Paused",
+    "pauseLead": "The cursor is free. Press Esc again to exit, or keep playing.",
+    "resume": "Resume",
+    "clearConfirm": "Delete {count} blocks?",
+    "clearYes": "Yes, delete",
+    "clearCancel": "Cancel",
+    "deckTitle": "Controls",
+    "deckMove": "Move",
+    "deckAction": "Actions",
+    "deckSystem": "System",
+    "deckRun": "Run",
+    "deckJump": "Jump",
+    "deckBreak": "Break",
+    "deckPlace": "Place",
+    "mouseLeft": "Left-click",
+    "mouseRight": "Right-click",
+    "deckPick": "Pick material",
+    "deckEscTitle": "Exit",
+    "deckEsc": "Pause, Esc again to exit",
+    "escHint": "Esc once: pause · Esc twice: exit",
     "saved": "Blocks saved",
     "exit": "Exit",
     "clear": "Clear all",
@@ -201,6 +222,52 @@
     "reset": "Reset",
     "score": "Stack height",
     "best": "Best",
+    "meaning": {
+      "objective": "The Meaningful Stack",
+      "objectiveLead": "Stack five layers from ground to sky:",
+      "ladder": "Meaning",
+      "next": "Next",
+      "layers": {
+        "server": "Foundation",
+        "cloud": "Memory",
+        "laptop": "Craft",
+        "doc": "Quality",
+        "gear": "Care"
+      },
+      "notices": {
+        "first": {
+          "title": "First foundation",
+          "body": "Every large system begins with one block willing to carry the load."
+        },
+        "pair": {
+          "title": "Layer by layer",
+          "body": "Foundation carries memory, memory carries craft. Order is a form of honesty."
+        },
+        "reject": {
+          "title": "Without foundation",
+          "body": "A floating idea does not stand. Place it upon what is already solid."
+        },
+        "collapse": {
+          "title": "Foundation falls",
+          "body": "What rests on it falls too. Care for what carries."
+        },
+        "complete": {
+          "title": "A meaningful stack",
+          "body": "Foundation, memory, craft, quality, care — five layers living as one system."
+        },
+        "vista": {
+          "title": "Horizon",
+          "body": "The stronger what you build, the wider what you see."
+        }
+      },
+      "completeTitle": "The horizon opens",
+      "completeBody": "You stacked five layers in an honest order: foundation carries memory, memory carries craft, quality guards it, care continues it. A meaningful system is not the tallest one, but the one that carries itself.",
+      "continue": "Keep building",
+      "renungan": "Reflections",
+      "renunganEmpty": "No reflections yet. Build with intention, and meaning will come.",
+      "soundOn": "Sound: on",
+      "soundOff": "Sound: off"
+    },
     "blocks": [
       { "kind": "server", "label": "System Integration" },
       { "kind": "cloud", "label": "Data Platform" },
@@ -233,16 +300,65 @@
     "copyright": "© 2026 PT Cartenz Technology Indonesia",
     "trademark": "Cakrawala™ and the knight-shield logo are trademarks of PT Cartenz Technology Indonesia. All partner, ministry, and institution logos are trademarks of their respective owners.",
     "tributeTitle": "Tribute & Attribution",
-    "tribute": [
-      "Built with React, TypeScript, Vite, Tailwind CSS (MIT)",
-      "Three.js & React Three Fiber (MIT) — isometric 3D world",
-      "GSAP & Lenis (MIT) — journey scroll animation",
-      "Zustand (MIT) — journey state",
-      "Block physics & Play Character gameplay built on Three.js (MIT)",
-      "Lucide (ISC) — icons",
-      "3D character model \"Eric Rigged 001\" by Renderpeople (free3d.com) — Personal Use License",
-      "Project data & facts: official PT Cartenz Technology Indonesia materials",
-      "Partner & institution logos: property of their respective owners"
+    "tributeGroups": [
+      {
+        "title": "Technology & assets",
+        "items": [
+          { "text": "React, TypeScript, Vite, Tailwind CSS (MIT)" },
+          { "text": "Three.js & React Three Fiber (MIT) — isometric 3D world" },
+          { "text": "GSAP & Lenis (MIT) — journey scroll animation" },
+          { "text": "Zustand (MIT) — journey & game state" },
+          { "text": "Lucide (ISC) — icons" },
+          { "text": "Playwright-core (Apache-2.0) — screenshot & gameplay QA", "href": "https://playwright.dev" },
+          { "text": "3D character model \"Eric Rigged 001\" by Renderpeople (free3d.com) — Personal Use License", "href": "https://free3d.com" }
+        ]
+      },
+      {
+        "title": "Company documents",
+        "items": [
+          { "text": "PT Cartenz Technology Indonesia company profile deck (PPTX) — source of all facts, figures, service list, and ~42 partner logos (slide 2)" },
+          { "text": "Official website cartenz.co.id — Cakrawala positioning, Wisma Bumiputera 9th floor address, contact channels", "href": "https://cartenz.co.id" },
+          { "text": "PLAN.md §3 & §8 — mapping of the 12 blocks to deck data and editorial decisions" },
+          { "text": "Partner, ministry, & institution logos — trademarks of their respective owners" }
+        ]
+      },
+      {
+        "title": "Running gait — sources & formulas",
+        "items": [
+          { "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — 60/40 stance/swing, ~60° swing knee flexion" },
+          { "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — 40% stance, ~100–120° swing knee flexion, trunk lean" },
+          { "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — step frequency plateaus → MAX_CADENCE 3.3 cycles/s" },
+          { "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — stride length grows with speed" },
+          { "text": "cadence = v / stride; stride = 1.6 + (3.4 − 1.6)·speedNorm", "mono": true },
+          { "text": "swing knee flexion = lerp(1.05; 2.05 rad) ≈ 60° walk → 117° run", "mono": true }
+        ]
+      },
+      {
+        "title": "Jump — sources & formulas",
+        "items": [
+          { "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — six phases: weighing, unweighting, braking, propulsion, flight, landing", "href": "https://doi.org/10.1519/SSC.0000000000000375" },
+          { "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement adds push-off work" },
+          { "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — elastic energy during braking" },
+          { "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing adds ~10–11 cm", "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/" },
+          { "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing adds 8.6 cm" },
+          { "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — dip depth & braking knee flexion", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/" },
+          { "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Thesis, Northern Michigan University, 2011 — landing knee absorption", "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses" },
+          { "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — flight-time & impulse–momentum methods", "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force" },
+          { "text": "h = v₀² / 2g · t_flight = 2v₀ / g (v₀ 7.6 · g 24 → h ≈ 1.20 units · t ≈ 0.63 s)", "mono": true },
+          { "text": "h = g·t² / 8 (flight-time method, Linthorne 2001)", "mono": true },
+          { "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & landing absorption)", "mono": true }
+        ]
+      },
+      {
+        "title": "Physics & integration formulas",
+        "items": [
+          { "text": "Semi-implicit Euler projectile: v += −g·dt; y += v·dt", "mono": true },
+          { "text": "Frame-rate independent exponential damp: x += (target − x)·(1 − e^(−λ·dt))", "mono": true },
+          { "text": "desired = clamp(diff·4, ±MAX_SPEED); dv capped by ACCELERATION·dt", "mono": true },
+          { "text": "phase += cadence·2π·dt — feet locked to the ground, no foot-sliding", "mono": true },
+          { "text": "cell = floor(hitPoint ± normal·0.5) — block placement via face normal", "mono": true }
+        ]
+      }
     ],
     "backToTop": "Back to start"
   }

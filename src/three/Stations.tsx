@@ -168,14 +168,9 @@ function StationProp({ id }: { id: StationId }) {
     case 'play':
       return (
         <group>
-          <Box args={[7, 0.3, 5]} position={[0, 0.15, 0]} color={'#e7d9b8'} />
-          <Box args={[7, 0.5, 0.3]} position={[0, 0.25, 2.5]} color={WARM} />
-          <Box args={[7, 0.5, 0.3]} position={[0, 0.25, -2.5]} color={WARM} />
-          <Box args={[0.3, 0.5, 5]} position={[3.5, 0.25, 0]} color={WARM} />
-          <Box args={[0.3, 0.5, 5]} position={[-3.5, 0.25, 0]} color={WARM} />
-          <Box args={[1, 1, 1]} position={[-1.6, 0.8, 0.4]} color={BRAND} rotation={[0, 0.4, 0]} />
-          <Box args={[0.8, 0.8, 0.8]} position={[-0.4, 0.7, -0.5]} color={GREEN} rotation={[0, -0.3, 0]} />
-          <Box args={[0.9, 0.9, 0.9]} position={[-1, 1.75, 0]} color={WARM} rotation={[0, 0.2, 0]} />
+          {/* no plaza slab: the build zone is the same ground the character walks */}
+          <Cylinder args={[0.08, 0.1, 3, 6]} position={[6.2, 1.5, -5]} color={INK} />
+          <Box args={[2.8, 1.2, 0.1]} position={[6.2, 2.9, -5]} color={BRAND} />
         </group>
       )
     case 'contact':

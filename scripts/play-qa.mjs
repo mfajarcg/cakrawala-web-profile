@@ -84,7 +84,49 @@ const saved = await page.evaluate(() =>
 console.log('blocks after place', saved.length, saved[0])
 await page.screenshot({ path: 'shots/qa-05-place.png' })
 
-// --- escape returns to the checkpoint, build survives
+// --- escape stage one: pause menu, not exit
+await page.keyboard.press('Escape')
+await page.waitForTimeout(500)
+const paused = await page.evaluate(() => {
+  const dialog = document.querySelector('[role="dialog"]')
+  return { dialog: !!dialog, locked: !!document.pointerLockElement }
+})
+console.log('esc stage one', paused)
+await page.screenshot({ path: 'shots/qa-06-pause.png' })
+
+// --- clear needs a second confirmation; cancel keeps the build
+await page.getByRole('button', { name: /Hapus semua/i }).click()
+await page.waitForTimeout(300)
+await page.getByRole('button', { name: /^Batal$/i }).click()
+await page.waitForTimeout(300)
+const afterCancel = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('cakrawala-play-world-v1') ?? '[]').length,
+)
+await page.getByRole('button', { name: /Hapus semua/i }).click()
+await page.getByRole('button', { name: /Ya, hapus/i }).click()
+await page.waitForTimeout(400)
+const afterClear = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('cakrawala-play-world-v1') ?? '[]').length,
+)
+console.log('clear cancel/confirm', { afterCancel, afterClear })
+
+// --- resume must re-lock, then build again so the site shows blocks afterwards
+await page.getByRole('button', { name: /Lanjutkan/i }).click()
+await page.waitForTimeout(900)
+const resumed = await page.evaluate(() => ({
+  locked: !!document.pointerLockElement,
+  dialog: !!document.querySelector('[role="dialog"]'),
+}))
+await page.mouse.click(720, 450, { button: 'right' })
+await page.waitForTimeout(400)
+const rebuilt = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem('cakrawala-play-world-v1') ?? '[]').length,
+)
+console.log('resume', resumed, 'rebuilt', rebuilt)
+
+// --- escape stage two from the pause menu returns to the checkpoint
+await page.keyboard.press('Escape')
+await page.waitForTimeout(600)
 await page.keyboard.press('Escape')
 await page.waitForTimeout(1600)
 const back = await page.evaluate(() => {
@@ -93,11 +135,12 @@ const back = await page.evaluate(() => {
     scrollY: window.scrollY,
     top: el ? el.offsetTop + (el.offsetHeight - innerHeight) / 2 : -1,
     overflow: document.body.style.overflow,
-    hud: !!document.querySelector('[data-station="9"]'),
+    dialog: !!document.querySelector('[role="dialog"]'),
+    blocks: JSON.parse(localStorage.getItem('cakrawala-play-world-v1') ?? '[]').length,
   }
 })
 console.log('back to checkpoint', back)
-await page.screenshot({ path: 'shots/qa-06-back.png' })
+await page.screenshot({ path: 'shots/qa-07-back.png' })
 
 // --- phone check
 const phone = await browser.newPage({ viewport: { width: 390, height: 844 } })
@@ -110,7 +153,7 @@ await phone.evaluate(() => {
   btn?.click()
 })
 await phone.waitForTimeout(3600)
-await phone.screenshot({ path: 'shots/qa-07-phone-services.png' })
+await phone.screenshot({ path: 'shots/qa-08-phone-services.png' })
 
 console.log('console errors', errors)
 await browser.close()

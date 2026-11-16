@@ -2,6 +2,7 @@ import { OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import { Arena } from '../game/Arena'
 import { GameScene } from '../game/GameScene'
 import { useGame } from '../game/store'
 import { STATIONS } from '../journey/stations'
@@ -79,6 +80,35 @@ function CameraRig() {
   return null
 }
 
+/** dawn light once the horizon has been opened — the world remembers it */
+function Atmosphere() {
+  const scene = useThree((s) => s.scene)
+  const inGame = useGame((s) => s.mode === 'game')
+  const dawn = useGame((s) => s.vista || s.done)
+  const light = useRef<THREE.DirectionalLight>(null)
+  const mix = useRef(0)
+  const sky = useMemo(() => new THREE.Color('#e9eff3'), [])
+  const daySky = useMemo(() => new THREE.Color('#e9eff3'), [])
+  const dawnSky = useMemo(() => new THREE.Color('#f5e2c4'), [])
+  const dayLight = useMemo(() => new THREE.Color('#ffffff'), [])
+  const dawnLight = useMemo(() => new THREE.Color('#ffd9a0'), [])
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05)
+    const target = inGame && dawn ? 1 : 0
+    mix.current = THREE.MathUtils.damp(mix.current, target, 1.1, dt)
+    const m = mix.current
+    sky.copy(daySky).lerp(dawnSky, m)
+    scene.background = sky
+    if (light.current) {
+      light.current.color.copy(dayLight).lerp(dawnLight, m)
+      light.current.intensity = 1.15 + 0.4 * m
+    }
+  })
+
+  return <directionalLight ref={light} position={[12, 24, 8]} intensity={1.15} />
+}
+
 function PathRibbon() {
   const geometry = useMemo(() => {
     const curve = getPath()
@@ -113,7 +143,11 @@ function CanvasSetup() {
   return (
     <Canvas
       dpr={[1, 2]}
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      gl={{
+        antialias: true,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: import.meta.env.DEV,
+      }}
     >
       <OrthographicCamera
         makeDefault={!inGame && pov === 'follow'}
@@ -128,24 +162,19 @@ function CanvasSetup() {
         near={0.1}
         far={200}
       />
-      <color attach="background" args={[inGame ? '#d8e8f0' : '#e9eff3']} />
-      <ambientLight intensity={inGame ? 1.05 : 0.85} />
-      <directionalLight position={[12, 24, 8]} intensity={1.15} />
-      {inGame ? (
-        <GameScene />
-      ) : (
-        <>
-          {/* ground */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[65, -0.05, 0]}>
-            <planeGeometry args={[320, 180]} />
-            <meshStandardMaterial color="#dfe8ec" flatShading />
-          </mesh>
-          <gridHelper args={[320, 80, '#cfdce2', '#cfdce2']} position={[65, 0, 0]} />
-          <PathRibbon />
-          <Stations />
-          <CameraRig />
-        </>
-      )}
+      <color attach="background" args={['#e9eff3']} />
+      <ambientLight intensity={0.95} />
+      <Atmosphere />
+      {/* one world for both modes: play mode only adds the player controller */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[65, -0.05, 0]}>
+        <planeGeometry args={[320, 180]} />
+        <meshStandardMaterial color="#dfe8ec" flatShading />
+      </mesh>
+      <gridHelper args={[320, 80, '#cfdce2', '#cfdce2']} position={[65, 0, 0]} />
+      <PathRibbon />
+      <Stations />
+      <Arena />
+      {inGame ? <GameScene /> : <CameraRig />}
       <Character />
     </Canvas>
   )

@@ -27,3 +27,9 @@ export function resetInput() {
   input.breakQueued = false
   input.placeQueued = false
 }
+
+/**
+ * Timestamp of the last pointer-lock release. The Escape handler uses it to
+ * tell "Esc that closed the lock" apart from a second Esc that should exit.
+ */
+export const lockState = { lastLostAt: 0 }

@@ -1,29 +1,22 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { STATIONS } from '../journey/stations'
 import { cadenceFor, characterPos, characterYaw, gait } from '../three/shared'
-import { input } from './input'
-import {
-  ARENA_HALF,
-  ARENA_MAX_Y,
-  BLOCK_COLORS,
-  BLOCK_KINDS,
-  cellKey,
-  useGame,
-  type BlockKind,
-  type Cell,
-} from './store'
+import { input, lockState, resetInput } from './input'
+import { ARENA_ORIGIN, arenaRefs } from './layout'
+import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
 
-// the arena is built on the play checkpoint so the player keeps their bearings
-const PLAY = STATIONS.find((s) => s.id === 'play')!
-const ORIGIN = { x: PLAY.x, z: PLAY.z - 4 }
+const ORIGIN = ARENA_ORIGIN
 
 const WALK_SPEED = 3.6
 const RUN_SPEED = 7.4
 const ACCELERATION = 16
 const GRAVITY = 24
 const JUMP_SPEED = 7.6
+// countermovement: braking dip ~0.2-0.3 s and landing absorption ~0.3 s,
+// matching the force-time phases of a countermovement jump (Owen et al. 2018)
+const CROUCH_S = 0.22
+const LAND_S = 0.3
 const PLAYER_RADIUS = 0.34
 const PLAYER_HEIGHT = 1.72
 const CAMERA_DISTANCE = 5.4
@@ -44,6 +37,13 @@ const player = {
   /** body facing */
   facing: 0,
   phase: 0,
+  /** countermovement jump machine: 0 idle, 1 dip, 2 flight, 3 absorption */
+  jumpState: 0,
+  crouchT: 0,
+  crouch: 0,
+  airT: 0,
+  landT: 0,
+  impact: 0,
 }
 
 const _ndc = new THREE.Vector2()
@@ -56,31 +56,13 @@ function dampAngle(current: number, target: number, lambda: number, dt: number) 
   return current + diff * (1 - Math.exp(-lambda * dt))
 }
 
-function blockGeometry() {
-  return new THREE.BoxGeometry(0.96, 0.96, 0.96)
-}
-
 export function GameScene() {
   const blocks = useGame((s) => s.blocks)
   const place = useGame((s) => s.place)
   const remove = useGame((s) => s.remove)
   const gl = useThree((s) => s.gl)
   const camera = useThree((s) => s.camera)
-  const blocksRef = useRef<THREE.Group>(null)
-  const floorRef = useRef<THREE.Mesh>(null)
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
-  const geometry = useMemo(blockGeometry, [])
-  const materials = useMemo(() => {
-    const map = {} as Record<BlockKind, THREE.MeshStandardMaterial>
-    for (const kind of BLOCK_KINDS) {
-      map[kind] = new THREE.MeshStandardMaterial({
-        color: BLOCK_COLORS[kind],
-        roughness: 0.62,
-        metalness: 0.04,
-      })
-    }
-    return map
-  }, [])
 
   const occupancy = useMemo(() => {
     const map = new Map<string, BlockKind>()
@@ -91,11 +73,22 @@ export function GameScene() {
   const occupancyRef = useRef(occupancy)
   occupancyRef.current = occupancy
 
+  // dev-only ground truth for the deterministic QA scripts
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as unknown as Record<string, unknown>
+    w.__gameDebug = { player, camera, raycaster }
+    return () => {
+      delete w.__gameDebug
+    }
+  }, [camera, raycaster])
+
   // --- pointer: click locks the camera, then LMB breaks / RMB places
   useEffect(() => {
     const el = gl.domElement
     const onClick = (e: MouseEvent) => {
       if (e.button !== 0) return
+      if (useGame.getState().paused) return
       if (document.pointerLockElement === el) {
         input.breakQueued = true
         return
@@ -161,6 +154,25 @@ export function GameScene() {
     }
   }, [gl])
 
+  // losing the lock (Esc, alt-tab) opens the pause menu instead of leaving the
+  // camera spinning with a hidden cursor
+  useEffect(() => {
+    const el = gl.domElement
+    let wasLocked = document.pointerLockElement === el
+    const onChange = () => {
+      const locked = document.pointerLockElement === el
+      if (wasLocked && !locked) {
+        lockState.lastLostAt = performance.now()
+        resetInput()
+        // the completion card releases the lock on purpose; it is not a pause
+        if (!useGame.getState().celebrate) useGame.getState().setPaused(true)
+      }
+      wasLocked = locked
+    }
+    document.addEventListener('pointerlockchange', onChange)
+    return () => document.removeEventListener('pointerlockchange', onChange)
+  }, [gl])
+
   /** top of the highest block at a cell coordinate, else the arena floor */
   const surfaceAt = (x: number, z: number) => {
     const cx = Math.floor(x)
@@ -188,6 +200,15 @@ export function GameScene() {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
+
+    if (useGame.getState().paused) {
+      player.vx = 0
+      player.vz = 0
+      gait.moving = 0
+      input.lookX = 0
+      input.lookY = 0
+      return
+    }
 
     // --- look
     player.yaw -= input.lookX * 0.0026
@@ -217,18 +238,46 @@ export function GameScene() {
     if (!blocked(player.x, nz, player.y)) player.z = nz
     else player.vz = 0
 
-    // --- jump & gravity
+    // --- countermovement jump: dip, explode, fly, absorb
     const ground = surfaceAt(player.x, player.z)
     if (input.jumpQueued) {
       input.jumpQueued = false
-      if (player.y <= ground + 0.04) player.vy = JUMP_SPEED
+      if (player.jumpState === 0 && player.y <= ground + 0.04) {
+        player.jumpState = 1
+        player.crouchT = 0
+      }
+    }
+    if (player.jumpState === 1) {
+      player.crouchT += dt
+      player.crouch = Math.sin(Math.min(player.crouchT / CROUCH_S, 1) * Math.PI * 0.5)
+      if (player.crouchT >= CROUCH_S) {
+        player.vy = JUMP_SPEED
+        player.jumpState = 2
+        player.airT = 0
+      }
+    } else if (player.jumpState === 2) {
+      player.airT += dt
     }
     player.vy -= GRAVITY * dt
     player.y += player.vy * dt
     const landing = surfaceAt(player.x, player.z)
     if (player.y <= landing) {
+      const hitSpeed = -player.vy
+      // standing frames only bleed ~g·dt of velocity; a real touch-down is faster
+      if (player.jumpState === 2 || (player.jumpState === 0 && hitSpeed > 3)) {
+        player.impact = clamp(hitSpeed / JUMP_SPEED, 0, 1)
+        player.jumpState = 3
+        player.landT = 0
+      }
       player.y = landing
       player.vy = 0
+    }
+    if (player.jumpState === 3) {
+      player.landT += dt
+      if (player.landT >= LAND_S) {
+        player.jumpState = 0
+        player.impact = 0
+      }
     }
 
     // --- publish pose for the shared rigged model
@@ -244,8 +293,18 @@ export function GameScene() {
     characterYaw.current = player.facing
     gait.phase = player.phase
     gait.speedNorm = speedNorm
-    gait.moving = speed > 0.15 ? 1 : 0
+    // the dip and the absorption replace the stride so legs pose symmetrically
+    gait.moving = speed > 0.15 && player.jumpState !== 1 && player.jumpState !== 3 ? 1 : 0
     gait.lift = player.y - surface
+    gait.jumpState = player.jumpState
+    gait.crouch = player.jumpState === 1 ? player.crouch : 0
+    gait.vy = player.vy
+    gait.airT = player.airT
+    gait.landT = player.landT
+    gait.impact = player.impact
+
+    // standing high on what you built opens the horizon — the brand's promise
+    if (player.y >= 4) useGame.getState().openVista()
 
     // --- third-person camera
     const horizontal = Math.cos(player.pitch) * CAMERA_DISTANCE
@@ -265,10 +324,10 @@ export function GameScene() {
       const locked = document.pointerLockElement != null || input.freeAim
       _ndc.set(locked ? 0 : input.aimX, locked ? 0 : input.aimY)
       raycaster.setFromCamera(_ndc, camera)
-      const targets: THREE.Object3D[] = blocksRef.current
-        ? [...blocksRef.current.children]
+      const targets: THREE.Object3D[] = arenaRefs.blocks
+        ? [...arenaRefs.blocks.children]
         : []
-      if (floorRef.current) targets.push(floorRef.current)
+      if (arenaRefs.floor) targets.push(arenaRefs.floor)
       const hit = raycaster.intersectObjects(targets, false)[0]
       if (!hit) return
       const normal = hit.face?.normal
@@ -281,6 +340,11 @@ export function GameScene() {
       const cell = hit.object.userData.cell as Cell | undefined
       if (cell && normal) {
         target = { x: cell.x + normal.x, y: cell.y + normal.y, z: cell.z + normal.z }
+        // stacking intent: clicking a block's side means "carry on top of it",
+        // so a tower can be raised from the ground without climbing it first
+        if (normal.y === 0 && !occupancyRef.current.has(cellKey({ x: cell.x, y: cell.y + 1, z: cell.z }))) {
+          target = { x: cell.x, y: cell.y + 1, z: cell.z }
+        }
       } else {
         const p = hit.point
         target = {
@@ -309,46 +373,5 @@ export function GameScene() {
     }
   })
 
-  const arenaSize = ARENA_HALF * 2 + 2
-  const wallHeight = 1.4
-
-  return (
-    <group position={[ORIGIN.x, 0, ORIGIN.z]}>
-      {/* floor */}
-      <mesh ref={floorRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-        <planeGeometry args={[arenaSize, arenaSize]} />
-        <meshStandardMaterial color="#e3ebe7" roughness={0.95} />
-      </mesh>
-      <gridHelper
-        args={[arenaSize, arenaSize, '#b9cbc2', '#cfdbd5']}
-        position={[0, 0.02, 0]}
-      />
-      {/* low walls keep the player in the build area */}
-      {[
-        [0, -ARENA_HALF - 0.5],
-        [0, ARENA_HALF + 0.5],
-        [-ARENA_HALF - 0.5, 0],
-        [ARENA_HALF + 0.5, 0],
-      ].map(([x, z], i) => (
-        <mesh key={i} position={[x, wallHeight / 2, z]}>
-          <boxGeometry
-            args={i < 2 ? [arenaSize + 1, wallHeight, 0.6] : [0.6, wallHeight, arenaSize + 1]}
-          />
-          <meshStandardMaterial color="#408fb4" roughness={0.7} />
-        </mesh>
-      ))}
-      {/* existing painted blocks stay visible while walking around */}
-      <group ref={blocksRef}>
-        {blocks.map((b) => (
-          <mesh
-            key={cellKey(b)}
-            geometry={geometry}
-            material={materials[b.kind]}
-            position={[b.x + 0.5, b.y + 0.5, b.z + 0.5]}
-            userData={{ cell: b }}
-          />
-        ))}
-      </group>
-    </group>
-  )
+  return null
 }

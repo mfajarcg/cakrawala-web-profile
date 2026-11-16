@@ -185,12 +185,33 @@
   "play": {
     "title": "Play Character",
     "lead": "Masuk ke dunia blok 3D-nya: jalan, lari, lompat, lalu bangun infrastruktur digitalmu sendiri.",
-    "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser.",
+    "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser. Susun Tumpukan Bermakna: Fondasi → Memori → Karya → Mutu → Rawat.",
     "cta": "Mulai Play Character",
     "ctaNote": "Kamu bermain sebagai karakter Eric di arena blok isometrik. Hancurkan dan susun blok sesukamu — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
     "gameTitle": "Cakrawala Playground",
-    "gameHint": "WASD / panah jalan · Shift lari · Spasi lompat · Klik kiri hancurkan · Klik kanan pasang · 1–5 pilih material · Esc keluar",
+    "gameHint": "WASD / panah jalan · Shift lari · Spasi lompat · Klik kiri hancurkan · Klik kanan pasang · 1–5 pilih material · Esc jeda, Esc lagi keluar",
     "gameHintTouch": "Joystick kiri untuk jalan · geser sisi kanan untuk melihat · tombol aksi di kanan",
+    "menu": "Menu",
+    "pauseTitle": "Jeda",
+    "pauseLead": "Kursor sudah aktif. Tekan Esc lagi untuk keluar, atau lanjutkan bermain.",
+    "resume": "Lanjutkan",
+    "clearConfirm": "Yakin hapus {count} blok?",
+    "clearYes": "Ya, hapus",
+    "clearCancel": "Batal",
+    "deckTitle": "Kontrol",
+    "deckMove": "Gerak",
+    "deckAction": "Aksi",
+    "deckSystem": "Sistem",
+    "deckRun": "Lari",
+    "deckJump": "Lompat",
+    "deckBreak": "Hancurkan",
+    "deckPlace": "Pasang",
+    "mouseLeft": "Klik kiri",
+    "mouseRight": "Klik kanan",
+    "deckPick": "Pilih material",
+    "deckEscTitle": "Keluar",
+    "deckEsc": "Jeda, Esc lagi keluar",
+    "escHint": "Esc sekali: jeda · Esc dua kali: keluar",
     "saved": "Blok tersimpan",
     "exit": "Keluar",
     "clear": "Hapus semua",
@@ -201,6 +222,52 @@
     "reset": "Ulangi",
     "score": "Tinggi tumpukan",
     "best": "Rekor",
+    "meaning": {
+      "objective": "Tumpukan Bermakna",
+      "objectiveLead": "Susun lima lapis dari tanah ke langit:",
+      "ladder": "Makna",
+      "next": "Berikutnya",
+      "layers": {
+        "server": "Fondasi",
+        "cloud": "Memori",
+        "laptop": "Karya",
+        "doc": "Mutu",
+        "gear": "Rawat"
+      },
+      "notices": {
+        "first": {
+          "title": "Fondasi pertama",
+          "body": "Setiap sistem besar mulai dari satu blok yang berani memikul beban."
+        },
+        "pair": {
+          "title": "Lapis demi lapis",
+          "body": "Fondasi memikul memori, memori memikul karya. Urutan adalah bentuk kejujuran."
+        },
+        "reject": {
+          "title": "Tanpa fondasi",
+          "body": "Gagasan yang melayang tidak berdiri. Letakkan ia di atas yang sudah kokoh."
+        },
+        "collapse": {
+          "title": "Fondasi runtuh",
+          "body": "Yang bertumpu padanya ikut jatuh. Rawatlah yang memikul."
+        },
+        "complete": {
+          "title": "Stack bermakna",
+          "body": "Fondasi, memori, karya, mutu, rawat — lima lapis hidup sebagai satu sistem."
+        },
+        "vista": {
+          "title": "Cakrawala",
+          "body": "Semakin kokoh yang kau bangun, semakin luas yang kau lihat."
+        }
+      },
+      "completeTitle": "Cakrawala terbuka",
+      "completeBody": "Kau menyusun lima lapis dalam urutan yang jujur: fondasi memikul memori, memori memikul karya, mutu menjaganya, rawat meneruskannya. Sistem yang bermakna bukan yang paling tinggi, melainkan yang paling saling memikul.",
+      "continue": "Lanjutkan membangun",
+      "renungan": "Renungan",
+      "renunganEmpty": "Belum ada renungan. Bangun dengan sengaja, maka makna akan datang.",
+      "soundOn": "Suara: aktif",
+      "soundOff": "Suara: mati"
+    },
     "blocks": [
       { "kind": "server", "label": "System Integration" },
       { "kind": "cloud", "label": "Data Platform" },
@@ -233,16 +300,65 @@
     "copyright": "© 2026 PT Cartenz Technology Indonesia",
     "trademark": "Cakrawala™ dan logo perisai kuda adalah merek PT Cartenz Technology Indonesia. Seluruh logo mitra, kementerian, dan lembaga adalah merek milik masing-masing pemegangnya.",
     "tributeTitle": "Tribute & Atribusi",
-    "tribute": [
-      "Dibangun dengan React, TypeScript, Vite, Tailwind CSS (MIT)",
-      "Three.js & React Three Fiber (MIT) — dunia isometric 3D",
-      "GSAP & Lenis (MIT) — animasi scroll perjalanan",
-      "Zustand (MIT) — state perjalanan karakter",
-      "Fisika blok & gameplay Play Character dibangun di atas Three.js (MIT)",
-      "Lucide (ISC) — ikon",
-      "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License",
-      "Data & fakta proyek: dokumen resmi PT Cartenz Technology Indonesia",
-      "Logo mitra & lembaga: milik masing-masing pemegang merek"
+    "tributeGroups": [
+      {
+        "title": "Teknologi & aset",
+        "items": [
+          { "text": "React, TypeScript, Vite, Tailwind CSS (MIT)" },
+          { "text": "Three.js & React Three Fiber (MIT) — dunia isometric 3D" },
+          { "text": "GSAP & Lenis (MIT) — animasi scroll perjalanan" },
+          { "text": "Zustand (MIT) — state perjalanan & game" },
+          { "text": "Lucide (ISC) — ikon" },
+          { "text": "Playwright-core (Apache-2.0) — QA screenshot & gameplay", "href": "https://playwright.dev" },
+          { "text": "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License", "href": "https://free3d.com" }
+        ]
+      },
+      {
+        "title": "Dokumen perusahaan",
+        "items": [
+          { "text": "Deck company profile PT Cartenz Technology Indonesia (PPTX) — sumber seluruh fakta, angka, daftar layanan, dan ±42 logo mitra (slide 2)" },
+          { "text": "Website resmi cartenz.co.id — posisi Cakrawala, alamat Wisma Bumiputera Lt. 9, kanal kontak", "href": "https://cartenz.co.id" },
+          { "text": "PLAN.md §3 & §8 — pemetaan 12 blok ke data deck dan keputusan editorial" },
+          { "text": "Logo mitra, kementerian, & lembaga — merek milik masing-masing pemegangnya" }
+        ]
+      },
+      {
+        "title": "Gerak lari — sumber & rumus",
+        "items": [
+          { "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — stance/swing 60/40, fleksi lutut swing ±60°" },
+          { "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — stance 40%, fleksi lutut swing ±100–120°, lean badan" },
+          { "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — frekuensi langkah mendatar → MAX_CADENCE 3,3 siklus/s" },
+          { "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — panjang stride naik terhadap kecepatan" },
+          { "text": "cadence = v / stride; stride = 1,6 + (3,4 − 1,6)·speedNorm", "mono": true },
+          { "text": "fleksi lutut swing = lerp(1,05; 2,05 rad) ≈ 60° jalan → 117° lari", "mono": true }
+        ]
+      },
+      {
+        "title": "Gerak lompat — sumber & rumus",
+        "items": [
+          { "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — enam fase: weighing, unweighting, braking, propulsion, flight, landing", "href": "https://doi.org/10.1519/SSC.0000000000000375" },
+          { "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement menambah kerja push-off" },
+          { "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — energi elastis saat braking" },
+          { "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing +±10–11 cm", "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/" },
+          { "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing +8,6 cm" },
+          { "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — kedalaman dip & fleksi lutut braking", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/" },
+          { "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Tesis, Northern Michigan University, 2011 — absorpsi lutut saat mendarat", "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses" },
+          { "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — metode flight-time & impulse–momentum", "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force" },
+          { "text": "h = v₀² / 2g · t_udara = 2v₀ / g (v₀ 7,6 · g 24 → h ≈ 1,20 unit · t ≈ 0,63 s)", "mono": true },
+          { "text": "h = g·t² / 8 (flight-time, Linthorne 2001)", "mono": true },
+          { "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & absorpsi mendarat)", "mono": true }
+        ]
+      },
+      {
+        "title": "Rumus fisika & integrasi",
+        "items": [
+          { "text": "Proyektil semi-implicit Euler: v += −g·dt; y += v·dt", "mono": true },
+          { "text": "Damp eksponensial bebas frame-rate: x += (target − x)·(1 − e^(−λ·dt))", "mono": true },
+          { "text": "desired = clamp(diff·4, ±MAX_SPEED); dv dibatasi ACCELERATION·dt", "mono": true },
+          { "text": "phase += cadence·2π·dt — kaki terkunci ke tanah, bebas foot-sliding", "mono": true },
+          { "text": "cell = floor(hitPoint ± normal·0,5) — penempatan blok via face normal", "mono": true }
+        ]
+      }
     ],
     "backToTop": "Kembali ke awal"
   }

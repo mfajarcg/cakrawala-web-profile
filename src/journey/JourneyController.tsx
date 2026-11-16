@@ -20,8 +20,8 @@ const inGame = () => useGame.getState().mode === 'game'
 /**
  * Binds smooth scroll (wheel/touch) and arrow keys to one shared target
  * progress so both control the walking character. Every gesture locks onto a
- * checkpoint: wheel steps one station at a time in either direction, and any
- * other scroll (touch, scrollbar, nav jump) settles on the nearest station so
+ * checkpoint: wheel and swipe step one station at a time in either direction,
+ * and any other scroll (scrollbar, nav jump) settles on the nearest station so
  * a floating window always comes to a full, readable stop.
  */
 export function JourneyController() {
@@ -77,8 +77,11 @@ export function JourneyController() {
 
     let settleTimer = 0
     const lastSnap = { index: -1, y: -1 }
-    const settle = () => {
-      if (inGame() || performance.now() < lockUntil) return
+    // a swipe carries the same contract as a wheel gesture: at least one
+    // checkpoint in its direction, and momentum is never fought backwards
+    const touch = { active: false, startY: 0, station: 0, dir: 0 }
+
+    const nearestIndex = () => {
       let best = 0
       let bestDist = Number.POSITIVE_INFINITY
       for (let i = 0; i < STATION_COUNT; i++) {
@@ -90,7 +93,22 @@ export function JourneyController() {
           best = i
         }
       }
+      return best
+    }
+
+    const settle = () => {
+      if (inGame() || touch.active || performance.now() < lockUntil) return
+      let best = nearestIndex()
+      if (touch.dir !== 0) {
+        const step = touch.dir > 0
+          ? Math.min(touch.station + 1, STATION_COUNT - 1)
+          : Math.max(touch.station - 1, 0)
+        best = touch.dir > 0 ? Math.max(best, step) : Math.min(best, step)
+        touch.dir = 0
+      }
       keyCursor.current = best
+      const top = stationTop(best)
+      const bestDist = top == null ? Number.POSITIVE_INFINITY : Math.abs(window.scrollY - top)
       // Lenis lands within a few pixels of the requested centre; treat that as
       // settled so a tiny drift never restarts the animation in a loop
       if (bestDist < 32) {
@@ -160,10 +178,30 @@ export function JourneyController() {
       scrollToStation(next)
     }
 
-    const onTouchEnd = () => {
-      if (inGame()) return
+    const onTouchStart = (e: TouchEvent) => {
+      if (inGame() || e.touches.length === 0) return
+      touch.active = true
+      touch.startY = e.touches[0].clientY
+      touch.station = nearestIndex()
+      touch.dir = 0
+      keyCursor.current = touch.station
+      // a new finger takes over from any running checkpoint hop
+      lockUntil = 0
+      pending = null
       window.clearTimeout(settleTimer)
-      settleTimer = window.setTimeout(settle, 320)
+      lenis.scrollTo(window.scrollY, { immediate: true, force: true })
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (inGame()) return
+      touch.active = false
+      const endY = e.changedTouches[0]?.clientY ?? touch.startY
+      const dy = touch.startY - endY
+      touch.dir = Math.abs(dy) >= 24 ? (dy > 0 ? 1 : -1) : 0
+      window.clearTimeout(settleTimer)
+      // momentum keeps firing scroll events; the debounce in onScroll pushes
+      // this back until the glide is truly over
+      settleTimer = window.setTimeout(settle, SETTLE_MS)
     }
 
     scrollBridge.toStation = (index) => {
@@ -190,7 +228,9 @@ export function JourneyController() {
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
     window.addEventListener('touchend', onTouchEnd, { passive: true })
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true })
 
     return () => {
       cancelAnimationFrame(raf)
@@ -198,7 +238,9 @@ export function JourneyController() {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
       window.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('touchcancel', onTouchEnd)
       document.body.style.overflow = ''
       scrollBridge.toStation = () => {}
       scrollBridge.lock = () => {}
