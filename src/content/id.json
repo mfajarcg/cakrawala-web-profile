@@ -301,6 +301,13 @@
     "copyright": "© 2026 PT Cartenz Technology Indonesia",
     "trademark": "Cakrawala™ dan logo perisai kuda adalah merek PT Cartenz Technology Indonesia. Seluruh logo mitra, kementerian, dan lembaga adalah merek milik masing-masing pemegangnya.",
     "tributeTitle": "Tribute & Atribusi",
+    "tributeCta": "Seluruh sumber laman ini — teknologi, dokumen perusahaan, dan riset gerak — dalam satu layar penuh.",
+    "tributeHint": "Layar penuh · Esc atau tombol pojok menutupnya",
+    "tributeLead": "Setiap angka, logo, kutipan, dan rumus di laman ini berasal dari sumber nyata. Tribute ini mencatat semuanya — teknologi, dokumen perusahaan, hingga riset biomekanika di balik gerak karakter.",
+    "tributeClose": "Tutup",
+    "tributeEsc": "menutup",
+    "tributeReturn": "Kembali ke section sebelumnya",
+    "tributeIndex": "Loncat ke bagian",
     "tributeGroups": [
       {
         "title": "Teknologi & aset",

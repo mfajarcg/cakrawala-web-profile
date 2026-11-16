@@ -62,7 +62,7 @@ await page.keyboard.up('KeyW')
 await page.keyboard.up('ShiftLeft')
 await page.waitForTimeout(1200)
 
-// --- leave the game, then look at the expanded tribute
+// --- leave the game, then open the full-screen tribute from the footer
 await page.keyboard.press('Escape')
 await page.waitForTimeout(600)
 await page.keyboard.press('Escape')
@@ -71,31 +71,78 @@ await page.evaluate(() => {
   const el = document.querySelector('[data-station="11"]')
   window.scrollTo(0, el.offsetTop + (el.offsetHeight - innerHeight) / 2)
 })
-await page.waitForTimeout(1200)
-await page.screenshot({ path: 'shots/jump-08-tribute-1440.png', fullPage: false })
+await page.waitForTimeout(2600)
+await page.click('[data-tribute-open]')
+await page.waitForTimeout(900)
+await page.screenshot({ path: 'shots/jump-08-tribute-1440.png' })
 
 const groups = await page.evaluate(() => {
-  const card = [...document.querySelectorAll('h2')].find((h) => /Tribute/i.test(h.textContent))
-  const root = card?.parentElement
+  const root = document.querySelector('[role="dialog"]')
+  const r = root?.getBoundingClientRect()
   return {
     groups: root ? root.querySelectorAll('section').length : 0,
     links: root ? root.querySelectorAll('a[href]').length : 0,
     mono: root ? root.querySelectorAll('li.font-mono').length : 0,
+    full: r ? r.width === innerWidth && r.height === innerHeight : false,
   }
 })
 console.log('tribute', groups)
 
-// --- phone: tribute collapses to one column, no overflow
-await page.setViewportSize({ width: 390, height: 844 })
+// real wheel must scroll the tribute pane, never the page behind it
+const yBefore = await page.evaluate(() => window.scrollY)
+const topBefore = await page.evaluate(() => document.querySelector('.tribute-scroll').scrollTop)
+await page.mouse.wheel(0, 300)
+await page.waitForTimeout(400)
+const wheel = await page.evaluate(
+  ([y, t]) => ({
+    inner: document.querySelector('.tribute-scroll').scrollTop > t,
+    pageStill: window.scrollY === y,
+    paneFocused: document.activeElement?.classList.contains('tribute-scroll') ?? false,
+  }),
+  [yBefore, topBefore],
+)
+console.log('wheel scrolls tribute only', wheel)
+
+// rail jump lands the last group below the sticky header
+await page.getByRole('button', { name: /Rumus fisika & integrasi/ }).click()
 await page.waitForTimeout(900)
-await page.evaluate(() => {
+await page.screenshot({ path: 'shots/jump-08b-tribute-rail.png' })
+
+// Esc closes and walks back to the section the tribute was opened from
+await page.keyboard.press('Escape')
+await page.waitForTimeout(2300)
+const back = await page.evaluate(() => {
   const el = document.querySelector('[data-station="11"]')
-  window.scrollTo(0, el.offsetTop + (el.offsetHeight - innerHeight) / 2)
+  const top = el.offsetTop + (el.offsetHeight - innerHeight) / 2
+  return {
+    near: Math.abs(window.scrollY - top) < 40,
+    dialogGone: !document.querySelector('[role="dialog"]'),
+  }
 })
+console.log('close returns to previous section', back)
+
+// --- phone: full-screen tribute, one column, no overflow
+await page.setViewportSize({ width: 390, height: 844 })
+await page.waitForTimeout(2200)
+await page.click('[data-tribute-open]')
 await page.waitForTimeout(900)
 const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
 console.log('phone horizontal overflow', overflow)
 await page.screenshot({ path: 'shots/jump-09-tribute-390.png' })
+await page.evaluate(() => {
+  const el = document.querySelector('.tribute-scroll')
+  el.scrollTop = el.scrollHeight
+})
+await page.waitForTimeout(700)
+await page.screenshot({ path: 'shots/jump-09b-tribute-390-bottom.png' })
+await page.getByRole('button', { name: 'Tutup', exact: true }).click()
+await page.waitForTimeout(2300)
+const backPhone = await page.evaluate(() => {
+  const el = document.querySelector('[data-station="11"]')
+  const top = el.offsetTop + (el.offsetHeight - innerHeight) / 2
+  return Math.abs(window.scrollY - top) < 40
+})
+console.log('phone close returns to previous section', backPhone)
 
 console.log('console errors', errors)
 await browser.close()

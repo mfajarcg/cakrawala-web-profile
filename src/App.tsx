@@ -11,6 +11,7 @@ import { PovButton } from './blocks/PovButton'
 import { Services } from './blocks/Services'
 import { Signature } from './blocks/Signature'
 import { Story } from './blocks/Story'
+import { TributeOverlay } from './blocks/TributeOverlay'
 import { GameFade } from './game/GameFade'
 import { GameHud } from './game/GameHud'
 import { useGame } from './game/store'
@@ -50,6 +51,7 @@ export default function App() {
       </div>
       {inGame && <GameHud />}
       <GameFade />
+      <TributeOverlay />
     </LanguageProvider>
   )
 }

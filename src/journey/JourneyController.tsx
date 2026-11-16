@@ -1,6 +1,7 @@
 import Lenis from 'lenis'
 import { useEffect, useRef } from 'react'
 import { useGame } from '../game/store'
+import { useTribute } from '../lib/tribute'
 import { scrollBridge } from './scroll'
 import { STATION_COUNT } from './stations'
 import { clamp01, useJourney } from './store'
@@ -16,6 +17,8 @@ const WHEEL_QUIET_MS = 240
 const SETTLE_MS = 200
 
 const inGame = () => useGame.getState().mode === 'game'
+// the full-screen tribute owns the wheel/keys/touch while it is open
+const blocked = () => inGame() || useTribute.getState().open
 
 /**
  * Binds smooth scroll (wheel/touch) and arrow keys to one shared target
@@ -97,7 +100,7 @@ export function JourneyController() {
     }
 
     const settle = () => {
-      if (inGame() || touch.active || performance.now() < lockUntil) return
+      if (blocked() || touch.active || performance.now() < lockUntil) return
       let best = nearestIndex()
       if (touch.dir !== 0) {
         const step = touch.dir > 0
@@ -124,7 +127,7 @@ export function JourneyController() {
 
     const onScroll = () => {
       setTarget(progressFromScroll())
-      if (inGame() || performance.now() < lockUntil) return
+      if (blocked() || performance.now() < lockUntil) return
       window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(settle, SETTLE_MS)
     }
@@ -132,7 +135,7 @@ export function JourneyController() {
     let wheelAccum = 0
     let lastWheelAt = 0
     const onWheel = (e: WheelEvent) => {
-      if (inGame() || e.ctrlKey || e.metaKey) return
+      if (blocked() || e.ctrlKey || e.metaKey) return
       e.preventDefault()
       const now = performance.now()
       // swallow the rest of the gesture while a checkpoint animation runs
@@ -150,7 +153,7 @@ export function JourneyController() {
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (inGame()) return
+      if (blocked()) return
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return
       const dir =
@@ -179,7 +182,7 @@ export function JourneyController() {
     }
 
     const onTouchStart = (e: TouchEvent) => {
-      if (inGame() || e.touches.length === 0) return
+      if (blocked() || e.touches.length === 0) return
       touch.active = true
       touch.startY = e.touches[0].clientY
       touch.station = nearestIndex()
@@ -193,7 +196,7 @@ export function JourneyController() {
     }
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (inGame()) return
+      if (blocked()) return
       touch.active = false
       const endY = e.changedTouches[0]?.clientY ?? touch.startY
       const dy = touch.startY - endY

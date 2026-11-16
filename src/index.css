@@ -71,6 +71,73 @@ html::-webkit-scrollbar-thumb:hover {
   background: rgba(242, 178, 60, 0.8);
 }
 
+/* full-screen tribute: layered ink backdrop echoing the isometric world grid */
+.tribute-bg {
+  background:
+    radial-gradient(60rem 30rem at 12% -6%, rgba(242, 178, 60, 0.14), transparent 60%),
+    radial-gradient(50rem 28rem at 96% 12%, rgba(64, 143, 180, 0.16), transparent 62%),
+    radial-gradient(46rem 30rem at 50% 108%, rgba(46, 111, 142, 0.12), transparent 60%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 3.5rem),
+    repeating-linear-gradient(25deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 3.5rem);
+}
+
+.tribute-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(242, 178, 60, 0.55) rgba(255, 255, 255, 0.06);
+}
+.tribute-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.tribute-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+.tribute-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid #0b0e12;
+  border-radius: 999px;
+  background: linear-gradient(#f2b23c, #d99a26);
+}
+.tribute-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(#408fb4, #2e6f8e);
+}
+
+.tribute-chips {
+  scrollbar-width: none;
+}
+.tribute-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.tribute-root {
+  animation: tribute-fade 240ms ease-out;
+}
+.tribute-stagger {
+  animation: tribute-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes tribute-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tribute-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tribute-root,
+  .tribute-stagger {
+    animation: none;
+  }
+}
+
 /* aphorism toast: rises like a thought, then settles */
 .notice-toast > div {
   animation: notice-rise 360ms cubic-bezier(0.22, 1, 0.36, 1);

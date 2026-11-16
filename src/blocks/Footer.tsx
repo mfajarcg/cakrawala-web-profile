@@ -1,15 +1,10 @@
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, ScrollText } from 'lucide-react'
 import { jumpTo } from '../journey/jump'
 import { useI18n } from '../lib/i18n'
+import { useTribute } from '../lib/tribute'
 import { Panel } from './Panel'
 
 const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-black.svg`
-
-interface TributeItem {
-  text: string
-  href?: string
-  mono?: boolean
-}
 
 export function Footer() {
   const { t } = useI18n()
@@ -23,52 +18,28 @@ export function Footer() {
         <p className="mt-3 text-sm font-bold">{f.copyright}</p>
         <p className="mt-2 max-w-md text-xs leading-relaxed text-[#101418]/55">{f.trademark}</p>
 
-        <div className="mt-6 w-full rounded-xl bg-[#101418] p-5 text-left sm:p-7">
-          <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-[#f2b23c]">
-            {f.tributeTitle}
-          </h2>
-          <div className="mt-4 grid gap-6 md:grid-cols-2">
-            {f.tributeGroups.map((group, gi) => (
-              <section key={group.title} className={gi === f.tributeGroups.length - 1 ? 'md:col-span-2' : ''}>
-                <h3 className="text-[0.6rem] font-black uppercase tracking-[0.22em] text-[#f2b23c]/90">
-                  {group.title}
-                </h3>
-                <ul
-                  className={`mt-2 gap-1.5 ${
-                    gi === f.tributeGroups.length - 1 ? 'grid sm:grid-cols-2 sm:gap-x-6' : 'space-y-1.5'
-                  }`}
-                >
-                  {group.items.map((raw) => {
-                    const item = raw as TributeItem
-                    return (
-                      <li
-                        key={item.text}
-                        className={
-                          item.mono
-                            ? 'font-mono text-[0.66rem] leading-relaxed text-[#9fd0e8]'
-                            : 'text-xs leading-relaxed text-white/75'
-                        }
-                      >
-                        {item.href ? (
-                          <a
-                            href={item.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline decoration-white/25 underline-offset-2 transition hover:text-white hover:decoration-[#f2b23c]"
-                          >
-                            {item.text}
-                          </a>
-                        ) : (
-                          item.text
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </div>
+        <button
+          data-tribute-open
+          onClick={() => useTribute.getState().setOpen(true)}
+          className="group mt-6 w-full rounded-xl bg-[#101418] p-5 text-left transition hover:-translate-y-0.5 hover:shadow-[0_1rem_2.5rem_rgba(16,20,24,0.35)] focus-visible:outline-2 focus-visible:outline-[#408fb4] sm:p-6"
+        >
+          <span className="flex items-center justify-between gap-4">
+            <span className="min-w-0">
+              <span className="block text-xs font-bold uppercase tracking-[0.25em] text-[#f2b23c]">
+                {f.tributeTitle}
+              </span>
+              <span className="mt-2 block text-xs leading-relaxed text-white/70">
+                {f.tributeCta}
+              </span>
+              <span className="mt-2 block text-[0.65rem] font-bold uppercase tracking-[0.18em] text-[#9fd0e8]/80">
+                {f.tributeHint}
+              </span>
+            </span>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#f2b23c]/40 bg-[#f2b23c]/10 text-[#f2b23c] transition group-hover:bg-[#f2b23c] group-hover:text-[#101418]">
+              <ScrollText size={20} />
+            </span>
+          </span>
+        </button>
 
         <button
           onClick={() => jumpTo('hero')}

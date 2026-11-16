@@ -53,6 +53,11 @@ for (const vp of VIEWPORTS) {
   await page.waitForTimeout(3000)
   await page.screenshot({ path: `shots/${vp.name}-11-footer.png` })
 
+  // full-screen tribute overlay opened from the footer plate
+  await page.click('[data-tribute-open]')
+  await page.waitForTimeout(900)
+  await page.screenshot({ path: `shots/${vp.name}-12-tribute.png` })
+
   await page.close()
   console.log(`done ${vp.name}`)
 }

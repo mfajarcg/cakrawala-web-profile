@@ -301,6 +301,13 @@
     "copyright": "© 2026 PT Cartenz Technology Indonesia",
     "trademark": "Cakrawala™ and the knight-shield logo are trademarks of PT Cartenz Technology Indonesia. All partner, ministry, and institution logos are trademarks of their respective owners.",
     "tributeTitle": "Tribute & Attribution",
+    "tributeCta": "Every source behind this page — technology, company documents, and motion research — on one full screen.",
+    "tributeHint": "Full screen · Esc or the corner button closes it",
+    "tributeLead": "Every number, logo, quote, and formula on this page comes from a real source. This tribute records them all — the technology, company documents, and biomechanics research behind the character's motion.",
+    "tributeClose": "Close",
+    "tributeEsc": "closes",
+    "tributeReturn": "Back to previous section",
+    "tributeIndex": "Jump to section",
     "tributeGroups": [
       {
         "title": "Technology & assets",

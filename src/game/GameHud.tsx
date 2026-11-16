@@ -727,6 +727,7 @@ function PausePanel({
         aria-modal="true"
         aria-labelledby="pause-title"
         onKeyDown={trap}
+        data-lenis-prevent
         className="renungan-scroll max-h-[86vh] w-full max-w-[26rem] overflow-y-auto rounded-2xl border border-white/10 bg-[#101418]/95 p-6 shadow-[0_2rem_5rem_rgba(0,0,0,0.45)]"
       >
         <p className="text-[0.58rem] font-black uppercase tracking-[0.3em] text-[#f2b23c]">
