@@ -59,6 +59,7 @@ await page.screenshot({ path: 'shots/qa-02-play-panel.png' })
 // --- enter the game
 await page.evaluate(() => localStorage.removeItem('cakrawala-play-world-v1'))
 await page.getByRole('button', { name: /Play Character/i }).click()
+await page.getByRole('button', { name: /Tetap masuk/i }).click()
 await page.waitForTimeout(1600)
 await page.screenshot({ path: 'shots/qa-03-game.png' })
 const mode = await page.evaluate(() => document.body.style.overflow)

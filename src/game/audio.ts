@@ -110,6 +110,17 @@ export const audio = {
     tone(262, 1.4, 'sine', 0.22, 130)
     tone(392, 1.4, 'sine', 0.14, 196)
   },
+  record() {
+    const seq = [587, 784, 988, 1175]
+    seq.forEach((f, i) => window.setTimeout(() => tone(f, 0.4, 'triangle', 0.3), i * 90))
+  },
+  timeWarn() {
+    tone(880, 0.09, 'square', 0.16)
+  },
+  timeout() {
+    tone(220, 0.5, 'sawtooth', 0.26, -140)
+    noise(0.4, 0.24, 800)
+  },
   teleport() {
     noise(0.3, 0.2, 2600)
     tone(720, 0.34, 'sine', 0.16, -520)

@@ -87,7 +87,8 @@ export function GameScene() {
     const el = gl.domElement
     const onClick = (e: MouseEvent) => {
       if (e.button !== 0) return
-      if (useGame.getState().paused) return
+      const st = useGame.getState()
+      if (st.paused || st.gate !== 'none' || st.result) return
       // touch never takes pointer lock: the lock retargets every click to the
       // canvas, which kills all HUD buttons. A tap aims instead.
       if (window.matchMedia('(pointer: coarse)').matches) {
@@ -169,8 +170,9 @@ export function GameScene() {
       if (wasLocked && !locked) {
         lockState.lastLostAt = performance.now()
         resetInput()
-        // the completion card releases the lock on purpose; it is not a pause
-        if (!useGame.getState().celebrate) useGame.getState().setPaused(true)
+        // completion / run modals release the lock on purpose; not a pause
+        const st = useGame.getState()
+        if (!st.celebrate && st.gate === 'none' && !st.result) st.setPaused(true)
       }
       wasLocked = locked
     }
@@ -210,7 +212,8 @@ export function GameScene() {
     // Eric mid-vanish (shrunken + spun), so hand over to the game clean.
     if (teleport.t >= 0) teleport.t = -1
 
-    if (useGame.getState().paused) {
+    const st = useGame.getState()
+    if (st.paused || st.gate !== 'none' || st.result) {
       player.vx = 0
       player.vz = 0
       gait.moving = 0

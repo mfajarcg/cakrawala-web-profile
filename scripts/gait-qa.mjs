@@ -18,6 +18,7 @@ await page.goto(url, { waitUntil: 'networkidle' })
 await page.waitForTimeout(2400)
 await page.getByRole('button', { name: /Play Character/i }).click()
 await page.waitForTimeout(1600)
+await page.getByRole('button', { name: /Tetap masuk/i }).click()
 await page.getByRole('button', { name: 'Menu', exact: true }).click()
 await page.waitForTimeout(600)
 await page.evaluate(() => {

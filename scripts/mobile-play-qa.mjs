@@ -98,6 +98,8 @@ await page.evaluate(() => {
   btn?.click()
 })
 await page.waitForTimeout(1700)
+await page.getByRole('button', { name: /Tetap masuk/i }).click()
+await page.waitForTimeout(300)
 
 check('enter game', await page.evaluate(() => document.body.style.overflow === 'hidden'))
 check('coarse pointer detected', await page.evaluate(() => matchMedia('(pointer: coarse)').matches))

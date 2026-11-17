@@ -122,6 +122,7 @@ await page.waitForTimeout(3600)
 await page.keyboard.press('ArrowDown')
 await page.waitForTimeout(3000)
 await page.getByRole('button', { name: /Play Character/i }).click()
+await page.getByRole('button', { name: /Tetap masuk/i }).click()
 await page.waitForTimeout(1600)
 check('enter game', await page.evaluate(() => document.body.style.overflow === 'hidden'))
 
@@ -273,6 +274,7 @@ await page.waitForTimeout(3600)
 await page.keyboard.press('ArrowDown')
 await page.waitForTimeout(3000)
 await page.getByRole('button', { name: /Play Character/i }).click()
+await page.getByRole('button', { name: /Tetap masuk/i }).click()
 await page.waitForTimeout(1600)
 const phoneHud = await page.evaluate(() => {
   const doc = document.documentElement

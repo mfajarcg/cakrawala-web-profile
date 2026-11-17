@@ -123,6 +123,8 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ Arena.tsx             # blok yang dirender di dunia journey, kedua mode
 │  │  ├─ GameScene.tsx         # loop pemain, kamera, raycast, collision, place/break
 │  │  ├─ GameHud.tsx           # Control Deck, menu jeda, material 1–5, hapus/keluar
+│  │  ├─ RunPanels.tsx         # gate masuk/difficulty/timeout, timer, hasil + papan skor
+│  │  ├─ leaderboard.ts        # difficulty, batas waktu, skor localStorage, fmtClock/fmtTime
 │  │  ├─ GameFade.tsx          # cover hitam 300 ms saat swap scene
 │  │  └─ input.ts              # state input bersama DOM ↔ game loop
 │  ├─ lib/i18n.tsx             # LanguageProvider, dictionary id/en, persist
@@ -191,7 +193,7 @@ memanggil `jumpTo(id)` → `scrollBridge.toStation(index)`.
 | Store | State | Ditulis oleh | Dibaca oleh |
 |---|---|---|---|
 | `journey/store.ts` | `progress`, `target`, `activeStation`, `pov` | controller (`setTarget`), driver (`tick`) | Character, CameraRig, Nav |
-| `game/store.ts` | `mode`, `cover`, `paused`, `blocks`, `selected` | PlayMoment, HUD, GameScene | App, World, GameScene |
+| `game/store.ts` | `mode`, `cover`, `paused`, `blocks`, `selected`, `gate`, `difficulty`, `remaining`, `finished`, `result` | PlayMoment, HUD, GameScene, RunPanels | App, World, GameScene |
 
 `activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk highlight section aktif
 di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
@@ -253,6 +255,34 @@ geser mengembalikan aim ke tengah). Joystick kiri untuk bergerak, kolom aksi kan
 dan tombol Menu membuka panel jeda yang sama. Semua tombol HUD memakai pola `press()`
 (`onPointerDown` + `onClick` hanya untuk keyboard) agar tetap hidup dalam keadaan apa pun;
 LookPad diletakkan di bawah kluster HUD (`-z-10`) supaya tidak mencegat ketukan tombol.
+
+### 4.6 Tantangan berwaktu & papan skor
+
+Setiap masuk Play, gate masuk (`RunPanels.EntryGate`) menawarkan **Lanjutkan tantangan**
+(bila run berwaktu belum selesai dan masih tersimpan) atau **Tetap masuk (bebas)** bila
+tidak ada run aktif / run sebelumnya sudah selesai — masuk bebas tidak memunculkan notif
+apa pun. **Mulai dari awal** membuka gate difficulty: Easy 10:00, Medium 5:00, Hard 2:00,
+Epic 0:30 (`TIME_LIMIT` di `leaderboard.ts`); memilih difficulty mengosongkan arena dan
+menyalakan countdown.
+
+- **Timer** (`RunTimer`, chip di kartu HUD kiri) hanya berjalan bila `runTicking(state)`
+  benar: mode game, tidak jeda, tidak ada gate/modal/hasil, difficulty terpilih, belum
+  selesai. Jeda, keluar ke situs, atau modal apa pun **menahan** timer; sisa waktu dan
+  blok disimpan ke `cakrawala-run-v1` tiap detik penuh dan saat jeda/keluar, sehingga
+  masuk lagi melanjutkan dari detik yang sama.
+- **Menang**: `scanMeaning` progress 5 dengan difficulty aktif mencatat
+  `elapsed = TIME_LIMIT − remaining`, membandingkan dengan `bestTime()` (rekor tercepat
+  global semua difficulty), lalu membuka panel hasil: waktu tercatat, badge mahkota
+  "Rekor baru" bila lebih cepat, input nama (Enter = simpan), dan papan skor 5 teratas
+  setelah simpan. Skor persist di `cakrawala-scores-v1` (maks 50, urut waktu naik).
+  Deploy berupa situs statis tanpa backend, jadi "server" skor adalah penyimpanan
+  browser ini; tidak ada data yang dikirim ke mana pun.
+- **Waktu habis**: gate `timeout` (alertdialog) lalu **restart otomatis** setelah 1,8 s
+  dengan difficulty sama, arena kosong, dan clock penuh lagi.
+- Tombol trofi di kluster HUD kanan membuka papan skor 10 teratas kapan saja; Esc
+  menutupnya lebih dulu sebelum aksi jeda/keluar biasa.
+- Bunyi baru: `timeWarn` (tiap detik ≤5), `timeout` (slide saw + noise), `record`
+  (empat nada triangle) — semuanya tetap hormat pada mute.
 
 ---
 
@@ -650,6 +680,8 @@ Catatan kejujuran data:
 |---|---|---|
 | `cakrawala-play-world-v1` | Array blok `{ x, y, z, kind }` | `src/game/store.ts` |
 | `cakrawala-meaning-v1` | `{ best, done, vista, unlocked[] }` — rekor tinggi, status selesai, koleksi renungan | `src/game/store.ts` |
+| `cakrawala-run-v1` | `{ difficulty, remaining, finished }` — run berwaktu yang ditahan saat jeda/keluar | `src/game/store.ts` |
+| `cakrawala-scores-v1` | Array skor `{ name, time, difficulty, at }` maks 50, urut waktu naik | `src/game/leaderboard.ts` |
 | `cakrawala-audio-v1` | `'off'` bila mute, `'on'` bila aktif (absen = aktif) | `src/game/audio.ts` |
 | `cakrawala-hud-deck-v1` | `'closed'` bila Control Deck dilipat | `src/game/GameHud.tsx` |
 | `cakrawala-lang` | `"id"` atau `"en"` | `src/lib/i18n.tsx` |

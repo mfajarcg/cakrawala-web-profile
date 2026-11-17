@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { STATIONS } from '../journey/stations'
 import { scrollBridge } from '../journey/scroll'
 import { audio } from './audio'
+import { addScore, bestTime, TIME_LIMIT, type Difficulty } from './leaderboard'
 import { cascade, isSupported, NOTICE_KEYS, scanMeaning, type NoticeKey } from './meaning'
 
 export const BLOCK_KINDS = ['server', 'cloud', 'doc', 'laptop', 'gear'] as const
@@ -34,6 +35,44 @@ export const PLAY_STATION = STATIONS.findIndex((s) => s.id === 'play')
 
 const STORE_KEY = 'cakrawala-play-world-v1'
 const MEANING_KEY = 'cakrawala-meaning-v1'
+const RUN_KEY = 'cakrawala-run-v1'
+
+export type RunGate = 'none' | 'entry' | 'difficulty' | 'timeout'
+
+export interface RunResult {
+  time: number
+  difficulty: Difficulty
+  record: boolean
+  saved: boolean
+}
+
+interface RunMeta {
+  difficulty: Difficulty | null
+  remaining: number
+  finished: boolean
+}
+
+function loadRun(): RunMeta {
+  const fallback: RunMeta = { difficulty: null, remaining: 0, finished: false }
+  try {
+    const raw = localStorage.getItem(RUN_KEY)
+    if (raw == null) return fallback
+    const p = JSON.parse(raw)
+    const difficulty = (['easy', 'medium', 'hard', 'epic'] as const).includes(p?.difficulty)
+      ? (p.difficulty as Difficulty)
+      : null
+    return {
+      difficulty,
+      remaining:
+        typeof p?.remaining === 'number' && Number.isFinite(p.remaining) && p.remaining >= 0
+          ? p.remaining
+          : 0,
+      finished: p?.finished === true,
+    }
+  } catch {
+    return fallback
+  }
+}
 
 interface MeaningMeta {
   best: number
@@ -153,6 +192,16 @@ interface GameState {
   unlocked: NoticeKey[]
   /** transient aphorism toast; seq lets the HUD replay identical keys */
   notice: { key: NoticeKey; seq: number } | null
+  /** which run modal holds the game: entry choice, difficulty pick, timeout */
+  gate: RunGate
+  /** active timed challenge, null for free build */
+  difficulty: Difficulty | null
+  /** seconds left on the challenge clock; held while paused / away */
+  remaining: number
+  /** the current challenge has been completed (clock frozen) */
+  finished: boolean
+  /** transient win card awaiting a name / next action */
+  result: RunResult | null
   enter: () => void
   exit: () => void
   setPaused: (paused: boolean) => void
@@ -162,6 +211,27 @@ interface GameState {
   clear: () => void
   dismissCelebrate: () => void
   openVista: () => void
+  continueRun: () => void
+  startFresh: () => void
+  chooseDifficulty: (d: Difficulty) => void
+  tickRun: (dt: number) => void
+  restartAfterTimeout: () => void
+  saveResult: (name: string) => void
+  dismissResult: () => void
+}
+
+/** the clock only advances while actually playing: not paused, no modal, mid-run */
+export function runTicking(s: GameState): boolean {
+  return (
+    s.mode === 'game' &&
+    !s.paused &&
+    s.gate === 'none' &&
+    !s.result &&
+    !s.celebrate &&
+    s.difficulty != null &&
+    !s.finished &&
+    s.remaining > 0
+  )
 }
 
 let swapTimer: ReturnType<typeof setTimeout> | undefined
@@ -175,10 +245,12 @@ export const useGame = create<GameState>((set, get) => {
     set({ cover: true })
     // switch scenes only once the cover is fully opaque, then fade back in
     swapTimer = setTimeout(() => {
-      set({ mode, paused: false })
       if (mode === 'game') {
+        set({ mode, paused: false, gate: 'entry', result: null, celebrate: false })
         scrollBridge.lock(true)
       } else {
+        set({ mode, paused: false, gate: 'none', result: null, celebrate: false })
+        saveRun()
         scrollBridge.lock(false)
         requestAnimationFrame(() => scrollBridge.toStation(PLAY_STATION))
       }
@@ -187,11 +259,21 @@ export const useGame = create<GameState>((set, get) => {
   }
 
   const meta = loadMeta()
+  const runMeta = loadRun()
   let noticeSeq = 0
 
   const persist = () => {
     const { best, done, vista, unlocked } = get()
     saveMeta({ best, done, vista, unlocked })
+  }
+
+  const saveRun = () => {
+    const { difficulty, remaining, finished } = get()
+    try {
+      localStorage.setItem(RUN_KEY, JSON.stringify({ difficulty, remaining, finished }))
+    } catch {
+      // storage unavailable — the run lives in memory for this session
+    }
   }
 
   const say = (key: NoticeKey) => {
@@ -209,7 +291,7 @@ export const useGame = create<GameState>((set, get) => {
 
   /** recompute meaning after any structural change and fire its milestones */
   const rescan = (before: number) => {
-    const { blocks, best, done } = get()
+    const { blocks, best } = get()
     const scan = scanMeaning(blocks)
     const height = scan.height
     const nextBest = Math.max(best, height)
@@ -218,13 +300,34 @@ export const useGame = create<GameState>((set, get) => {
     if (scan.progress >= 2 && before < 2) {
       if (unlock('pair')) say('pair')
     }
-    if (scan.progress === 5 && !done) {
-      set({ done: true, vista: true, celebrate: true })
-      unlock('complete')
-      unlock('vista')
-      persist()
-      say('complete')
-      audio.complete()
+    if (scan.progress === 5) {
+      const st = get()
+      if (st.difficulty != null && !st.finished) {
+        // a timed challenge was completed: freeze the clock and open the win card
+        const elapsed = Math.max(0.1, TIME_LIMIT[st.difficulty] - st.remaining)
+        const best = bestTime()
+        const record = best == null || elapsed < best
+        set({
+          done: true,
+          vista: true,
+          finished: true,
+          result: { time: elapsed, difficulty: st.difficulty, record, saved: false },
+        })
+        unlock('complete')
+        unlock('vista')
+        persist()
+        say('complete')
+        audio.complete()
+        if (record) audio.record()
+        saveRun()
+      } else if (!st.done) {
+        set({ done: true, vista: true, celebrate: true })
+        unlock('complete')
+        unlock('vista')
+        persist()
+        say('complete')
+        audio.complete()
+      }
     }
   }
 
@@ -243,9 +346,17 @@ export const useGame = create<GameState>((set, get) => {
     vista: meta.vista,
     unlocked: meta.unlocked,
     notice: null,
+    gate: 'none',
+    difficulty: runMeta.difficulty,
+    remaining: runMeta.remaining,
+    finished: runMeta.finished,
+    result: null,
     enter: () => swap('game'),
     exit: () => swap('site'),
-    setPaused: (paused) => set({ paused }),
+    setPaused: (paused) => {
+      set({ paused })
+      if (paused) saveRun()
+    },
     select: (kind) => set({ selected: kind }),
     place: (cells) => {
       const { blocks } = get()
@@ -306,6 +417,68 @@ export const useGame = create<GameState>((set, get) => {
       say('vista')
       audio.vista()
     },
+    continueRun: () => set({ gate: 'none' }),
+    startFresh: () => set({ gate: 'difficulty' }),
+    chooseDifficulty: (d) => {
+      saveBlocks([])
+      set({
+        blocks: [],
+        celebrate: false,
+        result: null,
+        finished: false,
+        difficulty: d,
+        remaining: TIME_LIMIT[d],
+        gate: 'none',
+      })
+      saveRun()
+      rescan(get().progress)
+      audio.place()
+    },
+    tickRun: (dt) => {
+      const s = get()
+      if (!runTicking(s)) return
+      const prevCeil = Math.ceil(s.remaining)
+      const remaining = Math.max(0, s.remaining - dt)
+      if (remaining <= 0) {
+        set({ remaining: 0, gate: 'timeout' })
+        saveRun()
+        audio.timeout()
+        return
+      }
+      set({ remaining })
+      const ceil = Math.ceil(remaining)
+      if (ceil !== prevCeil) {
+        saveRun()
+        if (ceil <= 5) audio.timeWarn()
+      }
+    },
+    restartAfterTimeout: () => {
+      const d = get().difficulty
+      if (!d) {
+        set({ gate: 'none' })
+        return
+      }
+      saveBlocks([])
+      set({
+        blocks: [],
+        remaining: TIME_LIMIT[d],
+        finished: false,
+        result: null,
+        celebrate: false,
+        gate: 'none',
+      })
+      saveRun()
+      rescan(get().progress)
+    },
+    saveResult: (name) => {
+      const r = get().result
+      const clean = name.trim().slice(0, 24)
+      if (!r || r.saved || !clean) return
+      addScore({ name: clean, time: r.time, difficulty: r.difficulty, at: Date.now() })
+      set({ result: { ...r, saved: true } })
+      audio.place()
+    },
+    dismissResult: () => set({ result: null }),
   }
 })
 
@@ -314,4 +487,8 @@ export const useGame = create<GameState>((set, get) => {
   const s = useGame.getState()
   const scan = scanMeaning(s.blocks)
   useGame.setState({ progress: scan.progress, column: scan.column, height: scan.height })
+}
+
+if (import.meta.env.DEV) {
+  ;(window as unknown as Record<string, unknown>).__gameStore = useGame
 }

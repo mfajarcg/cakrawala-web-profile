@@ -1069,3 +1069,61 @@ Mobile: buka 11 item, klik Kontak menutup menu + scroll, buka lagi highlight Kon
 Console errors []. Regresi verify2 (burst ok, teleport immediate) + jump-qa (tribute
 close-return, phone overflow false) errors []; `tsc -b` + build bersih.
 README baris Nav + §store activeStation + tabel blok 01 diperbarui.
+
+## 27. Tantangan berwaktu: gate masuk, difficulty, timer hold, rekor & papan skor
+
+**Permintaan:** masuk Play setelah selesai menawarkan ulang atau masuk bebas tanpa notif;
+setiap masuk Play beri popup lanjutkan / mulai dari awal; dari awal pilih easy 10 menit,
+medium 5 menit, hard 2 menit, epic 30 detik; menang → popup waktu tercatat + notif new
+high score + catat waktu + input nama; waktu habis → restart; keluar → hold timer.
+
+**Keputusan desain:**
+- Satu sumber kebenaran di `game/store.ts`: `gate: 'none'|'entry'|'difficulty'|'timeout'`,
+  `difficulty`, `remaining`, `finished`, `result`. `runTicking(s)` = mode game && !paused
+  && gate none && !result && !celebrate && difficulty != null && !finished && remaining > 0.
+  Clock digerakkan `GameHud` setInterval 100 ms → `tickRun(0.1)`; simpan run tiap detik
+  penuh + saat jeda/keluar/menang → `cakrawala-run-v1` (holdtimer lintas reload).
+- `swap()` ke game selalu membuka gate `entry`. Run belum selesai → "Lanjutkan tantangan";
+  selesai/bebas → "Tetap masuk (bebas)" (tanpa notif lain). "Mulai dari awal" → gate
+  difficulty 4 kartu (nama + fmtClock batas + desc). Pilih difficulty = arena kosong +
+  clock penuh. Kembali ke entry lewat tombol Kembali.
+- Menang: `rescan` progress 5 && difficulty != null && !finished → elapsed =
+  max(0.1, LIMIT − remaining); record = bestTime() null || elapsed < best; set
+  done/vista/finished/result (bukan celebrate legacy). Panel hasil: badge mahkota
+  "Rekor baru — waktu tercepat!", waktu besar fmtTime (m:ss.t), input nama (Enter simpan,
+  kosong → nama default), Simpan → `addScore` + daftar 5 teratas; aksi Main lagi /
+  Lanjut bebas / Keluar.
+- Timeout: remaining ≤ 0 → gate `timeout` (alertdialog) + `audio.timeout()`;
+  `TimeoutPanel` auto `restartAfterTimeout()` setelah 1800 ms: difficulty sama, blok [],
+  clock penuh.
+- **Server skor:** deploy statis GitHub Pages tanpa backend → papan skor persist di
+  `localStorage['cakrawala-scores-v1']` (maks 50, urut waktu naik, badge difficulty per
+  entri). Disebut jujur di README §4.6; wiring backend sungguhan ditawarkan menyusul.
+- `leaderboard.ts` mandiri (tanpa import store) agar tidak ada siklus: DIFFICULTIES,
+  TIME_LIMIT {600,300,120,30}, loadScores/addScore/bestTime, fmtClock (ceil m:ss),
+  fmtTime (m:ss.t).
+- Pause-guard diperluas: `GameScene` onClick/useFrame freeze bila gate != none || result;
+  pointerlockchange hanya menjeda bila gate none && !result && !celebrate (modal run
+  melepas lock tanpa memunculkan panel Jeda di belakangnya). GameHud melepas pointer lock
+  saat gate/result terbuka; keydown guard mengabaikan input selama gate/result.
+- Escape bertingkat: papan skor → tutup; result → dismiss; gate entry/difficulty → keluar;
+  timeout → diabaikan (auto restart).
+- Bunyi baru di `audio.ts`: `timeWarn` (880 Hz square tiap detik ≤5), `timeout` (220 Hz saw
+  slide + noise), `record` (4 nada triangle). Tetap hormat mute.
+- HUD: `RunTimer` chip di kartu kiri (nama difficulty, clock mono, bar progres, merah
+  berdenyut ≤10 s; bebas → "Bebas"; selesai → "Selesai · waktu"); tombol trofi membuka
+  `ScoreBoard` 10 teratas.
+- Probe DEV permanen: `window.__gameStore = useGame` untuk QA membangun kolom 5 lapis.
+
+**QA:** run-qa scratch (dihapus): loop desktop penuh — entry → difficulty (4 kartu waktu
+benar) → epic tick → hold saat jeda (Δ<0,05/1,5 s) → resume tick → kolom 5 lapis via probe
+→ menang + badge rekor → simpan nama → skor localStorage + baris papan → lanjut bebas →
+keluar → masuk lagi menawarkan "Tetap masuk (bebas)" → timeout 0,4 → auto restart (blok 0,
+clock penuh) → hold saat keluar (27,9 → resume 27,0) → warn ≤5 s. RUN_QA_OK, errors [].
+run-mobile-qa scratch (dihapus): 390×844 touch — bounding box entry/diff/win/saved semua
+di dalam viewport, tanpa overflow horizontal, input nama + Simpan bekerja; screenshot
+shots/run-mobile-{entry,diff,win,saved}.png bersih. RUN_MOBILE_OK, errors [].
+Regresi: play-qa, meaning-qa (MEANING_QA_OK), mobile-play-qa (MOBILE_PLAY_OK), gait-qa,
+verify2, layout-qa (LAYOUT_OK), touch-qa (TOUCH_OK), jump-qa — semua errors []; skrip QA
+lama dismiss gate entry lewat tombol "Tetap masuk". `tsc -b` + `npm run build` bersih.
+README §4.6 + pohon file + tabel state + tabel persistensi; PLAN §27 ini.

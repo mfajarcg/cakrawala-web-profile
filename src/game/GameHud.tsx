@@ -6,6 +6,7 @@ import {
   Play,
   Sparkles,
   Trash2,
+  Trophy,
   Volume2,
   VolumeX,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import { useI18n } from '../lib/i18n'
 import { audio } from './audio'
 import { emitAim, input, lockState, resetInput, setTapAim, subscribeAim } from './input'
 import { LAYERS, LAYER_ROMAN, NOTICE_KEYS } from './meaning'
+import { RunPanels, RunTimer, ScoreBoard } from './RunPanels'
 import { BLOCK_COLORS, BLOCK_KINDS, useGame, type BlockKind } from './store'
 
 const DECK_KEY = 'cakrawala-hud-deck-v1'
@@ -70,6 +72,8 @@ export function GameHud() {
   const celebrate = useGame((s) => s.celebrate)
   const paused = useGame((s) => s.paused)
   const setPaused = useGame((s) => s.setPaused)
+  const gate = useGame((s) => s.gate)
+  const result = useGame((s) => s.result)
   const locked = usePointerLocked()
   const muted = useSyncExternalStore(audio.subscribe, () => audio.muted)
   const pointAim = useSyncExternalStore(subscribeAim, () => input.pointAim)
@@ -77,6 +81,7 @@ export function GameHud() {
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
   )
   const [confirmClear, setConfirmClear] = useState(false)
+  const [showScores, setShowScores] = useState(false)
   const [deckOpen, setDeckOpen] = useState(() => {
     try {
       return localStorage.getItem(DECK_KEY) !== 'closed'
@@ -88,7 +93,8 @@ export function GameHud() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (useGame.getState().paused || useGame.getState().celebrate) return
+      const st = useGame.getState()
+      if (st.paused || st.celebrate || st.gate !== 'none' || st.result) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
       switch (e.code) {
         case 'KeyW':
@@ -167,6 +173,25 @@ export function GameHud() {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'Escape' || e.metaKey || e.ctrlKey || e.altKey) return
       const state = useGame.getState()
+      if (showScores) {
+        e.preventDefault()
+        setShowScores(false)
+        return
+      }
+      if (state.result) {
+        e.preventDefault()
+        state.dismissResult()
+        return
+      }
+      if (state.gate === 'timeout') {
+        e.preventDefault()
+        return
+      }
+      if (state.gate === 'entry' || state.gate === 'difficulty') {
+        e.preventDefault()
+        state.exit()
+        return
+      }
       if (state.celebrate) {
         e.preventDefault()
         state.dismissCelebrate()
@@ -190,7 +215,7 @@ export function GameHud() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [confirmClear])
+  }, [confirmClear, showScores])
 
   useEffect(() => {
     if (!confirmClear) return
@@ -207,6 +232,18 @@ export function GameHud() {
   useEffect(() => {
     if (celebrate && document.pointerLockElement) document.exitPointerLock()
   }, [celebrate])
+
+  // run modals (entry / difficulty / timeout / win) also need a free cursor
+  useEffect(() => {
+    if ((gate !== 'none' || result) && document.pointerLockElement) document.exitPointerLock()
+  }, [gate, result])
+
+  // the challenge clock: runTicking gates it to actual play, so pause / exit /
+  // modals hold the remaining time instead of burning it
+  useEffect(() => {
+    const id = window.setInterval(() => useGame.getState().tickRun(0.1), 100)
+    return () => window.clearInterval(id)
+  }, [])
 
   // a stray lock on a touch device would steal every HUD click — drop it
   useEffect(() => {
@@ -289,6 +326,7 @@ export function GameHud() {
           <p className="mt-1 text-[0.6rem] font-semibold text-white/45">
             {t.play.score}: {height} · {t.play.best}: {best}
           </p>
+          <RunTimer />
         </div>
 
         <div className="flex items-center gap-2">
@@ -299,6 +337,14 @@ export function GameHud() {
             className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
           >
             {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+          <button
+            {...press(() => setShowScores((v) => !v))}
+            aria-label={t.play.run.boardTitle}
+            title={t.play.run.boardTitle}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
+          >
+            <Trophy size={14} />
           </button>
           {locked && !touch ? (
             <div className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101418]/85 px-3 py-1.5 text-[0.65rem] font-bold text-white/70 shadow-lg backdrop-blur">
@@ -390,6 +436,8 @@ export function GameHud() {
 
       <NoticeToast />
       <CelebratePanel />
+      <RunPanels />
+      <ScoreBoard open={showScores} onClose={() => setShowScores(false)} />
 
       {!touch && <ControlDeck open={deckOpen} onToggle={toggleDeck} />}
       {touch && <TouchControls />}
