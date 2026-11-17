@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { cameraColliders } from '../three/shared'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import {
   ARENA_HALF,
@@ -42,9 +43,12 @@ export function Arena() {
   useEffect(() => {
     arenaRefs.blocks = group.current
     arenaRefs.floor = floor.current
+    if (group.current) cameraColliders.push(group.current)
     return () => {
       arenaRefs.blocks = null
       arenaRefs.floor = null
+      const i = cameraColliders.indexOf(group.current!)
+      if (i >= 0) cameraColliders.splice(i, 1)
     }
   }, [])
 

@@ -12,7 +12,7 @@ export function Footer() {
   return (
     <Panel id="footer">
       <div className="flex flex-col items-center text-center">
-        <div className="rounded-2xl border border-[#101418]/10 bg-white p-2.5 shadow-[0_0.5rem_1.5rem_rgba(16,20,24,0.08)]">
+        <div className="logo-plate rounded-2xl border border-[#101418]/10 bg-white p-2.5 shadow-[0_0.5rem_1.5rem_rgba(16,20,24,0.08)]">
           <img src={LOGO} alt="Cakrawala logo" className="h-16 w-16" />
         </div>
         <p className="mt-3 text-sm font-bold">{f.copyright}</p>

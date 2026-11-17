@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { atmoMix } from './shared'
+import { atmoMix, cameraColliders } from './shared'
 
 const NEON = ['#35c4ff', '#f2b23c', '#ff5ea8', '#5aa66f', '#7ea6d8', '#ff6b5e']
 const SHELL = ['#16222e', '#1b2a38', '#20303f']
@@ -63,13 +63,16 @@ function TowerWindows({ towers }: { towers: Tower[] }) {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < 3; c++) {
           const lx = (c - 1) * (t.w / 3.4)
-          // windows face the walkway: the follow camera always looks from inside
-          const lz = -t.side * (t.d / 2 + 0.04)
-          p.set(t.x + lx, 1.6 + r * 2.4, t.z + lz)
-          list.push({
-            m: new THREE.Matrix4().compose(p, q, s),
-            c: new THREE.Color(rnd() < 0.42 ? t.hue : rnd() < 0.5 ? '#ffd9a0' : '#1a2634'),
-          })
+          // both street-facing and outer faces stay lit: the journey orbit
+          // looks at the city from outside, the roam camera from inside
+          for (const face of [-1, 1]) {
+            const lz = face * (t.d / 2 + 0.04)
+            p.set(t.x + lx, 1.6 + r * 2.4, t.z + lz)
+            list.push({
+              m: new THREE.Matrix4().compose(p, q, s),
+              c: new THREE.Color(rnd() < 0.42 ? t.hue : rnd() < 0.5 ? '#ffd9a0' : '#1a2634'),
+            })
+          }
         }
       }
     }
@@ -97,8 +100,17 @@ function TowerWindows({ towers }: { towers: Tower[] }) {
 
 function Skyline() {
   const towers = useTowers()
+  const bodies = useRef<THREE.Group>(null)
+  useEffect(() => {
+    if (bodies.current) cameraColliders.push(bodies.current)
+    return () => {
+      const i = cameraColliders.indexOf(bodies.current!)
+      if (i >= 0) cameraColliders.splice(i, 1)
+    }
+  }, [])
   return (
     <group>
+      <group ref={bodies}>
       {towers.map((t, i) => (
         <group key={i}>
           <mesh position={[t.x, t.h / 2, t.z]}>
@@ -116,6 +128,7 @@ function Skyline() {
           </mesh>
         </group>
       ))}
+      </group>
       <TowerWindows towers={towers} />
     </group>
   )

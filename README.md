@@ -131,6 +131,7 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ GameFade.tsx          # cover hitam 300 ms saat swap scene
 │  │  └─ input.ts              # state input bersama DOM ↔ game loop
 │  ├─ lib/i18n.tsx             # LanguageProvider, dictionary id/en, persist
+│  ├─ lib/theme.ts             # store malam/siang (default night), applyTheme, persist
 │  └─ content/id.json, en.json # seluruh copy + data nyata, satu sumber per bahasa
 ├─ scripts/
 │  ├─ shot.mjs                 # screenshot 5 viewport → shots/
@@ -179,8 +180,10 @@ Canvas (fixed, React Three Fiber)
 | Jendela satu gesture | reset akumulasi setelah 240 ms tanpa wheel |
 | Settle setelah scroll manual | 200 ms idle; sentuh menunggu momentum benar-benar habis |
 | Swipe (layar sentuh) | satu gestur = minimal satu checkpoint searah arah swipe (absolut dy ≥ 24 px); momentum tidak pernah dilawan mundur; `touchstart` membatalkan hop yang sedang berjalan |
-| Toleransi “sudah di tengah” | 32 px |
-| Guard anti-loop | berhenti jika jarak ke posisi snap terakhir < 48 px |
+| Toleransi “sudah di tengah” | 10 px — checkpoint berhenti tepat di tengah stasiun, bukan “cukup dekat” |
+| Guard anti-loop | berhenti jika jarak ke posisi snap terakhir < 24 px |
+| Peta scroll → progress | piecewise-linear: `stationTop(i) → i/(N−1)`, di antara dua top diinterpolasi linear; di luar rentang di-clamp 0/1. Karena itu `progress` (dan posisi karakter) berhenti persis di stasiun, tanpa drift sub-pixel |
+| Cache `stationTops()` | di-invalidate oleh listener `resize` **dan** perubahan `document.scrollHeight` (ganti bahasa/font mengubah tinggi panel); fallback bagi hasil scroll bila elemen stasiun belum ada |
 | Arrow key saat hop | hanya satu hop diantrikan (`pending`), karakter selalu berjalan tiap etape |
 | Wheel di fase capture | `window.addEventListener('wheel', …, { capture: true, passive: false })` + `stopPropagation()`. Listener wheel Lenis sendiri (`smoothWheel: false`) memanggil `animate.stop()` pada **setiap** event wheel; tanpa capture, notch kedua dari gesture alami mematikan hop yang sedang berjalan (halaman membeku 2–3 px setelah stasiun pertama) |
 | Normalisasi `deltaMode` | 1 (baris) → ×33 px; 2 (halaman) → ×`innerHeight`. Mouse line-mode (±3/baris) tetap melewati ambang 16 |
@@ -301,7 +304,8 @@ dunia, dan tidak ada pasang/hancurkan blok.
   10 mobil terbang berjejak neon pada 5 lane, bintang, dan dome gradient horizon.
   Semua neon memakai `meshBasicMaterial toneMapped={false} fog={false}` agar menyala
   siang maupun malam; `Atmosphere` menulis `atmoMix.night` untuk melerp langit,
-  cahaya bulan, aspal, grid, dan pita jalur hanya saat adventure.
+  cahaya bulan, aspal, grid, dan pita jalur — kini mengikuti tema malam/siang
+  (§4.8) di **semua** mode, bukan hanya adventure.
 - **Kamera jelajah**: fov 75 (vs 65), jarak 7,6 / tinggi 2,5 (vs 5,4 / 1,9), pitch
   awal 0,02 supaya skyline, mobil terbang, dan Monas tetap dalam frame.
 - **Robot NPC** (`game/robots.ts` + `three/Robots.tsx`): 6 robot voxel (BIMA-07,
@@ -317,6 +321,43 @@ dunia, dan tidak ada pasang/hancurkan blok.
 - HUD adventure menyembunyikan hotbar/crosshair/trofi/hapus; Control Deck dan
   kontrol sentuh bertukar ke aksi jelajah (Lompat, Sapa, Lari); menu jeda menampilkan
   jumlah robot disapa, bukan hapus arena.
+
+### 4.8 Tema malam/siang (default malam) + panel gelap
+
+`src/lib/theme.ts` — store zustand `{ night, toggle }`, persist
+`localStorage['cakrawala-theme-v1']` (`'night'`/`'day'`, absen = **night**).
+`applyTheme(night)` menulis `document.documentElement.dataset.theme` +
+`style.colorScheme`; dipanggil sekali di tingkat modul sehingga muat pertama
+tidak pernah flash siang, lalu disinkronkan `useEffect` di `App`.
+
+- **Tombol tema ada di tiga tempat**: Nav kanan (ikon + label Malam/Siang, juga baris
+  di menu mobile), HUD game pojok kanan-atas (ikon saja, sebelah mute), sehingga
+  browsing normal, tantangan, dan Jelajah Bebas semuanya bisa berganti tema.
+- **Lapisan CSS gelap** (`index.css`, *unlayered* agar menang atas Tailwind
+  `@layer utilities`): di bawah `html[data-theme='night']` semua permukaan
+  `bg-white` → `#141d27`, kertas body → `#0b1118`, PiP → `#0f1720`, kartu tribute
+  → `#16202b`; border hitam transparan → putih transparan; seluruh tinta
+  `text-[#101418]/α` → `rgba(226,234,240,…)`; biru brand → lift `#7fd0ff`/`#8fc9e8`,
+  emas teks → `#ffd075`; scrollbar, placeholder, focus ring, dan gradien
+  `.journey-col` ikut palet malam. Pengecualian sengaja: plat logo
+  (`.logo-plate` di Hero/Footer/Nav) tetap putih, dan teks `text-[#101418]`
+  polos di atas tombol emas tetap gelap agar kontras terjaga. Varian
+  `hover:`/`focus:` dideklarasikan ulang di lapisan malam karena override base
+  akan menang atas varian Tailwind bila tidak disebut ulang.
+- **Dunia 3D**: `Atmosphere` men-damp `atmoMix.night` ke tema (λ 1,4) di semua mode;
+  ref malam diinisialisasi dari tema agar tidak ada flash siang saat masuk game.
+  Kamera isometrik turun 6 unit saat malam (`ISO_OFFSET.y − 6·night`) supaya
+  skyline lebih terbaca; `OrthographicCamera near={0.1}` (bukan −100) agar menara
+  di belakang/dekat kamera tidak meng-oklusi karakter. Jendela menara kini
+  di-instance di **kedua** sisi z (jalur orbit melihat sisi luar, jelajah melihat
+  sisi dalam).
+- **Kamera third-person anti-tembus** (`GameScene.tsx` + `three/shared.ts`
+  `cameraColliders`): grup solid Arena, badan menara FutureCity, dan props stasiun
+  mendaftar diri via `useEffect`. `boomCamera` menarik kamera ke
+  `max(0,9, hit.distance − 0,4)` sepanjang ray kepala→kamera; `placeBoom` memakai
+  hysteresis yaw (ikuti yaw bila clearance ≥ 0,9·horiz, cari 8 arah alternatif bila
+  < 0,85) sehingga kamera tidak pernah duduk di dalam paviliun/menara saat
+  jelajah maupun tantangan.
 
 ---
 
@@ -463,10 +504,11 @@ Sekarang shadow berada di `baseY + 0,045`, skala `1 + lift×0,35`, opacity `0,8 
 
 | Aspek | Perhitungan |
 |---|---|
-| Isometrik | Orthographic di `(16, 16, 16)`, look-at ke `(x, 0, z)` karakter |
-| Zoom responsif | `zoom = clamp(viewportWidth / 26, 14, 64)` → 390 px ≈ 15, 1440 px ≈ 55, 1920 px ke atas = 64 |
+| Isometrik | Orthographic di `(16, 16 − 6·night, 16)`, look-at ke `(x, 0, z)` karakter; `near 0.1`, `far 200` |
+| Zoom responsif | `zoom = clamp(min(width, height) / 10, 24, 96)` |
 | Tengah pane | Look-at tepat ke karakter; seluruh pane 54% (atau PiP) adalah ruang bebas, tanpa geser lateral |
 | First person | Mata di `y = 1,68`, look-at searah yaw karakter; model disembunyikan |
+| Boom third-person | ray kepala→kamera terhadap `cameraColliders`; tarik ke `max(0,9, hit − 0,4)`; hysteresis yaw 8 arah (§4.8) |
 
 ### 6.5 Fisika arena Play Character
 
@@ -721,6 +763,7 @@ Catatan kejujuran data:
 | `cakrawala-hud-deck-v1` | `'closed'` bila Control Deck dilipat | `src/game/GameHud.tsx` |
 | `cakrawala-lang` | `"id"` atau `"en"` | `src/lib/i18n.tsx` |
 | `cakrawala-pip-v1` | `{ x, y, expanded }` — posisi & status jendela 3D mobile | `src/three/World.tsx` |
+| `cakrawala-theme-v1` | `'night'` atau `'day'` (absen = night) — tema DOM + dunia 3D | `src/lib/theme.ts` |
 
 Tidak ada backend, analytics, atau cookie. Form kontak membuka aplikasi email pengunjung
 (`mailto:`), sehingga tidak ada data yang dikirim ke server.

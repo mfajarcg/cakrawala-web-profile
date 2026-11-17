@@ -4,8 +4,10 @@ import {
   Hand,
   Keyboard,
   LogOut,
+  Moon,
   Play,
   Sparkles,
+  Sun,
   Trash2,
   Trophy,
   Volume2,
@@ -23,6 +25,7 @@ import {
   type RefObject,
 } from 'react'
 import { useI18n } from '../lib/i18n'
+import { useTheme } from '../lib/theme'
 import { STATIONS } from '../journey/stations'
 import { audio } from './audio'
 import { emitAim, input, lockState, resetInput, setTapAim, subscribeAim } from './input'
@@ -80,6 +83,8 @@ export function GameHud() {
   const adventure = useGame((s) => s.adventure)
   const locked = usePointerLocked()
   const muted = useSyncExternalStore(audio.subscribe, () => audio.muted)
+  const night = useTheme((s) => s.night)
+  const toggleTheme = useTheme((s) => s.toggle)
   const pointAim = useSyncExternalStore(subscribeAim, () => input.pointAim)
   const [touch] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
@@ -344,12 +349,20 @@ export function GameHud() {
         </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            {...press(toggleTheme)}
+            aria-label={night ? t.nav.themeToDay : t.nav.themeToNight}
+            title={night ? t.nav.themeToDay : t.nav.themeToNight}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-2 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3"
+          >
+            {night ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
           <button
             {...press(() => audio.toggle())}
             aria-label={muted ? t.play.meaning.soundOff : t.play.meaning.soundOn}
             title={muted ? t.play.meaning.soundOff : t.play.meaning.soundOn}
-            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-2 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3"
           >
             {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
@@ -358,7 +371,7 @@ export function GameHud() {
             {...press(() => setShowScores((v) => !v))}
             aria-label={t.play.run.boardTitle}
             title={t.play.run.boardTitle}
-            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/20 bg-[#101418]/85 px-2 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3"
           >
             <Trophy size={14} />
           </button>
@@ -371,7 +384,7 @@ export function GameHud() {
           ) : (
             <button
               {...press(openMenu)}
-              className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-[#101418]/85 px-3.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70"
+              className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-[#101418]/85 px-2.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3.5"
             >
               <Keyboard size={14} />
               {t.play.menu}

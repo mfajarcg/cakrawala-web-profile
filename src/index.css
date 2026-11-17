@@ -170,3 +170,118 @@ html::-webkit-scrollbar-thumb:hover {
   }
 }
 
+/* ------------------------------------------------------------------
+   night theme — <html data-theme="night"> is the single source of truth.
+   These rules are unlayered, so they win over Tailwind's layered utilities
+   without touching a single component class. Logo plates opt out via
+   .logo-plate so the black knight mark keeps its white field.
+   ------------------------------------------------------------------ */
+html[data-theme='night'] {
+  scrollbar-color: #408fb4 #0c1219;
+}
+html[data-theme='night'] body {
+  background: #0b1118;
+  color: #e8eef2;
+}
+html[data-theme='night'] .journey-col {
+  background:
+    radial-gradient(42rem 26rem at -6% 0%, rgba(242, 178, 60, 0.07), transparent 62%),
+    radial-gradient(38rem 28rem at 106% 100%, rgba(53, 196, 255, 0.09), transparent 60%),
+    linear-gradient(180deg, #0e1620 0%, #0b1118 100%);
+}
+html[data-theme='night'] .bg-white:not(.logo-plate) {
+  background-color: #141d27;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+html[data-theme='night'] .border-black\/5 {
+  border-color: rgba(255, 255, 255, 0.09);
+}
+html[data-theme='night'] .border-black\/10 {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+html[data-theme='night'] .border-\[\#101418\]\/10 {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+html[data-theme='night'] .border-\[\#101418\]\/15 {
+  border-color: rgba(255, 255, 255, 0.17);
+}
+html[data-theme='night'] .border-\[\#101418\]\/20 {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+html[data-theme='night'] .bg-\[\#101418\]\/5 {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+html[data-theme='night'] .bg-\[\#e9eff3\] {
+  background-color: #0f1720;
+}
+html[data-theme='night'] .bg-\[\#408fb4\]\/10 {
+  background-color: rgba(127, 208, 255, 0.12);
+}
+/* ink text becomes moonlight, keeping every opacity step */
+html[data-theme='night'] .text-\[\#101418\]\/50 {
+  color: rgba(226, 234, 240, 0.55);
+}
+html[data-theme='night'] .text-\[\#101418\]\/55 {
+  color: rgba(226, 234, 240, 0.6);
+}
+html[data-theme='night'] .text-\[\#101418\]\/60 {
+  color: rgba(226, 234, 240, 0.66);
+}
+html[data-theme='night'] .text-\[\#101418\]\/70 {
+  color: rgba(226, 234, 240, 0.76);
+}
+html[data-theme='night'] .text-\[\#101418\]\/75 {
+  color: rgba(226, 234, 240, 0.8);
+}
+html[data-theme='night'] .text-\[\#101418\]\/80 {
+  color: rgba(226, 234, 240, 0.86);
+}
+html[data-theme='night'] .text-\[\#101418\]\/85 {
+  color: rgba(226, 234, 240, 0.9);
+}
+html[data-theme='night'] .text-\[\#101418\]\/90 {
+  color: rgba(226, 234, 240, 0.95);
+}
+/* brand blues lift so they stay readable on dark surfaces */
+html[data-theme='night'] .text-\[\#408fb4\] {
+  color: #7fd0ff;
+}
+html[data-theme='night'] .text-\[\#2e6f8e\] {
+  color: #8fc9e8;
+}
+html[data-theme='night'] .hover\:text-\[\#2e6f8e\]:hover {
+  color: #8fc9e8;
+}
+html[data-theme='night'] .hover\:border-\[\#408fb4\]:hover {
+  border-color: #7fd0ff;
+}
+html[data-theme='night'] .text-\[\#8a6413\] {
+  color: #ffd075;
+}
+/* focus and placeholder states follow the theme too */
+html[data-theme='night'] .focus-visible\:outline-\[\#101418\]:focus-visible {
+  outline-color: #f2b23c;
+}
+html[data-theme='night'] .focus\:border-\[\#408fb4\]:focus {
+  border-color: #7fd0ff;
+}
+html[data-theme='night'] ::placeholder {
+  color: rgba(226, 234, 240, 0.4);
+}
+/* the ink tribute card and the ink play card need an edge after dark */
+html[data-theme='night'] [data-tribute-open] {
+  background-color: #16202b;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+html[data-theme='night'] .from-\[\#101418\] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+html[data-theme='night']::-webkit-scrollbar-track {
+  background: #0c1219;
+}
+html[data-theme='night']::-webkit-scrollbar-thumb {
+  border-color: #0c1219;
+}
+

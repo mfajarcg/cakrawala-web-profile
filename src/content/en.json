@@ -55,7 +55,11 @@
     "menu": "Menu",
     "povFollow": "Orbit",
     "povFirst": "First Person",
-    "roam": "Roam"
+    "roam": "Roam",
+    "night": "Night",
+    "day": "Day",
+    "themeToNight": "Night mode",
+    "themeToDay": "Day mode"
   },
   "hero": {
     "eyebrow": "IT Consulting for Central & Local Government",

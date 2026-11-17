@@ -108,3 +108,6 @@ export const adventureSpawn = {
   z: null as number | null,
   beam: false,
 }
+
+/** solids the third-person boom raycasts against so the camera never sits inside a wall or block */
+export const cameraColliders: THREE.Object3D[] = []

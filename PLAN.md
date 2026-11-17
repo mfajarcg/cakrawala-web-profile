@@ -1178,3 +1178,57 @@ shots/adventure-{night,greet,monas,mobile}.png. Regresi: regression-qa scratch (
 21 cek + suite permanen play-qa, meaning-qa, layout-qa, mobile-play-qa, verify2,
 touch-qa, jump-qa, gait-qa — semua errors []. `tsc -b` + `npm run build` bersih.
 README §4.7 + pohon file + persistensi; PLAN §28 ini.
+
+## 29. Tema malam default + panel gelap penuh + checkpoint presisi
+
+**Masalah:** (1) tempat berhenti scroll hanya “cukup dekat” sehingga karakter
+masih bergeser setelah mendarat; (2) mode malam hanya ada di adventure, padahal
+user ingin malam sebagai default browsing dengan tombol ganti di mana-mana;
+(3) panel DOM tetap terang saat dunia malam.
+
+**Tema (`src/lib/theme.ts`):** zustand `{ night, toggle }`, key
+`cakrawala-theme-v1`, absen = night. `applyTheme` menulis `dataset.theme` +
+`colorScheme` di `<html>`; dipanggil di tingkat modul (sebelum render pertama,
+tanpa flash siang) dan disinkronkan `useEffect` App. Tombol: Nav kanan (ikon+label,
+plus baris menu mobile), HUD game kanan-atas (ikon, sebelah mute) — terlihat di
+browsing, tantangan, dan jelajah. String `nav.night/day/themeToNight/themeToDay`
+di id.json/en.json.
+
+**Lapisan gelap (`index.css`, unlayered):** `html[data-theme='night']` meng-override
+permukaan (`bg-white`→#141d27 kecuali `.logo-plate`, body→#0b1118, PiP→#0f1720,
+tribute→#16202b), border hitam→putih transparan, tinta `text-[#101418]/α`→
+rgba(226,234,240,…), biru→#7fd0ff/#8fc9e8, emas teks→#ffd075, scrollbar/placeholder/
+focus ring/gradien journey-col. Unlayered menang atas `@layer utilities` tanpa
+perang spesifisitas; selector escape (`text-\[\#101418\]\/70`). Varian hover/focus
+dideklarasi ulang karena override base otherwise menang. Plat logo tetap putih;
+teks gelap di tombol emas sengaja tidak di-override.
+
+**Checkpoint presisi (`JourneyController.tsx`):** `stationTop(i) = offsetTop +
+(offsetHeight − innerHeight)/2`; cache di-invalidate oleh resize + perubahan
+`scrollHeight`. `progressFromScroll` piecewise-linear tops[i]→i/(N−1) (clamp di
+luar rentang) menggantikan bagi hasil scroll polos. Toleransi settle 32→10 px,
+guard drift 48→24 px. Hasil ukur: drift 0,0 px pada lompatan nav/wheel/teleport;
+karakter bergerak 0,000 m saat istirahat.
+
+**Dunia malam semua mode (`World.tsx`):** `Atmosphere` damp night ke tema (λ1,4),
+ref awal dari tema; kamera iso turun 6 unit saat malam; `OrthographicCamera
+near 0.1` (dari −100) — near negatif membuat menara di belakang kamera
+meng-oklusi walker; jendela menara di-instance dua sisi z. Azimuth swing malam
+dicoba lalu dibatalkan (kamera masuk barisan menara → fasad raksasa menutupi
+karakter); hanya dip vertikal yang dipakai.
+
+**Kamera anti-tembus (`shared.ts cameraColliders`, Arena/FutureCity/Stations
+register via useEffect, `GameScene.boomCamera/boomClearance/placeBoom`):** ray
+kepala→kamera menarik boom ke `max(0,9, hit−0,4)`; hysteresis yaw: ikuti yaw bila
+clearance ≥0,9·horiz, else bila <0,85 cari 8 offset k·π/4 ambil terbaik. Gejala
+awal: pita beige selebar layar saat jelajah = kamera 0,2 m di dalam paviliun
+Tentang; setelah fix kamera berayun ke diagonal bersih (probe-adventure.png).
+
+**QA:** theme-qa scratch (dihapus) 26 cek — default night storage baru, computed
+style body/card/plate/ink/input/gradien, toggle+persist, drift 0,0 px tiga cara,
+karakter 0,000 m, toggle HUD adventure & challenge, mobile 390 night+PiP gelap+
+tanpa overflow+baris menu, errors []. Regresi 8 suite permanen hijau; satu
+regresi ditemukan & diperbaiki: pill tema membuat cluster HUD kanan lewat 390 px
+→ padding px-2/sm:px-3 + gap-1,5/sm:gap-2 (meaning-qa 390px no overflow PASS).
+`tsc -b` + `npm run build` bersih. README §4.2/§4.7/§4.8/§6.4 + persistensi;
+PLAN §29 ini.

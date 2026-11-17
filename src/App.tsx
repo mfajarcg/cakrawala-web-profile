@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { About } from './blocks/About'
 import { Contact } from './blocks/Contact'
 import { Credibility } from './blocks/Credibility'
@@ -16,11 +17,17 @@ import { GameHud } from './game/GameHud'
 import { useGame } from './game/store'
 import { JourneyController } from './journey/JourneyController'
 import { LanguageProvider } from './lib/i18n'
+import { applyTheme, useTheme } from './lib/theme'
 import { World } from './three/World'
 
 export default function App() {
   const mode = useGame((s) => s.mode)
   const inGame = mode === 'game'
+  const night = useTheme((s) => s.night)
+
+  useEffect(() => {
+    applyTheme(night)
+  }, [night])
 
   return (
     <LanguageProvider>

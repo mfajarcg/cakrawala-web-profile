@@ -16,6 +16,7 @@ import { getPath } from './path'
 import { Robots } from './Robots'
 import { atmoMix, characterPos, characterYaw } from './shared'
 import { Stations } from './Stations'
+import { useTheme } from '../lib/theme'
 
 const ISO_OFFSET = new THREE.Vector3(16, 16, 16)
 const EYE_HEIGHT = 1.68
@@ -48,11 +49,12 @@ function CameraRig() {
       )
       return
     }
-    // the whole right pane is free space now — keep the character centred
+    // the whole right pane is free space now — keep the character centred;
+    // after dark the orbit dips so the neon skyline stays in frame
     lookTarget.copy(characterPos.current)
     camera.position.set(
       lookTarget.x + ISO_OFFSET.x,
-      ISO_OFFSET.y,
+      ISO_OFFSET.y - 6 * atmoMix.night,
       lookTarget.z + ISO_OFFSET.z,
     )
     camera.lookAt(lookTarget.x, 0, lookTarget.z)
@@ -65,11 +67,11 @@ function Atmosphere() {
   const scene = useThree((s) => s.scene)
   const inGame = useGame((s) => s.mode === 'game')
   const dawn = useGame((s) => s.vista || s.done)
-  const adventure = useGame((s) => s.adventure)
+  const nightTheme = useTheme((s) => s.night)
   const light = useRef<THREE.DirectionalLight>(null)
   const ambient = useRef<THREE.AmbientLight>(null)
   const mix = useRef(0)
-  const night = useRef(0)
+  const night = useRef(nightTheme ? 1 : 0)
   const sky = useMemo(() => new THREE.Color('#e9eff3'), [])
   const daySky = useMemo(() => new THREE.Color('#e9eff3'), [])
   const dawnSky = useMemo(() => new THREE.Color('#f5e2c4'), [])
@@ -82,7 +84,7 @@ function Atmosphere() {
     const dt = Math.min(delta, 0.05)
     const target = inGame && dawn ? 1 : 0
     mix.current = THREE.MathUtils.damp(mix.current, target, 1.1, dt)
-    night.current = THREE.MathUtils.damp(night.current, adventure ? 1 : 0, 1.4, dt)
+    night.current = THREE.MathUtils.damp(night.current, nightTheme ? 1 : 0, 1.4, dt)
     atmoMix.night = night.current
     const m = mix.current
     const n = night.current
@@ -416,7 +418,7 @@ function CanvasSetup() {
         makeDefault={!inGame && pov === 'follow'}
         position={[16, 16, 16]}
         zoom={30}
-        near={-100}
+        near={0.1}
         far={200}
       />
       <PerspectiveCamera

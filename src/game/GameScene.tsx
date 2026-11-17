@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport, adventureSpawn, tpWhoosh, TP_DUR, TP_VANISH, TP_WHOOSH } from '../three/shared'
+import { cadenceFor, cameraColliders, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport, adventureSpawn, tpWhoosh, TP_DUR, TP_VANISH, TP_WHOOSH } from '../three/shared'
 import { input, lockState, resetInput, setTapAim } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
@@ -23,6 +23,90 @@ const CAMERA_HEIGHT = 1.9
 // free roam pulls back and drops the eye line so the skyline stays in frame
 const ROAM_DISTANCE = 7.6
 const ROAM_HEIGHT = 2.5
+
+const camRay = new THREE.Raycaster()
+const camHead = new THREE.Vector3()
+const camWant = new THREE.Vector3()
+const camDir = new THREE.Vector3()
+/** third-person boom: stop short of walls and blocks so the eye never sits inside solid geometry */
+function boomCamera(
+  camera: THREE.Camera,
+  wx: number,
+  wy: number,
+  wz: number,
+  tx: number,
+  ty: number,
+  tz: number,
+) {
+  camHead.set(tx, ty + 0.35, tz)
+  camWant.set(wx, wy, wz)
+  camDir.subVectors(camWant, camHead)
+  const len = camDir.length()
+  if (len > 1e-4) {
+    camDir.divideScalar(len)
+    camRay.set(camHead, camDir)
+    camRay.far = len
+    const hit = camRay.intersectObjects(cameraColliders, true)[0]
+    if (hit) camWant.copy(camHead).addScaledVector(camDir, Math.max(0.9, hit.distance - 0.4))
+  }
+  camera.position.copy(camWant)
+  camera.lookAt(tx, ty, tz)
+}
+
+/** how far the boom can extend along a yaw before it meets solid geometry */
+function boomClearance(px: number, py: number, pz: number, yaw: number, horiz: number, dy: number) {
+  camHead.set(px, py + 1.5, pz)
+  camDir.set(Math.sin(yaw) * horiz, dy, Math.cos(yaw) * horiz)
+  const len = camDir.length()
+  camDir.divideScalar(len)
+  camRay.set(camHead, camDir)
+  camRay.far = len
+  const hit = camRay.intersectObjects(cameraColliders, true)[0]
+  return hit ? hit.distance : len
+}
+
+// when the stack or a tower blocks the default boom side, swing around the
+// character to the clearest of eight directions and hold it until clear again
+let boomYaw: number | null = null
+function placeBoom(
+  camera: THREE.Camera,
+  px: number,
+  py: number,
+  pz: number,
+  yaw: number,
+  pitch: number,
+  dist: number,
+  height: number,
+) {
+  const horiz = Math.cos(pitch) * dist
+  const eyeY = py + height + Math.sin(pitch) * dist
+  const dy = eyeY - (py + 1.5)
+  const clear = (y: number) => boomClearance(px, py, pz, y, horiz, dy)
+  if (boomYaw == null) boomYaw = yaw
+  if (clear(yaw) >= horiz * 0.9) boomYaw = yaw
+  else if (clear(boomYaw) < horiz * 0.85) {
+    let best = clear(boomYaw)
+    let by = boomYaw
+    for (let k = 1; k < 8; k++) {
+      const y2 = yaw + (k * Math.PI) / 4
+      const c = clear(y2)
+      if (c > best) {
+        best = c
+        by = y2
+      }
+    }
+    boomYaw = by
+  }
+  boomCamera(
+    camera,
+    px + Math.sin(boomYaw) * horiz,
+    eyeY,
+    pz + Math.cos(boomYaw) * horiz,
+    px,
+    py + 1.15,
+    pz,
+  )
+}
 
 /** player state lives outside React so leaving and re-entering keeps the pose */
 const player = {
@@ -268,16 +352,15 @@ export function GameScene() {
           sp.beam = false
         }
         if (teleport.t >= TP_DUR) teleport.t = -1
-        const horiz = Math.cos(player.pitch) * ROAM_DISTANCE
-        camera.position.set(
-          characterPos.current.x + Math.sin(player.yaw) * horiz,
-          characterPos.current.y + ROAM_HEIGHT + Math.sin(player.pitch) * ROAM_DISTANCE,
-          characterPos.current.z + Math.cos(player.yaw) * horiz,
-        )
-        camera.lookAt(
+        placeBoom(
+          camera,
           characterPos.current.x,
-          characterPos.current.y + 1.15,
+          characterPos.current.y,
           characterPos.current.z,
+          player.yaw,
+          player.pitch,
+          ROAM_DISTANCE,
+          ROAM_HEIGHT,
         )
         return
       }
@@ -387,14 +470,16 @@ export function GameScene() {
     // --- third-person camera
     const camDist = st.adventure ? ROAM_DISTANCE : CAMERA_DISTANCE
     const camHeight = st.adventure ? ROAM_HEIGHT : CAMERA_HEIGHT
-    const horizontal = Math.cos(player.pitch) * camDist
-    const eyeY = player.y + camHeight + Math.sin(player.pitch) * camDist
-    camera.position.set(
-      ORIGIN.x + player.x + Math.sin(player.yaw) * horizontal,
-      eyeY,
-      ORIGIN.z + player.z + Math.cos(player.yaw) * horizontal,
+    placeBoom(
+      camera,
+      ORIGIN.x + player.x,
+      player.y,
+      ORIGIN.z + player.z,
+      player.yaw,
+      player.pitch,
+      camDist,
+      camHeight,
     )
-    camera.lookAt(ORIGIN.x + player.x, player.y + 1.15, ORIGIN.z + player.z)
 
     // --- build / destroy (challenge mode only; free roam explores, not builds)
     if (st.adventure) {

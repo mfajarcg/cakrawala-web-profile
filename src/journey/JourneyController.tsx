@@ -2,6 +2,7 @@ import Lenis from 'lenis'
 import { useEffect, useRef } from 'react'
 import { useGame } from '../game/store'
 import { useTribute } from '../lib/tribute'
+import { characterPos } from '../three/shared'
 import { scrollBridge } from './scroll'
 import { STATION_COUNT } from './stations'
 import { clamp01, useJourney } from './store'
@@ -40,16 +41,48 @@ export function JourneyController() {
     const setTarget = useJourney.getState().setTarget
     keyCursor.current = useJourney.getState().activeStation
 
-    const progressFromScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight
-      return max > 0 ? clamp01(window.scrollY / max) : 0
+    /** the scroll position that centres a station's content (cached per resize) */
+    let topsCache: number[] | null = null
+    let topsHeight = -1
+    const stationTops = () => {
+      const docHeight = document.documentElement.scrollHeight
+      if (topsCache && docHeight === topsHeight) return topsCache
+      const arr: number[] = []
+      for (let i = 0; i < STATION_COUNT; i++) {
+        const el = document.querySelector<HTMLElement>(`[data-station="${i + 1}"]`)
+        if (!el) return null
+        arr.push(el.offsetTop + (el.offsetHeight - window.innerHeight) / 2)
+      }
+      topsCache = arr
+      topsHeight = docHeight
+      return arr
+    }
+    const stationTop = (index: number) => stationTops()?.[index] ?? null
+    const invalidateTops = () => {
+      topsCache = null
     }
 
-    /** the scroll position that centres a station's content */
-    const stationTop = (index: number) => {
-      const el = document.querySelector<HTMLElement>(`[data-station="${index + 1}"]`)
-      if (!el) return null
-      return el.offsetTop + (el.offsetHeight - window.innerHeight) / 2
+    // piecewise between checkpoint centres: resting on station i maps to
+    // exactly i/(N−1), so the character stops on the checkpoint, not ~0.5 m
+    // short of it (a raw scroll fraction drifts because panels are 110vh)
+    const progressFromScroll = () => {
+      const tops = stationTops()
+      if (!tops) {
+        const max = document.documentElement.scrollHeight - window.innerHeight
+        return max > 0 ? clamp01(window.scrollY / max) : 0
+      }
+      const y = window.scrollY
+      const last = tops.length - 1
+      if (y <= tops[0]) return 0
+      if (y >= tops[last]) return 1
+      for (let i = 0; i < last; i++) {
+        if (y <= tops[i + 1]) {
+          const span = tops[i + 1] - tops[i]
+          const f = span > 0 ? (y - tops[i]) / span : 0
+          return (i + f) / last
+        }
+      }
+      return 1
     }
 
     let lockUntil = 0
@@ -119,12 +152,12 @@ export function JourneyController() {
       const bestDist = top == null ? Number.POSITIVE_INFINITY : Math.abs(window.scrollY - top)
       // Lenis lands within a few pixels of the requested centre; treat that as
       // settled so a tiny drift never restarts the animation in a loop
-      if (bestDist < 32) {
+      if (bestDist < 10) {
         lastSnap.index = best
         lastSnap.y = window.scrollY
         return
       }
-      if (best === lastSnap.index && Math.abs(window.scrollY - lastSnap.y) < 48) return
+      if (best === lastSnap.index && Math.abs(window.scrollY - lastSnap.y) < 24) return
       lastSnap.index = best
       lastSnap.y = window.scrollY
       scrollToStation(best)
@@ -278,9 +311,11 @@ export function JourneyController() {
       lock: () => lockUntil,
       hop: () => hopStartedAt,
       cursor: () => keyCursor.current,
+      pos: () => ({ x: characterPos.current.x, z: characterPos.current.z }),
     }
 
     window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', invalidateTops)
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
     window.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -291,6 +326,7 @@ export function JourneyController() {
       cancelAnimationFrame(raf)
       window.clearTimeout(settleTimer)
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', invalidateTops)
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('wheel', onWheel, { capture: true })
       window.removeEventListener('touchstart', onTouchStart)

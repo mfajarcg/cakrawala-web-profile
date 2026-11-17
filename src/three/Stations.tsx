@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react'
+import * as THREE from 'three'
 import { STATIONS, type StationId } from '../journey/stations'
+import { cameraColliders } from './shared'
 
 const BRAND = '#408fb4'
 const BRAND_DARK = '#2e6f8e'
@@ -232,8 +235,17 @@ function StationProp({ id }: { id: StationId }) {
 }
 
 export function Stations() {
+  const solids = useRef<THREE.Group>(null)
+  useEffect(() => {
+    if (solids.current) cameraColliders.push(solids.current)
+    return () => {
+      const i = cameraColliders.indexOf(solids.current!)
+      if (i >= 0) cameraColliders.splice(i, 1)
+    }
+  }, [])
   return (
     <group>
+      <group ref={solids}>
       {STATIONS.map((s) => {
         const dir = s.side === 'left' ? -1 : 1
         return (
@@ -244,6 +256,7 @@ export function Stations() {
           </group>
         )
       })}
+      </group>
       {/* scattered trees */}
       {STATIONS.map((s, i) => (
         <Tree

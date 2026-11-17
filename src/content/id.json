@@ -55,7 +55,11 @@
     "menu": "Menu",
     "povFollow": "Orbit",
     "povFirst": "First Person",
-    "roam": "Jelajah"
+    "roam": "Jelajah",
+    "night": "Malam",
+    "day": "Siang",
+    "themeToNight": "Mode malam",
+    "themeToDay": "Mode siang"
   },
   "hero": {
     "eyebrow": "IT Consulting untuk Pemerintah Pusat & Daerah",

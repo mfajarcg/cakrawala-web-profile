@@ -13,7 +13,7 @@ export function Hero() {
     <Panel id="hero">
       <div className="flex flex-col items-center text-center">
         {/* brand rule: cakrawala-white.svg is the black mark, so it sits on a pure white field */}
-        <div className="mb-5 rounded-2xl border border-[#101418]/10 bg-white p-3 shadow-[0_0.75rem_2rem_rgba(16,20,24,0.1)]">
+        <div className="logo-plate mb-5 rounded-2xl border border-[#101418]/10 bg-white p-3 shadow-[0_0.75rem_2rem_rgba(16,20,24,0.1)]">
           <img src={LOGO} alt="Cakrawala logo" className="h-20 w-20 sm:h-24 sm:w-24" />
         </div>
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-[#408fb4]">

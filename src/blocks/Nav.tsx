@@ -1,15 +1,18 @@
-import { Compass, Languages, Menu, X } from 'lucide-react'
+import { Compass, Languages, Menu, Moon, Sun, X } from 'lucide-react'
 import { useState } from 'react'
 import { useGame } from '../game/store'
 import { jumpTo } from '../journey/jump'
 import { STATIONS } from '../journey/stations'
 import { useJourney } from '../journey/store'
 import { useI18n } from '../lib/i18n'
+import { useTheme } from '../lib/theme'
 
 const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-white.svg`
 
 export function Nav() {
   const { t, toggle } = useI18n()
+  const night = useTheme((s) => s.night)
+  const toggleTheme = useTheme((s) => s.toggle)
   const [open, setOpen] = useState(false)
   const active = STATIONS[useJourney((s) => s.activeStation)]?.id
 
@@ -30,7 +33,7 @@ export function Nav() {
           className="flex shrink-0 items-center gap-3"
           aria-label="Cakrawala"
         >
-          <img src={LOGO} alt="Cakrawala" className="h-9 w-9 rounded-sm bg-white object-contain p-0.5" />
+          <img src={LOGO} alt="Cakrawala" className="logo-plate h-9 w-9 rounded-sm bg-white object-contain p-0.5" />
           <span className="leading-tight text-white">
             <span className="block text-sm font-bold tracking-wide">CAKRAWALA</span>
             <span className="block text-[0.6rem] opacity-70">by PT Cartenz Technology Indonesia</span>
@@ -72,6 +75,15 @@ export function Nav() {
             <span className="hidden sm:inline">{t.nav.roam}</span>
           </button>
           <button
+            onClick={toggleTheme}
+            className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+            aria-label={night ? t.nav.themeToDay : t.nav.themeToNight}
+            title={night ? t.nav.themeToDay : t.nav.themeToNight}
+          >
+            {night ? <Sun size={14} /> : <Moon size={14} />}
+            <span className="hidden sm:inline">{night ? t.nav.day : t.nav.night}</span>
+          </button>
+          <button
             onClick={toggle}
             className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
             aria-label={t.nav.language}
@@ -104,6 +116,16 @@ export function Nav() {
           >
             <Compass size={15} />
             {t.nav.roam}
+          </button>
+          <button
+            onClick={() => {
+              setOpen(false)
+              toggleTheme()
+            }}
+            className="mb-1 flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2.5 text-left font-bold text-white transition hover:bg-white/10"
+          >
+            {night ? <Sun size={15} /> : <Moon size={15} />}
+            {night ? t.nav.themeToDay : t.nav.themeToNight}
           </button>
           {t.nav.links.map((l) => (
             <button
