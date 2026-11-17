@@ -196,6 +196,112 @@ function PathRibbon() {
   )
 }
 
+/** neon curb lines hugging the walkway edges after dark: bright core, soft
+ *  spill onto the asphalt and comet pulses travelling down the street */
+function NeonPathEdges() {
+  const group = useRef<THREE.Group>(null)
+  const uniforms = useMemo(
+    () => ({
+      uNight: { value: 0 },
+      uTime: { value: 0 },
+      uColor: { value: new THREE.Color('#18b7ff') },
+      uCore: { value: new THREE.Color('#c9f6ff') },
+    }),
+    [],
+  )
+  const geometry = useMemo(() => {
+    const curve = getPath()
+    const N = 200
+    const half = 0.44
+    const pos: number[] = []
+    const uv: number[] = []
+    const idx: number[] = []
+    const p = new THREE.Vector3()
+    const prev = new THREE.Vector3()
+    const tan = new THREE.Vector3()
+    for (const side of [-1, 1]) {
+      const base = pos.length / 3
+      let meters = 0
+      for (let i = 0; i <= N; i++) {
+        const u = i / N
+        curve.getPointAt(u, p)
+        curve.getTangentAt(u, tan)
+        if (i > 0) meters += p.distanceTo(prev)
+        prev.copy(p)
+        const lx = -tan.z
+        const lz = tan.x
+        const cx = p.x + lx * side * 1.22
+        const cz = p.z + lz * side * 1.22
+        pos.push(cx - lx * half, 0.05, cz - lz * half, cx + lx * half, 0.05, cz + lz * half)
+        uv.push(meters, 0, meters, 1)
+        if (i > 0) {
+          const a = base + (i - 1) * 2
+          idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+    g.setIndex(idx)
+    return g
+  }, [])
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        vertexShader: `
+          varying vec2 vUv;
+          varying float vDepth;
+          void main() {
+            vUv = uv;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vDepth = -mv.z;
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform float uNight;
+          uniform float uTime;
+          uniform vec3 uColor;
+          uniform vec3 uCore;
+          varying vec2 vUv;
+          varying float vDepth;
+          void main() {
+            float d = abs(vUv.y - 0.5) * 2.0;
+            float core = smoothstep(0.16, 0.03, d);
+            float glow = pow(max(0.0, 1.0 - d), 2.0);
+            float band = fract(vUv.x / 26.0 - uTime * 0.11);
+            float comet = smoothstep(0.0, 0.05, band) * smoothstep(0.4, 0.05, band);
+            float energy = 0.6 + 1.2 * comet;
+            float fog = 1.0 - smoothstep(45.0, 130.0, vDepth);
+            vec3 col = (uColor * glow * 0.4 + uCore * core) * energy;
+            gl_FragColor = vec4(col * uNight * fog, 1.0);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }
+        `,
+      }),
+    [uniforms],
+  )
+
+  useFrame((state) => {
+    uniforms.uNight.value = atmoMix.night
+    uniforms.uTime.value = state.clock.elapsedTime
+    if (group.current) group.current.visible = atmoMix.night > 0.01
+  })
+
+  return (
+    <group ref={group} visible={false}>
+      <mesh geometry={geometry} material={material} frustumCulled={false} />
+    </group>
+  )
+}
+
 /** slim clickable checkpoint rail on the inner edge of the desktop 3D pane */
 function StationRail() {
   const active = useJourney((s) => s.activeStation)
@@ -435,6 +541,7 @@ function CanvasSetup() {
       <GroundPlane />
       <GroundGrid />
       <PathRibbon />
+      <NeonPathEdges />
       <FutureCity />
       <Robots />
       <Stations />

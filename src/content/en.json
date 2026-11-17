@@ -557,6 +557,14 @@
             "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/"
           },
           {
+            "text": "Rubio JE, et al. Differences in running biomechanics between young, healthy men and women carrying external loads. PMC, 2023 — men's trunk flexion is 16.9–24.6% greater than women's; Eric's ~15° run lean follows this masculine trait",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10579583/"
+          },
+          {
+            "text": "Scharl T, et al. Gender Differences in the Dynamics and Kinematics of Running. Bioengineering 11(12):1261, 2024 — female runners show larger hip/pelvis ROM; Eric's masculine carriage: elbows hugged to the ribcage, sagittal arm swing, minimal lateral sway",
+            "href": "https://www.mdpi.com/2306-5354/11/12/1261"
+          },
+          {
             "text": "cadence = v / stride; stride = 1.5 + (3.0 − 1.5)·speedNorm (metres per cycle)",
             "mono": true
           },
@@ -565,7 +573,7 @@
             "mono": true
           },
           {
-            "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow closes front-side ~120° / opens back-side ~60°; palm pronates toward the thigh, fingers relaxed-curl",
+            "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow ~90° ± 21° at run with a sagittal hinge carried by the shoulder's posed rotation; abduction tightens +0.07 rad with speed (elbows hug the ribcage); palm pronates toward the thigh, fingers relaxed-curl",
             "mono": true
           }
         ]

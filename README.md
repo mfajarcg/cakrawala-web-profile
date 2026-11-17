@@ -88,7 +88,8 @@ Canvas (fixed, React Three Fiber)
 │  ├─ main.tsx
 │  ├─ index.css / styles/tokens.css   # Tailwind v4 + token warna + skala font
 │  ├─ blocks/                  # 12 blok DOM
-│  │  ├─ Nav.tsx               #   01 Navigation (sticky, ID/EN, 11 link + highlight aktif, hamburger <xl)
+│  │  ├─ Nav.tsx               #   01 Navigation (sticky, ID/EN, 11 link + highlight aktif, hamburger <xl;
+│  │  │                        #     mobile: subtitle & label pill disembunyikan <sm agar header muat 360px)
 │  │  ├─ Hero.tsx              #   02 Hero
 │  │  ├─ Story.tsx             #   03 Cinematic Story
 │  │  ├─ Services.tsx          #   04 Services (panel lebar 3 kolom)
@@ -358,6 +359,33 @@ tidak pernah flash siang, lalu disinkronkan `useEffect` di `App`.
   hysteresis yaw (ikuti yaw bila clearance ≥ 0,9·horiz, cari 8 arah alternatif bila
   < 0,85) sehingga kamera tidak pernah duduk di dalam paviliun/menara saat
   jelajah maupun tantangan.
+- **Garis neon tepi jalur** (`World.tsx` `NeonPathEdges`, hanya malam): dua pita
+  ribbon offset lateral ±1,22 m dari kurva jalur (lebar 0,44 m, y 0,05), UV-x =
+  meter terakumulasi. Shader additive: core `smoothstep(0.16, 0.03, d)` + glow
+  `pow(1−d, 2)` + comet berjalan `fract(uv.x/26 − t·0.11)` (energy 0,6→1,8) + fog
+  jarak `1−smoothstep(45, 130, depth)`; warna `#18b7ff` / core `#c9f6ff`, dikali
+  `atmoMix.night` sehingga siang bersih. Material dibuat imperatif
+  (`new THREE.ShaderMaterial` di `useMemo` + prop `material=`): wiring JSX
+  `<shaderMaterial uniforms={…}>` terbukti meninggalkan uniforms tak terhubung
+  (render hitam tanpa error). `#include <tonemapping_fragment>` dan
+  `<colorspace_fragment>` wajib di dalam `main()` dan di awal baris.
+  `FutureCity StreetGlow` (dua garis cyan jalan kota) kini juga dikali
+  `atmoMix.night` — sebelumnya opacity tetap 0,45 sehingga bocor ke siang.
+- **Outline neon Eric** (`Character.tsx`, hanya malam): hull back-face per
+  SkinnedMesh — `new THREE.SkinnedMesh(skin.geometry, hullMat)`,
+  `hull.bind(skin.skeleton, skin.bindMatrix)`, di-`add` ke skin induk;
+  `hullMat` MeshBasicMaterial `#ffcf6e` BackSide transparent depthWrite:false
+  toneMapped:false, `onBeforeCompile` mengganti `begin_vertex` dengan
+  `position + normal * 1.6` (FBX dalam cm). Ditambah fresnel rim pada material
+  badan (`uNightRim`, `#ffd075`, `pow(1−|dot(view, normal)|, 2.6)` × 0,85 emissive).
+  Opacity hull `0,95·night`, rim `night`, hull visible bila `night > 0,02`.
+  **Jebakan StrictMode:** semua mutasi FBX (assign material + menambah hull)
+  harus di `useLayoutEffect` ber-cleanup, BUKAN di `useMemo` — memo dipanggil
+  ganda; run kedua menganggap hull run pertama sebagai "skin", menimpa
+  materialnya, dan membuat hull bersarang, sehingga rig yang dipertahankan
+  menulis opacity/rim ke material yang tidak lagi dipakai mesh mana pun
+  (outline & rim mati tanpa error). Effect memberi tag `userData.ericHull`
+  agar scan berikutnya melewati hull lama.
 
 ---
 
@@ -473,7 +501,8 @@ phase  += cadence × 2π × dt
 | Knee stance (loading → push) | 0,09 → 0,26 rad (jalan), 0,26 → 0,78 rad (lari) | loading response lalu ekstensi push-off |
 | Sudut kaki dunia (ankle) | −0,12 → +0,32 rad (jalan), −0,06 → +0,50 rad (lari); toes-down positif | telapak rata saat midstance, plantar fleksi saat push-off |
 | Ayun lengan | berlawanan fase kaki, rentang bahu terpusat: ±0,26 rad jalan → ±0,61 rad lari | tangan hip-pocket → chin, bukan mengambang di depan dada |
-| Fleksi siku | 0,35 rad jalan → 1,57 ± 0,5 rad lari (menutup ~120° front-side / membuka ~60° back-side) | siku tidak terkunci 90° (Freelap; Pfaff) |
+| Fleksi siku | 0,35 rad jalan → 1,57 ± 0,375 rad lari (±21° sekitar 90°) | siku ~90° rapat ke rusuk, carriage maskulin (Freelap; Pfaff; Scharl 2024) |
+| Abduksi bahu | 0,60 rad idle → +0,07 rad saat lari (sisa A-pose menyusut) | siku rapat ke rusuk, bukan melebar ke samping |
 | Pergelangan & jari | telapak pronasi 0,47 rad ke paha; curl jari 0,35–0,85 rad per sendi (rileks) | tangan tidak melebar dan tidak mengepal keras |
 | Lean badan | 0,04·sn + 0,22·sn² | condong depan saat lari |
 | Busur flight | lerp(reachTO → reachIC, prog) + sin(π·prog)·lerp(0; 0,06)·move01 | tinggi badan kontinu melewati toe-off/contact; double float saat lari |
@@ -499,6 +528,16 @@ Model FBX diskalakan `0,01` karena authored dalam sentimeter.
 **Temuan yang diperbaiki:** blob shadow awalnya diletakkan `y = 0,012`, di bawah permukaan
 ribbon (≈0,033), sehingga bayangan tidak pernah terlihat dan karakter tampak melayang.
 Sekarang shadow berada di `baseY + 0,045`, skala `1 + lift×0,35`, opacity `0,8 × fade`.
+
+**Carriage lari maskulin (perbaikan terakhir):** lengan bawah dulu melebar ke samping
+seperti pose feminin karena hinge siku di-`applyAxisAngle(front, ±ARM_ABDUCT)` di memo,
+padahal rotasi pose bahu sudah *membawa* sumbu sendi anak (sumbu dunia anak = rotasi pose
+parent × sumbu lokal) — abduksi terhitung ganda (±1,2 rad) memiringkan hinge keluar bidang
+sagittal. Hinge kini murni `cross(armDir, front)` tanpa prerotasi; bahu menambah abduksi
++0,07 rad seiring `speedNorm` agar siku rapat ke rusuk, osilasi siku dipersempit ke
+±0,375 rad sekitar 90°, dan lean trunk ~15° dipertahankan. Referensi ciri maskulin:
+Rubio 2023 (fleksi trunk pria 16,9–24,6% > wanita) dan Scharl 2024 (ROM pinggul/pelvis
+wanita lebih besar → sway lateral minimal); keduanya masuk tribute.
 
 ### 6.4 Kamera
 

@@ -23,7 +23,7 @@ export function Nav() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-20">
-      <div className="mx-auto flex w-[min(96vw,120rem)] items-center justify-between gap-4 rounded-b-2xl bg-[#101418]/90 px-4 py-2.5 backdrop-blur sm:px-6">
+      <div className="mx-auto flex w-[min(96vw,120rem)] items-center justify-between gap-2 rounded-b-2xl bg-[#101418]/90 px-4 py-2.5 backdrop-blur sm:gap-4 sm:px-6">
         <a
           href="#hero"
           onClick={(e) => {
@@ -36,7 +36,7 @@ export function Nav() {
           <img src={LOGO} alt="Cakrawala" className="logo-plate h-9 w-9 rounded-sm bg-white object-contain p-0.5" />
           <span className="leading-tight text-white">
             <span className="block text-sm font-bold tracking-wide">CAKRAWALA</span>
-            <span className="block text-[0.6rem] opacity-70">by PT Cartenz Technology Indonesia</span>
+            <span className="hidden text-[0.6rem] opacity-70 sm:block">by PT Cartenz Technology Indonesia</span>
           </span>
         </a>
 
@@ -61,13 +61,13 @@ export function Nav() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             onClick={() => {
               setOpen(false)
               useGame.getState().enterAdventure()
             }}
-            className="flex items-center gap-1.5 rounded-full border border-[#f2b23c]/60 px-3 py-1.5 text-xs font-bold text-[#f2b23c] transition hover:bg-[#f2b23c]/15 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+            className="flex items-center gap-1.5 rounded-full border border-[#f2b23c]/60 px-2.5 py-1.5 text-xs font-bold text-[#f2b23c] transition hover:bg-[#f2b23c]/15 focus-visible:outline-2 focus-visible:outline-[#f2b23c] sm:px-3"
             aria-label={t.nav.roam}
             title={t.nav.roam}
           >
@@ -76,7 +76,7 @@ export function Nav() {
           </button>
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+            className="flex items-center gap-1.5 rounded-full border border-white/25 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c] sm:px-3"
             aria-label={night ? t.nav.themeToDay : t.nav.themeToNight}
             title={night ? t.nav.themeToDay : t.nav.themeToNight}
           >
@@ -85,11 +85,12 @@ export function Nav() {
           </button>
           <button
             onClick={toggle}
-            className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+            className="flex items-center gap-1.5 rounded-full border border-white/25 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c] sm:px-3"
             aria-label={t.nav.language}
+            title={t.nav.language}
           >
             <Languages size={14} />
-            {t.nav.language}
+            <span className="hidden sm:inline">{t.nav.language}</span>
           </button>
           <button
             className="rounded-full border border-white/25 p-1.5 text-white xl:hidden"

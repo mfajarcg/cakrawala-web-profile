@@ -1,12 +1,13 @@
 import { useFBX, useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { Suspense, useMemo, useRef } from 'react'
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
 import { audio } from '../game/audio'
 import { getPath } from './path'
 import {
+  atmoMix,
   cadenceFor,
   characterPos,
   characterYaw,
@@ -400,12 +401,51 @@ function EricVisual() {
       roughness: 0.78,
       metalness: 0,
     })
+    // night-only neon rim: fresnel edge glow so the dark suit separates from
+    // the asphalt without touching the day look
+    const rimUniform = { value: 0 }
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uNightRim = rimUniform
+      shader.uniforms.uRimColor = { value: new THREE.Color('#ffd075') }
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nuniform float uNightRim;\nuniform vec3 uRimColor;',
+        )
+        .replace(
+          '#include <emissivemap_fragment>',
+          `#include <emissivemap_fragment>
+          float rimF = pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 2.6);
+          totalEmissiveRadiance += uRimColor * rimF * uNightRim * 0.85;`,
+        )
+    }
+    // read-only scan: the FBX is a shared cached asset and StrictMode
+    // double-invokes memos, so attaching materials/hulls here would orphan the
+    // kept rig's materials and nest hulls inside hulls — wiring lives in the
+    // layout effect below, which cleans up after itself
+    const skins: THREE.SkinnedMesh[] = []
     fbx.traverse((o) => {
-      const mesh = o as THREE.Mesh
-      if (!mesh.isMesh) return
-      mesh.material = material
-      mesh.frustumCulled = false
+      if (o.userData.ericHull) return
+      const skin = o as THREE.SkinnedMesh
+      if (skin.isSkinnedMesh && skin.skeleton) skins.push(skin)
     })
+
+    // crisp neon silhouette: back-face hull inflated along the bind normals,
+    // skinned by the same skeleton so the outline follows every posed joint
+    const hullMat = new THREE.MeshBasicMaterial({
+      color: '#ffcf6e',
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      toneMapped: false,
+    })
+    hullMat.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        'vec3 transformed = vec3( position ) + normal * 1.6;',
+      )
+    }
 
     // The FBX is UE4-authored, so its character axes are NOT three's +X left /
     // +Z forward. Derive the true anatomical axes from bone landmarks so that
@@ -425,15 +465,17 @@ function EricVisual() {
     front.normalize()
     const flex = new THREE.Vector3().crossVectors(up, front).normalize()
 
-    // elbow hinge: perpendicular to the A-pose arm and the forward axis,
-    // then carried along by the arm's abduction
+    // Elbow hinge: perpendicular to the A-pose arm and the forward axis. A
+    // child bone's world rotation axis is carried by the parent's POSED
+    // rotation, so the shoulder's swing + abduction already tilt this hinge
+    // correctly — pre-rotating it here would apply the abduction twice and
+    // flare the forearms out sideways instead of folding them sagittally.
     const hinge = (side: 'l' | 'r') => {
       const a = new THREE.Vector3()
       const b = new THREE.Vector3()
       fbx.getObjectByName(`upperarm_${side}`)!.getWorldPosition(a)
       fbx.getObjectByName(`lowerarm_${side}`)!.getWorldPosition(b)
-      const h = new THREE.Vector3().crossVectors(b.sub(a).normalize(), front).normalize()
-      return h.applyAxisAngle(front, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
+      return new THREE.Vector3().crossVectors(b.sub(a).normalize(), front).normalize()
     }
 
     // wrist & finger curl axes derived from the bind-pose hand landmarks: the
@@ -465,6 +507,11 @@ function EricVisual() {
     return {
       flex,
       front,
+      rimUniform,
+      hullMat,
+      bodyMat: material,
+      skins,
+      hulls: [] as THREE.SkinnedMesh[],
       thighL: makePoser(fbx, 'thigh_l'),
       calfL: makePoser(fbx, 'calf_l'),
       footL: makePoser(fbx, 'foot_l'),
@@ -487,6 +534,32 @@ function EricVisual() {
       hingeR: hinge('r'),
     }
   }, [fbx, dif, norm])
+
+  // all FBX mutation lives here, not in the memo: StrictMode double-invokes
+  // memos but pairs effect setups with cleanups, so the hulls and materials in
+  // the scene always belong to the rig the frame loop actually writes to
+  useLayoutEffect(() => {
+    fbx.traverse((o) => {
+      if (o.userData.ericHull) return
+      const mesh = o as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.material = rig.bodyMat
+      mesh.frustumCulled = false
+    })
+    rig.hulls = rig.skins.map((skin) => {
+      const hull = new THREE.SkinnedMesh(skin.geometry, rig.hullMat)
+      hull.bind(skin.skeleton, skin.bindMatrix)
+      hull.frustumCulled = false
+      hull.visible = false
+      hull.userData.ericHull = true
+      skin.add(hull)
+      return hull
+    })
+    return () => {
+      for (const h of rig.hulls) h.parent?.remove(h)
+      rig.hulls = []
+    }
+  }, [rig, fbx])
 
   useFrame((state, delta) => {
     const g = root.current
@@ -526,7 +599,7 @@ function EricVisual() {
     const armSwingL = (jL.hip - hipMean) * armGain + idle
     const armSwingR = (jR.hip - hipMean) * armGain + idle
     const elbowBase = lerp(0.35, 1.57, speedNorm * speedNorm)
-    const elbowOsc = lerp(0.12, 1.0, speedNorm) * walkBlend
+    const elbowOsc = lerp(0.12, 0.75, speedNorm) * walkBlend
     const elbowFlexL = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uL)) * elbowOsc
     const elbowFlexR = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uR)) * elbowOsc
     // relaxed cupped hand (never splayed, never a tight fist): fingers curl,
@@ -541,6 +614,10 @@ function EricVisual() {
     const wristL = -0.15 * speedNorm * walkBlend * (armSwingL / 0.61)
     const wristR = -0.15 * speedNorm * walkBlend * (armSwingR / 0.61)
     const lean = (speedNorm * speedNorm * 0.22 + speedNorm * 0.04) * walkBlend
+    // masculine run carriage: the elbows hug the ribcage as speed rises (the
+    // residual A-pose abduction shrinks), so the hands drive straight
+    // hip-pocket → chin in the sagittal plane instead of flaring out wide
+    const abduct = ARM_ABDUCT + speedNorm * 0.07
 
     // --- countermovement jump pose blended over the stride: braking dip with
     // arms swept back, extension + tuck with arms overhead on the rise, reach
@@ -629,8 +706,8 @@ function EricVisual() {
     poseBone(rig.footL, rig.flex, footFL, rig.flex, 0)
     poseBone(rig.footR, rig.flex, footFR, rig.flex, 0)
 
-    poseBone(rig.armL, rig.flex, armFL, rig.front, -ARM_ABDUCT)
-    poseBone(rig.armR, rig.flex, armFR, rig.front, ARM_ABDUCT)
+    poseBone(rig.armL, rig.flex, armFL, rig.front, -abduct)
+    poseBone(rig.armR, rig.flex, armFR, rig.front, abduct)
     poseBone(rig.elbowL, rig.hingeL, elbowFL, rig.flex, 0)
     poseBone(rig.elbowR, rig.hingeR, elbowFR, rig.flex, 0)
     poseBone(rig.handL, rig.foreL, PRON, rig.flex, wristL)
@@ -701,6 +778,11 @@ function EricVisual() {
       shadow.current.scale.setScalar((1 + lift * 0.35 + landPulse) * Math.max(ts, 0.0001))
       ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade * clamp(ts, 0, 1)
     }
+
+    const n = atmoMix.night
+    rig.rimUniform.value = n
+    rig.hullMat.opacity = 0.95 * n
+    for (const h of rig.hulls) h.visible = n > 0.02
   })
 
   return (

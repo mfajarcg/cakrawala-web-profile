@@ -1272,3 +1272,62 @@ halaman, semua footer di tempat, halaman 16 "· selesai". ±4,55 MB.
 
 **Dokumentasi:** README §8 sub-bagian "Panduan pengguna (PDF)". Scratch capture/fix/
 pdf dihapus; tidak ada aset/library baru sehingga tribute tidak berubah.
+
+## 31. Neon tepi jalur + outline Eric, lari maskulin, header mobile
+
+**Garis neon tepi jalur (malam saja).** `NeonPathEdges` di `World.tsx`: dua pita
+ribbon mengikuti `getPath()` dengan offset lateral ±1,22 m (lebar 0,44 m, y 0,05,
+N=200); UV-x meter terakumulasi per sisi, UV-y 0/1. Shader additive: core
+`smoothstep(0.16,0.03,d)`, glow `pow(1−d,2)`, comet `fract(uv.x/26 − t·0.11)`
+(energy 0,6+1,2·comet), fog `1−smoothstep(45,130,vDepth)`; warna `#18b7ff`,
+core `#c9f6ff`, semua dikali `uNight`. Dua jebakan terbukti lewat bisect:
+(1) wiring JSX `<shaderMaterial uniforms={obj}>` meninggalkan uniforms tak
+terhubung → render hitam tanpa error; solusinya material imperatif di `useMemo`
++ prop `material=`; (2) `#include <tonemapping_fragment>`/`<colorspace_fragment>`
+harus di dalam `main()` dan di awal baris (regex resolveIncludes three).
+`FutureCity StreetGlow` yang sebelumnya opacity tetap 0,45 kini dikali
+`atmoMix.night` agar tidak bocor ke mode siang.
+
+**Outline neon Eric (malam saja).** Hull back-face per SkinnedMesh (geometry sama,
+`bind(skeleton, bindMatrix)`, child dari skin induk), `hullMat` `#ffcf6e` BackSide
+transparent depthWrite:false toneMapped:false dengan `begin_vertex` →
+`position + normal*1.6` (cm). Fresnel rim pada material badan: `uNightRim` ×
+`#ffd075` × `pow(1−|dot(view,normal)|,2.6)` × 0,85 ke `totalEmissiveRadiance`.
+Frame: `hullMat.opacity = 0,95·night`, `rimUniform = night`, hull visible bila
+`night > 0,02`.
+
+**Root cause outline mati (pelajaran StrictMode).** Probe UUID menunjukkan rig
+yang hidup menulis ke material run-1 sementara mesh scene memakai material
+run-2: `useMemo` dipanggil ganda oleh StrictMode dan run kedua mem-traverse FBX
+yang sudah ditempeli hull run-1 → hull dianggap "skin", materialnya ditimpa
+material badan, hull baru bersarang di hull lama. Rig yang dipertahankan React
+adalah run-1, sehingga opacity/rim ditulis ke material yatim. Fix: memo menjadi
+read-only (scan skins melewati tag `userData.ericHull`); semua mutasi FBX
+(assign material, pembuatan hull) pindah ke `useLayoutEffect([rig, fbx])` dengan
+cleanup yang melepas hull — setup/cleanup/setup StrictMode selalu konsisten
+dengan rig yang dipertahankan. Verifikasi: probe opacity 0,95/visible true +
+screenshot siluet emas tebal di close-up samping/depan dan chase-cam lari.
+
+**Lari maskulin.** Diagnosis screenshot: lengan bawah melebar ke samping (cue
+feminin). Root cause matematis: `hinge()` mem-prerotasi sumbu siku dengan
+`applyAxisAngle(front, ±ARM_ABDUCT)`, padahal sumbu dunia sendi anak = rotasi
+pose parent × sumbu lokal → abduksi terhitung ganda (±1,2 rad ≈ 69°) memiringkan
+hinge keluar bidang sagittal. Fix: hinge = `cross(armDir, front)` murni;
+tambahan carriage maskulin: abduksi bahu `ARM_ABDUCT + 0,07·speedNorm` (siku
+rapat ke rusuk), osilasi siku `lerp(0,12; 0,75, sn)` (±21° sekitar 90°), lean
+trunk ~15° tetap. Referensi baru: Rubio 2023 PMC10579583 (fleksi trunk pria
+16,9–24,6% > wanita) dan Scharl 2024 Bioengineering 11(12):1261 (ROM
+pinggul/pelvis wanita lebih besar) → dua entri tribute ID+EN + baris rumus
+tribute diperbarui; README §6.3 tabel + paragraf carriage.
+
+**Header mobile overload.** Nav: subtitle `hidden sm:block`, label pill
+Jelajah/Malam/Bahasa `hidden sm:inline` (ikon + title tetap), gap cluster
+`gap-1.5 sm:gap-2`, padding pill `px-2.5 sm:px-3`, gap kontainer `gap-2 sm:gap-4`.
+Terukur 390: cluster kanan 221→368 (menu 338→368), 360: 192→339; scrollWidth ==
+viewport di keduanya; menu terbuka memuat Jelajah + Mode siang + 11 link.
+
+**QA:** gait/jump/play/meaning/mobile-play/touch/layout/verify2 + neon capture
+semuanya tanpa console error; pose lari beku samping/depan + walk + live run
+malam diverifikasi visual; header 390/360 diverifikasi visual. Scratch
+`verify-fix-scratch.mjs`, `probe-hull-scratch.mjs`, `neon-qa-scratch.mjs` dihapus
+setelah verifikasi final.

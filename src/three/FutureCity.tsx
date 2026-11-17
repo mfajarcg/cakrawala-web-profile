@@ -390,12 +390,25 @@ function HorizonGlow() {
 
 /** neon kerb lines tracing the walkway through the dark asphalt */
 function StreetGlow() {
+  const mat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: '#35c4ff',
+        transparent: true,
+        opacity: 0,
+        toneMapped: false,
+        fog: false,
+      }),
+    [],
+  )
+  useFrame(() => {
+    mat.opacity = 0.45 * atmoMix.night
+  })
   return (
     <group>
       {[-5.6, 5.6].map((z) => (
-        <mesh key={z} position={[65, 0.03, z]}>
+        <mesh key={z} position={[65, 0.03, z]} material={mat}>
           <boxGeometry args={[150, 0.02, 0.12]} />
-          <meshBasicMaterial color="#35c4ff" transparent opacity={0.45} toneMapped={false} fog={false} />
         </mesh>
       ))}
     </group>
