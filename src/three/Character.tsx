@@ -40,7 +40,11 @@ const JOURNEY_ACCEL = 2.0 // world m/s^2
 const TURN_RATE = 9 // rad/s damp when re-facing
 
 // the rig ships in a 45° A-pose; bring the arms down near the body
-const ARM_ABDUCT = 0.52 // rad
+const ARM_ABDUCT = 0.6 // rad
+// palm pronation toward the thigh and finger-curl sense, checked against the
+// bind pose landmarks (palm normal = finger × thumb plane)
+const PRON = 0.47
+const CURL_SIGN = 1
 
 // leg measurements in world units (FBX is in cm), used to keep the stance
 // foot on the ground instead of letting the body float mid-stride
@@ -432,6 +436,32 @@ function EricVisual() {
       return h.applyAxisAngle(front, side === 'l' ? -ARM_ABDUCT : ARM_ABDUCT)
     }
 
+    // wrist & finger curl axes derived from the bind-pose hand landmarks: the
+    // palm normal is the finger/thumb plane, so a curl always folds toward the
+    // palm whatever orientation the rig ships in
+    const forearmAxis = (side: 'l' | 'r') =>
+      worldPos(`hand_${side}`).sub(worldPos(`lowerarm_${side}`)).normalize()
+    const fingerSet = (side: 'l' | 'r') => {
+      const hand = worldPos(`hand_${side}`)
+      const fDir = worldPos(`middle_03_${side}`).sub(hand).normalize()
+      const tDir = worldPos(`thumb_01_${side}`).sub(hand).normalize()
+      const palm = new THREE.Vector3().crossVectors(fDir, tDir).normalize()
+      const set: { p: Poser | null; axis: THREE.Vector3; row: number; thumb: boolean }[] = []
+      for (const name of ['index', 'middle', 'ring', 'pinky', 'thumb']) {
+        for (let j = 1; j <= 3; j++) {
+          const next = j === 3 ? `${name}_end_${side}` : `${name}_0${j + 1}_${side}`
+          const dir = worldPos(next).sub(worldPos(`${name}_0${j}_${side}`)).normalize()
+          set.push({
+            p: makePoser(fbx, `${name}_0${j}_${side}`),
+            axis: new THREE.Vector3().crossVectors(dir, palm).normalize(),
+            row: j,
+            thumb: name === 'thumb',
+          })
+        }
+      }
+      return set
+    }
+
     return {
       flex,
       front,
@@ -445,6 +475,12 @@ function EricVisual() {
       elbowL: makePoser(fbx, 'lowerarm_l'),
       armR: makePoser(fbx, 'upperarm_r'),
       elbowR: makePoser(fbx, 'lowerarm_r'),
+      handL: makePoser(fbx, 'hand_l'),
+      handR: makePoser(fbx, 'hand_r'),
+      foreL: forearmAxis('l'),
+      foreR: forearmAxis('r'),
+      fingersL: fingerSet('l'),
+      fingersR: fingerSet('r'),
       spine: makePoser(fbx, 'spine_01'),
       neck: makePoser(fbx, 'neck_01'),
       hingeL: hinge('l'),
@@ -478,17 +514,32 @@ function EricVisual() {
     const ankleL = jL.ankle * walkBlend
     const ankleR = jR.ankle * walkBlend
 
-    // arms counter-swing the legs; running holds the elbow near 90°
-    const armScale = lerp(0.35, 0.65, speedNorm) * walkBlend
+    // arms counter-swing the legs about a CENTRED shoulder range (the raw hip
+    // curve is asymmetric): walking ±15°, running ±35° so the hand travels
+    // hip-pocket → chin instead of hovering in front of the chest. The elbow
+    // is not a locked 90°: it closes front-side and opens back-side as the
+    // shoulder extends (Freelap "A Call to Arms"; Pfaff), using the reference
+    // loop's elbow shape with the phase flipped to match that open/close rule.
+    const hipMean = lerp(0.17, 0.21, speedNorm)
+    const armGain = lerp(0.75, 1.08, speedNorm) * walkBlend
     const idle = Math.sin(t * 1.7) * 0.02 * (1 - moving)
-    const armSwingL = jL.hip * armScale + idle
-    const armSwingR = jR.hip * armScale + idle
-    const elbowBase = lerp(0.22, 1.57, speedNorm * speedNorm)
-    // reference elbow carry oscillates ~±11° around the 90° run hold, each arm
-    // phased to its own leg (the elbow flexes as the arm sweeps back)
-    const elbowOsc = 0.4 * speedNorm * walkBlend
-    const elbowFlexL = elbowBase + (sampleLoop(ELBOW_SHAPE, uL) - 0.5) * elbowOsc
-    const elbowFlexR = elbowBase + (sampleLoop(ELBOW_SHAPE, uR) - 0.5) * elbowOsc
+    const armSwingL = (jL.hip - hipMean) * armGain + idle
+    const armSwingR = (jR.hip - hipMean) * armGain + idle
+    const elbowBase = lerp(0.35, 1.57, speedNorm * speedNorm)
+    const elbowOsc = lerp(0.12, 1.0, speedNorm) * walkBlend
+    const elbowFlexL = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uL)) * elbowOsc
+    const elbowFlexR = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uR)) * elbowOsc
+    // relaxed cupped hand (never splayed, never a tight fist): fingers curl,
+    // palm pronates toward the thigh, wrist near neutral with a small
+    // extension flick as the arm sweeps back
+    const CURL = [
+      0,
+      lerp(0.35, 0.75, speedNorm),
+      lerp(0.45, 0.85, speedNorm),
+      lerp(0.3, 0.55, speedNorm),
+    ]
+    const wristL = -0.15 * speedNorm * walkBlend * (armSwingL / 0.61)
+    const wristR = -0.15 * speedNorm * walkBlend * (armSwingR / 0.61)
     const lean = (speedNorm * speedNorm * 0.22 + speedNorm * 0.04) * walkBlend
 
     // --- countermovement jump pose blended over the stride: braking dip with
@@ -582,6 +633,12 @@ function EricVisual() {
     poseBone(rig.armR, rig.flex, armFR, rig.front, ARM_ABDUCT)
     poseBone(rig.elbowL, rig.hingeL, elbowFL, rig.flex, 0)
     poseBone(rig.elbowR, rig.hingeR, elbowFR, rig.flex, 0)
+    poseBone(rig.handL, rig.foreL, PRON, rig.flex, wristL)
+    poseBone(rig.handR, rig.foreR, -PRON, rig.flex, wristR)
+    for (const f of rig.fingersL)
+      poseBone(f.p, f.axis, CURL[f.row] * (f.thumb ? 0.6 : 1) * CURL_SIGN, rig.flex, 0)
+    for (const f of rig.fingersR)
+      poseBone(f.p, f.axis, CURL[f.row] * (f.thumb ? 0.6 : 1) * -CURL_SIGN, rig.flex, 0)
 
     poseBone(rig.spine, rig.flex, leanF, rig.flex, 0)
     poseBone(rig.neck, rig.flex, neckF, rig.flex, 0)
@@ -620,6 +677,9 @@ function EricVisual() {
 
     g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)
     g.rotation.y = characterYaw.current
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__ericDebug = { g }
+    }
 
     // teleport: dematerialise shrink + rise + spin, hidden during the whoosh,
     // easeOutBack rematerialise at the destination beam

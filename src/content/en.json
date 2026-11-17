@@ -341,9 +341,11 @@
           { "text": "Van Hooren B, et al. The Relationship Between Running Biomechanics and Running Economy. Sports Med 54(5), 2024 — short contact & efficient knee swing mark economical running", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11127892/" },
           { "text": "Physio-pedia: Running Biomechanics — the double float phase (both feet airborne) separates running from walking", "href": "https://www.physio-pedia.com/Running_Biomechanics" },
           { "text": "The Movement System: Biomechanics of Running — elbows ~90° driven backwards, cadence 155–160 steps/min", "href": "https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form" },
+          { "text": "Freelap USA: A Call to Arms — Sprint Mechanics Revisited. The elbow is not locked at 90°: it closes front-side and opens as the shoulder extends; hands travel hip-pocket → chin; shoulders and hands stay relaxed", "href": "https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited" },
+          { "text": "De Vlieger D, et al. Speed-dependent changes in the arm swing during walking. PMC, 2025 — healthy-side shoulder sagittal ROM ~25–30°, growing with speed; mean elbow flexion ~41°", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/" },
           { "text": "cadence = v / stride; stride = 1.5 + (3.0 − 1.5)·speedNorm (metres per cycle)", "mono": true },
           { "text": "knee flexion = lerp(1.05; 2.09 rad) ≈ 60° walk → 120° run; run curve SHAPE from the 20-key reference loop (periodic Catmull-Rom), amplitudes stay Eric's", "mono": true },
-          { "text": "run elbows ~90°; arms counter-swing the legs; flight hop = sin(π·prog)·lerp(0.015; 0.07)", "mono": true }
+          { "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow closes front-side ~120° / opens back-side ~60°; palm pronates toward the thigh, fingers relaxed-curl", "mono": true }
         ]
       },
       {

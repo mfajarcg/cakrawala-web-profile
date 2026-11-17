@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED } from '../three/shared'
+import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport } from '../three/shared'
 import { input, lockState, resetInput, setTapAim } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
@@ -76,7 +76,7 @@ export function GameScene() {
   useEffect(() => {
     if (!import.meta.env.DEV) return
     const w = window as unknown as Record<string, unknown>
-    w.__gameDebug = { player, camera, raycaster, gait, characterPos }
+    w.__gameDebug = { player, camera, raycaster, gait, characterPos, characterYaw }
     return () => {
       delete w.__gameDebug
     }
@@ -205,6 +205,10 @@ export function GameScene() {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
+    // the teleport sequence is journey grammar: only CharacterDriver advances
+    // it, and the driver is site-only. Entering Play mid-sequence would freeze
+    // Eric mid-vanish (shrunken + spun), so hand over to the game clean.
+    if (teleport.t >= 0) teleport.t = -1
 
     if (useGame.getState().paused) {
       player.vx = 0

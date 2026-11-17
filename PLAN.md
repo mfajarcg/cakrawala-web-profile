@@ -999,3 +999,48 @@ panel mendarat seketika (y 0→8398) dan sinar terlihat di dalam PiP
 layout-qa LAYOUT_OK, touch-qa TOUCH_OK, meaning-qa MEANING_QA_OK, mobile-play-qa
 MOBILE_PLAY_OK, verify2 (burst + teleport baru) errors [], play-qa, jump-qa,
 gait-qa errors []. `tsc -b` + `npm run build` bersih. Scratch probe dihapus.
+
+## 25. Gerakan tangan Eric: ayun bahu terpusat, siku open/close, tangan rileks
+
+Permintaan: perbaiki gerakan tangan Eric + cari referensi internet + update tribute.
+
+Diagnosis dari pose beku (sebelum fix): kedua tangan mengambang di depan dada saat
+lari ("membawa nampan") karena ayun bahu terlalu kecil dan asimetris (mengikuti kurva
+hip mentah); jari melebar penuh (bind pose, tidak pernah dipose); tidak ada pose
+pergelangan; osilasi siku ±11° berfase "fleksi saat lengan ke belakang" — kebalikan
+dari referensi.
+
+Referensi (ditambahkan ke tribute ID/EN + README §9.1):
+- Freelap USA, *A Call to Arms — Sprint Mechanics Revisited*: siku tidak terkunci 90°;
+  menutup di front-side, membuka saat shoulder extend; tangan hip-pocket → chin;
+  bahu & tangan rileks (kuat juga dari coaching cue "hip pocket to eye socket").
+- De Vlieger dkk. 2025 (PMC11698429): ROM sagittal bahu sisi sehat ~25–30° naik
+  dengan kecepatan; fleksi siku rata-rata ~41° → kalibrasi jalan ±15° & siku 0,35 rad.
+
+Implementasi (Character.tsx):
+1. `armSwing = (hip − hipMean)·lerp(0,75; 1,08)·move01`, hipMean = lerp(0,17; 0,21):
+   rentang bahu terpusat ±0,26 rad jalan / ±0,61 rad lari → tangan hip-pocket → chin.
+2. `elbowFlex = lerp(0,35; 1,57; sn²) + (0,5 − sampleLoop(ELBOW_SHAPE, u))·lerp(0,12; 1,0; sn)`:
+   fase kurva referensi DIBALIK → siku menutup ~120° front-side, membuka ~60° back-side.
+3. Pose baru: `hand_l/r` (pronasi PRON 0,47 rad tentang sumbu forearm → telapak ke
+   paha; wrist sagittal ±0,15 rad berfase ayun) + 15 sendi jari per sisi
+   (index/middle/ring/pinky/thumb × 3): sumbu curl = cross(dir sendi, normal telapak),
+   normal telapak = cross(finger, thumb) dari landmark bind-pose; curl rileks
+   0,35–0,85 rad (thumb ×0,6), sisi kanan tanda curl dibalik (cross product mirror).
+4. `ARM_ABDUCT` 0,52 → 0,60 rad: lengan menggantung lebih rapat ke badan.
+
+Bug produk ditemukan QA: entering Play di tengah urutan teleport membuat Eric
+membeku mid-vanish (scale ~0,92 + spin hingga ~108°) selamanya — `teleport.t` hanya
+dimajukan CharacterDriver yang early-return di mode game. Fix: GameScene membatalkan
+(`teleport.t = -1`) tiap frame mode game. Probe QA baru `window.__ericDebug = { g }`
+(group root Eric) + `characterYaw` di `__gameDebug`; kamera QA close-up tangan
+dibingkai dari transform world nyata, bukan tebakan sumbu.
+
+QA: close-up sisi/depan jalan & lari (hand-walk/run-*) — telapak ke paha, jari cup
+rileks, tangan belakang di hip pocket dengan siku terbuka, tangan depan di chin
+dengan siku tertutup; gait-qa 10 pose lari + 3 jalan + live-run errors [];
+verify2 (burst ok, teleport immediate) errors []; play-qa, jump-qa, meaning-qa
+(MEANING_QA_OK), mobile-play-qa (MOBILE_PLAY_OK), touch-qa (TOUCH_OK), layout-qa
+(LAYOUT_OK) semua hijau. Tribute: +2 sumber (Freelap, De Vlieger) ID+EN, baris mono
+rumus lengan diperbarui; README §6.3 tabel + §9.1 + peta tribute diperbarui.
+`tsc -b` + build bersih; scratch (hand/yaw/yawtrace) dihapus.

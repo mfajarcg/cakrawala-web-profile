@@ -330,8 +330,11 @@ Sinar memakai `NormalBlending` — additive washed-out di langit terang `#e9eff3
 `#f2a13c` opacity `0,42·env`, core `#fff7e6` `0,75·env`. Selama urutan seluruh state gait
 dinolkan (`move01`, `lift`, `jumpState`, `vy`, …) sehingga rig tidak berstride di udara.
 Audio `audio.teleport()`: whoosh noise + tone turun 720→200 Hz, lalu chime naik 240→720 Hz
-pada 0,48 s (materialise); tetap hormat pada mute. Probe QA permanen:
-`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController.
+pada 0,48 s (materialise); tetap hormat pada mute. Masuk Play di tengah urutan membatalkan
+teleport di GameScene — driver yang memajukan `teleport.t` hanya hidup di mode situs, tanpa
+pembatalan Eric akan membeku mid-vanish (menyusut + spin). Probe QA permanen:
+`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController dan
+`window.__ericDebug = { g }` (group root Eric untuk kamera QA).
 
 ### 6.3 Model gait (berjalan & berlari)
 
@@ -364,8 +367,9 @@ phase  += cadence × 2π × dt
 | Puncak knee saat swing | 1,05 → 2,09 rad, puncak di awal swing | ±60° jalan, ±120° lari |
 | Knee stance (loading → push) | 0,09 → 0,26 rad (jalan), 0,26 → 0,78 rad (lari) | loading response lalu ekstensi push-off |
 | Sudut kaki dunia (ankle) | −0,12 → +0,32 rad (jalan), −0,06 → +0,50 rad (lari); toes-down positif | telapak rata saat midstance, plantar fleksi saat push-off |
-| Ayun lengan | berlawanan fase kaki × lerp(0,35; 0,65) | makin cepat = makin lebar |
-| Fleksi siku | 0,22 → 1,57 rad (kuadratik) | siku ±90° saat lari |
+| Ayun lengan | berlawanan fase kaki, rentang bahu terpusat: ±0,26 rad jalan → ±0,61 rad lari | tangan hip-pocket → chin, bukan mengambang di depan dada |
+| Fleksi siku | 0,35 rad jalan → 1,57 ± 0,5 rad lari (menutup ~120° front-side / membuka ~60° back-side) | siku tidak terkunci 90° (Freelap; Pfaff) |
+| Pergelangan & jari | telapak pronasi 0,47 rad ke paha; curl jari 0,35–0,85 rad per sendi (rileks) | tangan tidak melebar dan tidak mengepal keras |
 | Lean badan | 0,04·sn + 0,22·sn² | condong depan saat lari |
 | Busur flight | lerp(reachTO → reachIC, prog) + sin(π·prog)·lerp(0; 0,06)·move01 | tinggi badan kontinu melewati toe-off/contact; double float saat lari |
 
@@ -478,10 +482,15 @@ di-interpolasi jalan→lari:
 | Lutut stance (loading → push) | 0,09 → 0,26 rad | 0,26 → 0,78 rad | Perry 2010 |
 | Lutut swing (puncak awal swing) | 1,05 rad (≈60°) | 2,09 rad (≈120°); bentuk kurva lari dari loop referensi 20-key | Novacheck 1998; Van Hooren 2024; Almaral (Sketchfab) |
 | Ankle (sudut kaki dunia, toes-down +) | −0,12 → +0,32 rad; stance rata sampai akhir lalu plantar | −0,06 → +0,50 rad; push-off plantar tegas | Perry 2010; Novacheck 1998 |
-| Siku | 0,22 rad | 1,57 rad (≈90°) | The Movement System 2025 |
+| Siku | 0,35 rad | 1,57 ± 0,5 rad (menutup front-side / membuka back-side) | Freelap; De Vlieger 2025 |
 | Lean badan | 0,04·sn | 0,22·sn² + 0,04·sn | Novacheck 1998 |
 
-Ayun lengan **berlawanan fase kaki** (`armSwing = hip·lerp(0,35; 0,65)`), dan fase flight
+Ayun lengan **berlawanan fase kaki** dengan rentang bahu terpusat
+(`armSwing = (hip − hipMean)·lerp(0,75; 1,08)`): ±15° jalan, ±35° lari, sehingga tangan
+mengayun hip-pocket → chin; siku menutup di front-side (~120°) dan membuka di back-side
+(~60°) — bukan terkunci 90° — memakai kurva siku referensi dengan fase dibalik. Telapak
+pronasi ke paha dan jari curl rileks (3 sendi per jari + thumb, sumbu curl diturunkan dari
+landmark telapak bind-pose). Fase flight
 (selang dua kaki melayang, ciri lari vs jalan menurut Physio-pedia) diberi busur vertikal
 `sin(π·flightProg)·lerp(0; 0,06)` di atas interpolasi reach toe-off→contact, supaya lari tidak
 terlihat seperti jalan cepat tanpa membuat badan melompat di batas stance.
@@ -577,6 +586,8 @@ stride) — untuk menghasilkan gerak yang plausibel dan bebas foot-sliding.
 | Van Hooren B, dkk. *The Relationship Between Running Biomechanics and Running Economy: A Systematic Review and Meta-Analysis of Observational Studies.* Sports Med 54(5), 2024. | Kontak singkat & fleksi lutut swing yang efisien menandai lari ekonomis → puncak lutut di awal swing, bukan tengah. |
 | [Physio-pedia: Running Biomechanics](https://www.physio-pedia.com/Running_Biomechanics) | Fase *double float* (kedua kaki melayang) membedakan lari dari jalan → busur vertikal saat flight. |
 | [The Movement System: Biomechanics of Running](https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form) | Siku ±90° digerakkan ke belakang; kadens nyaman 155–160 langkah/menit → elbowFlex lari 1,57 rad & ayun lengan berlawanan kaki. |
+| [Freelap USA: A Call to Arms — Sprint Mechanics Revisited](https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited) | Siku menutup di front-side dan membuka saat shoulder extend; tangan hip-pocket → chin; bahu & tangan rileks → ayun bahu terpusat + open/close siku + curl jari rileks. |
+| De Vlieger D, dkk. *Speed-dependent changes in the arm swing during walking.* PMC, 2025. | ROM sagittal bahu sisi sehat ~25–30° naik dengan kecepatan; fleksi siku rata-rata ~41° → ayun lengan jalan ±15° & siku 0,35 rad. |
 | Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. *Understanding the key phases of the countermovement jump force-time curve.* Strength Cond J 40(4):96–106, 2018. | Enam fase CMJ → mesin `jumpState` (dip, propulsion, flight, landing). |
 | Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. *Why is countermovement jump height greater than squat jump height?* Med Sci Sports Exerc 28(11):1402–1412, 1996. | Alasan memakai countermovement (dip) sebelum take-off, bukan squat jump langsung. |
 | Komi PV, Bosco C. *Utilization of stored elastic energy in leg extensor muscles by men and women.* Med Sci Sports Exerc 10(4):261–265, 1978. | Energi elastis fase braking → dip singkat 0,22 s lalu explode. |
@@ -744,7 +755,7 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 | [cartenz.co.id](https://cartenz.co.id) | Posisi Cakrawala, alamat, kanal kontak. |
 | Perry & Burnfield 2010; Novacheck 1998 | Rumus/fase gerak **lari** (stance/swing, fleksi lutut, lean). |
 | Weyand et al. 2000; Cavanagh & Kram 1989 | Cadence & panjang stride gerak **lari**. |
-| Van Hooren et al. 2024; Physio-pedia; The Movement System | Bentuk kurva lutut swing, fase double float, siku 90° & kadens lari. |
+| Van Hooren et al. 2024; Physio-pedia; The Movement System; Freelap; De Vlieger 2025 | Bentuk kurva lutut swing, fase double float, ayun lengan & open/close siku, postur tangan rileks. |
 | [Denys Almaral — Male Running (20 frames loop)](https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd) | **Bentuk** kurva fleksi lutut & siku lari (runLoop.ts), disampel via Viewer API. |
 | Owen et al. 2018; Bobbert et al. 1996; Komi & Bosco 1978 | Fase & alasan countermovement gerak **lompat**. |
 | Harman et al. 1990; Lees et al. 2004 | Kontribusi arm swing gerak **lompat**. |
