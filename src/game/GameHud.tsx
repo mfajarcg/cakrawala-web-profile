@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   ChevronUp,
+  Hand,
   Keyboard,
   LogOut,
   Play,
@@ -22,9 +23,11 @@ import {
   type RefObject,
 } from 'react'
 import { useI18n } from '../lib/i18n'
+import { STATIONS } from '../journey/stations'
 import { audio } from './audio'
 import { emitAim, input, lockState, resetInput, setTapAim, subscribeAim } from './input'
 import { LAYERS, LAYER_ROMAN, NOTICE_KEYS } from './meaning'
+import { ROBOTS, useRobots } from './robots'
 import { RunPanels, RunTimer, ScoreBoard } from './RunPanels'
 import { BLOCK_COLORS, BLOCK_KINDS, useGame, type BlockKind } from './store'
 
@@ -74,6 +77,7 @@ export function GameHud() {
   const setPaused = useGame((s) => s.setPaused)
   const gate = useGame((s) => s.gate)
   const result = useGame((s) => s.result)
+  const adventure = useGame((s) => s.adventure)
   const locked = usePointerLocked()
   const muted = useSyncExternalStore(audio.subscribe, () => audio.muted)
   const pointAim = useSyncExternalStore(subscribeAim, () => input.pointAim)
@@ -125,9 +129,16 @@ export function GameHud() {
           input.jumpQueued = true
           e.preventDefault()
           break
+        case 'KeyE': {
+          if (st.adventure) {
+            const n = useRobots.getState().near
+            if (n) useRobots.getState().greet(n)
+          }
+          break
+        }
         default: {
           const digit = Number(e.key)
-          if (digit >= 1 && digit <= BLOCK_KINDS.length) {
+          if (!st.adventure && digit >= 1 && digit <= BLOCK_KINDS.length) {
             const kind = BLOCK_KINDS[digit - 1]
             if (kind) select(kind)
           }
@@ -290,6 +301,9 @@ export function GameHud() {
     <div className="pointer-events-none fixed inset-0 z-40 select-none text-white">
       {/* top bar */}
       <div data-topbar className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-4">
+        {adventure ? (
+          <AdventureCard />
+        ) : (
         <div className="rounded-xl border border-white/10 bg-[#101418]/85 px-4 py-2 shadow-lg backdrop-blur">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f2b23c]">
             {t.play.gameTitle}
@@ -328,6 +342,7 @@ export function GameHud() {
           </p>
           <RunTimer />
         </div>
+        )}
 
         <div className="flex items-center gap-2">
           <button
@@ -338,6 +353,7 @@ export function GameHud() {
           >
             {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
+          {!adventure && (
           <button
             {...press(() => setShowScores((v) => !v))}
             aria-label={t.play.run.boardTitle}
@@ -346,6 +362,7 @@ export function GameHud() {
           >
             <Trophy size={14} />
           </button>
+          )}
           {locked && !touch ? (
             <div className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101418]/85 px-3 py-1.5 text-[0.65rem] font-bold text-white/70 shadow-lg backdrop-blur">
               <Key danger>Esc</Key>
@@ -364,12 +381,12 @@ export function GameHud() {
       </div>
 
       {/* crosshair — centre for lock/cursor aim; touch shows a reticle at the tap */}
-      {!paused && !(touch && pointAim) && (
+      {!paused && !adventure && !(touch && pointAim) && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <div className="h-4 w-4 rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(16,20,24,0.35)]" />
         </div>
       )}
-      {!paused && touch && pointAim && (
+      {!paused && !adventure && touch && pointAim && (
         <div
           data-reticle
           className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
@@ -385,13 +402,13 @@ export function GameHud() {
           className="pointer-events-none absolute inset-x-0 top-[57%] flex justify-center px-6"
         >
           <p className="max-w-[20rem] rounded-full border border-white/15 bg-[#101418]/80 px-4 py-1.5 text-center text-[0.65rem] font-semibold text-white/80 backdrop-blur">
-            {t.play.touchHint}
+            {adventure ? t.play.roam.touchHint : t.play.touchHint}
           </p>
         </div>
       )}
 
       {/* hotbar — desktop: bottom centre */}
-      {!touch && (
+      {!touch && !adventure && (
         <div data-hotbar="desktop" className="absolute inset-x-0 bottom-5 flex flex-col items-center gap-1.5 px-4">
           <p className="rounded-full bg-[#101418]/70 px-3 py-1 text-[0.65rem] font-bold text-white/85 backdrop-blur">
             {LAYER_ROMAN[BLOCK_KINDS.indexOf(selected)]} · {t.play.meaning.layers[selected]} —{' '}
@@ -413,7 +430,7 @@ export function GameHud() {
       )}
 
       {/* hotbar — touch: left vertical strip, clear of the joystick and actions */}
-      {touch && (
+      {touch && !adventure && (
         <div data-hotbar="touch" className="pointer-events-auto absolute bottom-44 left-2 flex flex-col items-start gap-1.5">
           <p className="max-w-[11rem] truncate rounded-full bg-[#101418]/70 px-3 py-1 text-[0.65rem] font-bold text-white/85 backdrop-blur">
             {LAYER_ROMAN[BLOCK_KINDS.indexOf(selected)]} · {t.play.meaning.layers[selected]} —{' '}
@@ -438,14 +455,16 @@ export function GameHud() {
       <CelebratePanel />
       <RunPanels />
       <ScoreBoard open={showScores} onClose={() => setShowScores(false)} />
+      {adventure && !paused && gate === 'none' && !result && <GreetPrompt />}
 
-      {!touch && <ControlDeck open={deckOpen} onToggle={toggleDeck} />}
-      {touch && <TouchControls />}
+      {!touch && <ControlDeck open={deckOpen} onToggle={toggleDeck} adventure={adventure} />}
+      {touch && <TouchControls adventure={adventure} />}
 
       {paused && (
         <PausePanel
           t={t}
           count={count}
+          adventure={adventure}
           confirmClear={confirmClear}
           resumeRef={resumeRef}
           onResume={resume}
@@ -458,6 +477,67 @@ export function GameHud() {
           onExit={exit}
         />
       )}
+    </div>
+  )
+}
+
+function AdventureCard() {
+  const { t } = useI18n()
+  const jumpStation = useGame((s) => s.jumpStation)
+  const greeted = useRobots((s) => s.greeted)
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#101418]/85 px-4 py-2 shadow-lg backdrop-blur">
+      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#35c4ff]">
+        {t.play.roam.title}
+      </p>
+      <p className="mt-0.5 text-[0.65rem] font-semibold text-white/55">
+        {t.play.roam.robots}: {greeted.length}/{ROBOTS.length}
+      </p>
+      <p className="mt-2 text-[0.55rem] font-black uppercase tracking-[0.22em] text-white/45">
+        {t.play.roam.jump}
+      </p>
+      <div className="mt-1 grid max-w-[15rem] grid-cols-6 gap-1">
+        {STATIONS.map((s, i) => (
+          <button
+            key={s.id}
+            {...press(() => jumpStation(i))}
+            title={t.nav.links[i]?.label ?? s.id}
+            aria-label={`${t.play.roam.jump} ${s.index}`}
+            className="pointer-events-auto flex h-6 items-center justify-center rounded-md border border-white/15 bg-white/5 text-[0.6rem] font-black text-white/70 transition hover:border-[#35c4ff]/60 hover:bg-[#35c4ff]/20 hover:text-white"
+          >
+            {s.index}
+          </button>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[0.6rem] font-semibold text-white/45">{t.play.roam.exitNote}</p>
+    </div>
+  )
+}
+
+function GreetPrompt() {
+  const { t } = useI18n()
+  const near = useRobots((s) => s.near)
+  const greet = useRobots((s) => s.greet)
+  const [touch] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  )
+  if (!near) return null
+  const name = ROBOTS.find((r) => r.id === near)?.name ?? near
+  return (
+    <div
+      className={`pointer-events-none absolute inset-x-0 flex justify-center px-4 ${
+        touch ? 'bottom-44' : 'bottom-24'
+      }`}
+    >
+      <button
+        {...press(() => greet(near))}
+        data-greet
+        className="pointer-events-auto flex items-center gap-2 rounded-full border border-[#35c4ff]/60 bg-[#101418]/90 px-5 py-2.5 text-sm font-black text-white shadow-[0_0_1.5rem_rgba(53,196,255,0.35)] backdrop-blur transition hover:bg-[#35c4ff]/25"
+      >
+        <Hand size={15} className="text-[#35c4ff]" />
+        {!touch && <Key>E</Key>}
+        {t.play.roam.greet} {name}
+      </button>
     </div>
   )
 }
@@ -600,7 +680,15 @@ function Key({ children, danger }: { children: ReactNode; danger?: boolean }) {
   return <kbd className={`keycap ${danger ? 'keycap-danger' : ''}`}>{children}</kbd>
 }
 
-function ControlDeck({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function ControlDeck({
+  open,
+  onToggle,
+  adventure,
+}: {
+  open: boolean
+  onToggle: () => void
+  adventure: boolean
+}) {
   const { t } = useI18n()
 
   if (!open) {
@@ -672,15 +760,24 @@ function ControlDeck({ open, onToggle }: { open: boolean; onToggle: () => void }
             <ActionRow label={t.play.deckJump}>
               <Key>Space</Key>
             </ActionRow>
-            <ActionRow label={t.play.deckBreak}>
-              <Key>{t.play.mouseLeft}</Key>
-            </ActionRow>
-            <ActionRow label={t.play.deckPlace}>
-              <Key>{t.play.mouseRight}</Key>
-            </ActionRow>
+            {adventure ? (
+              <ActionRow label={t.play.roam.deckGreet}>
+                <Key>E</Key>
+              </ActionRow>
+            ) : (
+              <>
+                <ActionRow label={t.play.deckBreak}>
+                  <Key>{t.play.mouseLeft}</Key>
+                </ActionRow>
+                <ActionRow label={t.play.deckPlace}>
+                  <Key>{t.play.mouseRight}</Key>
+                </ActionRow>
+              </>
+            )}
           </section>
 
           <section className="col-span-2 grid grid-cols-2 gap-3 border-t border-white/10 pt-3">
+            {!adventure && (
             <div>
               <p className="text-[0.55rem] font-black uppercase tracking-[0.18em] text-white/40">
                 {t.play.deckSystem}
@@ -694,6 +791,7 @@ function ControlDeck({ open, onToggle }: { open: boolean; onToggle: () => void }
                 </span>
               </div>
             </div>
+            )}
             <div>
               <p className="text-[0.55rem] font-black uppercase tracking-[0.18em] text-white/40">
                 {t.play.deckEscTitle}
@@ -728,6 +826,7 @@ function ActionRow({ label, children }: { label: string; children: ReactNode }) 
 interface PausePanelProps {
   t: ReturnType<typeof useI18n>['t']
   count: number
+  adventure: boolean
   confirmClear: boolean
   resumeRef: RefObject<HTMLButtonElement | null>
   onResume: () => void
@@ -740,6 +839,7 @@ interface PausePanelProps {
 function PausePanel({
   t,
   count,
+  adventure,
   confirmClear,
   resumeRef,
   onResume,
@@ -750,6 +850,7 @@ function PausePanel({
 }: PausePanelProps) {
   const card = useRef<HTMLDivElement>(null)
   const unlocked = useGame((s) => s.unlocked)
+  const greeted = useRobots((s) => s.greeted)
 
   const trap = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'Tab') return
@@ -787,8 +888,12 @@ function PausePanel({
         <p className="mt-2 text-sm leading-relaxed text-white/65">{t.play.pauseLead}</p>
 
         <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs">
-          <span className="font-semibold text-white/55">{t.play.saved}</span>
-          <span className="font-black text-white">{count}</span>
+          <span className="font-semibold text-white/55">
+            {adventure ? t.play.roam.robots : t.play.saved}
+          </span>
+          <span className="font-black text-white">
+            {adventure ? `${greeted.length}/${ROBOTS.length}` : count}
+          </span>
         </div>
 
         <div className="mt-4">
@@ -825,7 +930,7 @@ function PausePanel({
             {t.play.resume}
           </button>
 
-          {confirmClear ? (
+          {!adventure && (confirmClear ? (
             <div className="rounded-xl border border-[#a12f22]/50 bg-[#a12f22]/10 p-2">
               <p className="px-1 pb-2 text-center text-xs font-bold text-white">
                 {t.play.clearConfirm.replace('{count}', String(count))}
@@ -854,7 +959,7 @@ function PausePanel({
               <Trash2 size={15} />
               {t.play.clear}
             </button>
-          )}
+          ))}
 
           <button
             onClick={onExit}
@@ -873,26 +978,40 @@ function PausePanel({
   )
 }
 
-function TouchControls() {
+function TouchControls({ adventure }: { adventure: boolean }) {
   const { t } = useI18n()
+  const near = useRobots((s) => s.near)
+  const greet = useRobots((s) => s.greet)
+  const nearName = ROBOTS.find((r) => r.id === near)?.name ?? ''
   return (
     <>
       <LookPad />
       <Joystick />
       <div data-actions className="pointer-events-auto absolute bottom-24 right-4 flex flex-col items-end gap-2">
         <ActionButton label={t.play.jump} onPress={() => (input.jumpQueued = true)} />
-        <ActionButton
-          label={t.play.breakBlock}
-          onPress={() => {
-            input.breakQueued = true
-          }}
-        />
-        <ActionButton
-          label={t.play.placeBlock}
-          onPress={() => {
-            input.placeQueued = true
-          }}
-        />
+        {adventure ? (
+          near && (
+            <ActionButton
+              label={`${t.play.roam.greet} ${nearName}`}
+              onPress={() => greet(near)}
+            />
+          )
+        ) : (
+          <>
+            <ActionButton
+              label={t.play.breakBlock}
+              onPress={() => {
+                input.breakQueued = true
+              }}
+            />
+            <ActionButton
+              label={t.play.placeBlock}
+              onPress={() => {
+                input.placeQueued = true
+              }}
+            />
+          </>
+        )}
         <ActionButton
           label={t.play.runLabel}
           onPress={() => (input.run = !input.run)}

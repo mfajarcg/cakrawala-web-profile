@@ -6,22 +6,56 @@
   },
   "nav": {
     "links": [
-      { "id": "hero", "label": "Beranda" },
-      { "id": "story", "label": "Satu Hari" },
-      { "id": "services", "label": "Layanan" },
-      { "id": "credibility", "label": "Kredibilitas" },
-      { "id": "numbers", "label": "Angka" },
-      { "id": "signature", "label": "Kisah" },
-      { "id": "market", "label": "Pengguna" },
-      { "id": "about", "label": "Tentang" },
-      { "id": "play", "label": "Play" },
-      { "id": "contact", "label": "Kontak" },
-      { "id": "footer", "label": "Tribute" }
+      {
+        "id": "hero",
+        "label": "Beranda"
+      },
+      {
+        "id": "story",
+        "label": "Satu Hari"
+      },
+      {
+        "id": "services",
+        "label": "Layanan"
+      },
+      {
+        "id": "credibility",
+        "label": "Kredibilitas"
+      },
+      {
+        "id": "numbers",
+        "label": "Angka"
+      },
+      {
+        "id": "signature",
+        "label": "Kisah"
+      },
+      {
+        "id": "market",
+        "label": "Pengguna"
+      },
+      {
+        "id": "about",
+        "label": "Tentang"
+      },
+      {
+        "id": "play",
+        "label": "Play"
+      },
+      {
+        "id": "contact",
+        "label": "Kontak"
+      },
+      {
+        "id": "footer",
+        "label": "Tribute"
+      }
     ],
     "language": "EN",
     "menu": "Menu",
     "povFollow": "Orbit",
-    "povFirst": "First Person"
+    "povFirst": "First Person",
+    "roam": "Jelajah"
   },
   "hero": {
     "eyebrow": "IT Consulting untuk Pemerintah Pusat & Daerah",
@@ -107,7 +141,12 @@
   "credibility": {
     "title": "Kredibilitas",
     "lead": "Terstandar, tersertifikasi, dan dipercaya lembaga berkelas dunia.",
-    "certs": ["BSSN", "ISO 9001", "ISO 27001", "PSE (Penyelenggara Sistem Elektronik)"],
+    "certs": [
+      "BSSN",
+      "ISO 9001",
+      "ISO 27001",
+      "PSE (Penyelenggara Sistem Elektronik)"
+    ],
     "techTitle": "Teknologi & standar yang kami gunakan",
     "tech": [
       "Microsoft Power Platform",
@@ -124,12 +163,37 @@
     "title": "Dalam Angka",
     "lead": "Angka nyata dari 12 tahun perjalanan.",
     "items": [
-      { "value": 12, "suffix": "", "label": "tahun berkarya sejak 2014" },
-      { "value": 200, "suffix": "+", "label": "pemerintah daerah di seluruh Indonesia" },
-      { "value": 15, "suffix": "+", "label": "kementerian, lembaga & institusi internasional" },
-      { "value": 15.4, "suffix": " jt+", "label": "NIB tervalidasi dalam migrasi OSS 2.0", "decimals": 1 },
-      { "value": 15, "suffix": "", "label": "proyek unggulan nasional" },
-      { "value": 5, "suffix": "", "label": "aplikasi Non-SAP PERURI yang kami pelihara" }
+      {
+        "value": 12,
+        "suffix": "",
+        "label": "tahun berkarya sejak 2014"
+      },
+      {
+        "value": 200,
+        "suffix": "+",
+        "label": "pemerintah daerah di seluruh Indonesia"
+      },
+      {
+        "value": 15,
+        "suffix": "+",
+        "label": "kementerian, lembaga & institusi internasional"
+      },
+      {
+        "value": 15.4,
+        "suffix": " jt+",
+        "label": "NIB tervalidasi dalam migrasi OSS 2.0",
+        "decimals": 1
+      },
+      {
+        "value": 15,
+        "suffix": "",
+        "label": "proyek unggulan nasional"
+      },
+      {
+        "value": 5,
+        "suffix": "",
+        "label": "aplikasi Non-SAP PERURI yang kami pelihara"
+      }
     ]
   },
   "signature": {
@@ -181,9 +245,18 @@
     "body": "PT Cartenz Technology Indonesia berdiri pada 2014 dengan semangat \"Merubah Visi Jadi Aksi\". Cakrawala adalah tim layanan IT consulting kami untuk lembaga pemerintah di tingkat pusat — meneruskan jejak pionir layanan publik digital terintegrasi untuk pajak daerah dan sistem monitoring transaksi online.",
     "vision": "Merubah Visi Jadi Aksi",
     "facts": [
-      { "label": "Berdiri", "value": "2014" },
-      { "label": "Fokus", "value": "IT consulting pemerintah pusat & daerah" },
-      { "label": "Induk", "value": "PT Cartenz Technology Indonesia" }
+      {
+        "label": "Berdiri",
+        "value": "2014"
+      },
+      {
+        "label": "Fokus",
+        "value": "IT consulting pemerintah pusat & daerah"
+      },
+      {
+        "label": "Induk",
+        "value": "PT Cartenz Technology Indonesia"
+      }
     ]
   },
   "play": {
@@ -240,10 +313,22 @@
       "diffLead": "Susun Tumpukan Bermakna lima lapis sebelum waktu habis.",
       "back": "Kembali",
       "diff": {
-        "easy": { "name": "Easy", "desc": "Santai membangun, waktu longgar." },
-        "medium": { "name": "Medium", "desc": "Ritme kerja normal." },
-        "hard": { "name": "Hard", "desc": "Tekanan nyata, berpikir cepat." },
-        "epic": { "name": "Epic", "desc": "Kilat. Hanya untuk yang hafal." }
+        "easy": {
+          "name": "Easy",
+          "desc": "Santai membangun, waktu longgar."
+        },
+        "medium": {
+          "name": "Medium",
+          "desc": "Ritme kerja normal."
+        },
+        "hard": {
+          "name": "Hard",
+          "desc": "Tekanan nyata, berpikir cepat."
+        },
+        "epic": {
+          "name": "Epic",
+          "desc": "Kilat. Hanya untuk yang hafal."
+        }
       },
       "timerFree": "Mode bebas",
       "timerDone": "Selesai",
@@ -314,13 +399,42 @@
       "soundOff": "Suara: mati"
     },
     "blocks": [
-      { "kind": "server", "label": "Roadmap & Blueprint" },
-      { "kind": "cloud", "label": "Platform Development" },
-      { "kind": "doc", "label": "PMQA" },
-      { "kind": "laptop", "label": "Change Management" },
-      { "kind": "gear", "label": "Operation/Maintenance" },
-      { "kind": "coffee", "label": "Tenaga konsultan ☕" }
-    ]
+      {
+        "kind": "server",
+        "label": "Roadmap & Blueprint"
+      },
+      {
+        "kind": "cloud",
+        "label": "Platform Development"
+      },
+      {
+        "kind": "doc",
+        "label": "PMQA"
+      },
+      {
+        "kind": "laptop",
+        "label": "Change Management"
+      },
+      {
+        "kind": "gear",
+        "label": "Operation/Maintenance"
+      },
+      {
+        "kind": "coffee",
+        "label": "Tenaga konsultan ☕"
+      }
+    ],
+    "roam": {
+      "title": "Jelajah Bebas",
+      "lead": "Jakarta 2045: mobil terbang di atas jalur, kereta layang melingkari skyline, robot penjaga di tiap etape. Mulai dari mana saja, sapa siapa saja.",
+      "jump": "Lompat ke etape",
+      "robots": "Robot disapa",
+      "greet": "Sapa",
+      "greetHint": "Robot di dekatmu — sapa!",
+      "touchHint": "Joystick kiri bergerak, geser kanan untuk melihat. Dekati robot lalu ketuk Sapa.",
+      "deckGreet": "Sapa robot",
+      "exitNote": "Esc kembali ke etape terdekat"
+    }
   },
   "contact": {
     "title": "Kontak",
@@ -356,69 +470,186 @@
       {
         "title": "Teknologi & aset",
         "items": [
-          { "text": "React, TypeScript, Vite, Tailwind CSS (MIT)" },
-          { "text": "Three.js & React Three Fiber (MIT) — dunia isometric 3D" },
-          { "text": "GSAP & Lenis (MIT) — animasi scroll perjalanan" },
-          { "text": "Zustand (MIT) — state perjalanan & game" },
-          { "text": "Lucide (ISC) — ikon" },
-          { "text": "Playwright-core (Apache-2.0) — QA screenshot & gameplay", "href": "https://playwright.dev" },
-          { "text": "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License", "href": "https://free3d.com" }
+          {
+            "text": "React, TypeScript, Vite, Tailwind CSS (MIT)"
+          },
+          {
+            "text": "Three.js & React Three Fiber (MIT) — dunia isometric 3D"
+          },
+          {
+            "text": "GSAP & Lenis (MIT) — animasi scroll perjalanan"
+          },
+          {
+            "text": "Zustand (MIT) — state perjalanan & game"
+          },
+          {
+            "text": "Lucide (ISC) — ikon"
+          },
+          {
+            "text": "Playwright-core (Apache-2.0) — QA screenshot & gameplay",
+            "href": "https://playwright.dev"
+          },
+          {
+            "text": "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License",
+            "href": "https://free3d.com"
+          }
         ]
       },
       {
         "title": "Dokumen perusahaan",
         "items": [
-          { "text": "Deck company profile PT Cartenz Technology Indonesia (PPTX) — sumber seluruh fakta, angka, daftar layanan, dan ±42 logo mitra (slide 2)" },
-          { "text": "Website resmi cartenz.co.id — posisi Cakrawala, alamat Wisma Bumiputera Lt. 9, kanal kontak", "href": "https://cartenz.co.id" },
-          { "text": "PLAN.md §3 & §8 — pemetaan 12 blok ke data deck dan keputusan editorial" },
-          { "text": "Logo mitra, kementerian, & lembaga — merek milik masing-masing pemegangnya" }
+          {
+            "text": "Deck company profile PT Cartenz Technology Indonesia (PPTX) — sumber seluruh fakta, angka, daftar layanan, dan ±42 logo mitra (slide 2)"
+          },
+          {
+            "text": "Website resmi cartenz.co.id — posisi Cakrawala, alamat Wisma Bumiputera Lt. 9, kanal kontak",
+            "href": "https://cartenz.co.id"
+          },
+          {
+            "text": "PLAN.md §3 & §8 — pemetaan 12 blok ke data deck dan keputusan editorial"
+          },
+          {
+            "text": "Logo mitra, kementerian, & lembaga — merek milik masing-masing pemegangnya"
+          }
         ]
       },
       {
         "title": "Gerak lari — sumber & rumus",
         "items": [
-          { "text": "Denys Almaral. \"Male Running (20 frames loop)\" — Sketchfab, lisensi Free Standard. Loop 20 frame (0,667 s @30fps) disampel lewat Viewer API; bentuk fleksi lutut & siku dipakai sebagai referensi (runLoop.ts)", "href": "https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd" },
-          { "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — stance/swing 60/40, fleksi lutut swing ±60°" },
-          { "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — stance 40%, fleksi lutut swing ±100–120°, lean badan" },
-          { "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — frekuensi langkah mendatar → batas atas 1,9 siklus/s (±228 langkah/menit)" },
-          { "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — panjang stride naik terhadap kecepatan" },
-          { "text": "Van Hooren B, dkk. The Relationship Between Running Biomechanics and Running Economy. Sports Med 54(5), 2024 — kontak singkat & ayunan lutut efisien menandai lari ekonomis", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11127892/" },
-          { "text": "Physio-pedia: Running Biomechanics — fase double float (kedua kaki melayang) membedakan lari dari jalan", "href": "https://www.physio-pedia.com/Running_Biomechanics" },
-          { "text": "The Movement System: Biomechanics of Running — siku ±90° digerakkan ke belakang, kadens 155–160 langkah/menit", "href": "https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form" },
-          { "text": "Freelap USA: A Call to Arms — Sprint Mechanics Revisited. Siku tidak terkunci 90°: menutup di front-side dan membuka saat shoulder extend; tangan mengayun hip-pocket → chin; bahu & tangan rileks", "href": "https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited" },
-          { "text": "De Vlieger D, dkk. Speed-dependent changes in the arm swing during walking. PMC, 2025 — ROM sagittal bahu sisi sehat ~25–30° dan naik dengan kecepatan; fleksi siku rata-rata ~41°", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/" },
-          { "text": "cadence = v / stride; stride = 1,5 + (3,0 − 1,5)·speedNorm (meter per siklus)", "mono": true },
-          { "text": "fleksi lutut = lerp(1,05; 2,09 rad) ≈ 60° jalan → 120° lari; BENTUK kurva lari dari loop referensi 20-key (Catmull-Rom periodik), amplitudo tetap Eric", "mono": true },
-          { "text": "ayunan lengan berlawanan kaki: bahu ±15° jalan → ±35° lari (tangan hip-pocket → chin); siku menutup front-side ~120° / membuka back-side ~60°; telapak pronasi ke paha, jari curl rileks", "mono": true }
+          {
+            "text": "Denys Almaral. \"Male Running (20 frames loop)\" — Sketchfab, lisensi Free Standard. Loop 20 frame (0,667 s @30fps) disampel lewat Viewer API; bentuk fleksi lutut & siku dipakai sebagai referensi (runLoop.ts)",
+            "href": "https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd"
+          },
+          {
+            "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — stance/swing 60/40, fleksi lutut swing ±60°"
+          },
+          {
+            "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — stance 40%, fleksi lutut swing ±100–120°, lean badan"
+          },
+          {
+            "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — frekuensi langkah mendatar → batas atas 1,9 siklus/s (±228 langkah/menit)"
+          },
+          {
+            "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — panjang stride naik terhadap kecepatan"
+          },
+          {
+            "text": "Van Hooren B, dkk. The Relationship Between Running Biomechanics and Running Economy. Sports Med 54(5), 2024 — kontak singkat & ayunan lutut efisien menandai lari ekonomis",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11127892/"
+          },
+          {
+            "text": "Physio-pedia: Running Biomechanics — fase double float (kedua kaki melayang) membedakan lari dari jalan",
+            "href": "https://www.physio-pedia.com/Running_Biomechanics"
+          },
+          {
+            "text": "The Movement System: Biomechanics of Running — siku ±90° digerakkan ke belakang, kadens 155–160 langkah/menit",
+            "href": "https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form"
+          },
+          {
+            "text": "Freelap USA: A Call to Arms — Sprint Mechanics Revisited. Siku tidak terkunci 90°: menutup di front-side dan membuka saat shoulder extend; tangan mengayun hip-pocket → chin; bahu & tangan rileks",
+            "href": "https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited"
+          },
+          {
+            "text": "De Vlieger D, dkk. Speed-dependent changes in the arm swing during walking. PMC, 2025 — ROM sagittal bahu sisi sehat ~25–30° dan naik dengan kecepatan; fleksi siku rata-rata ~41°",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/"
+          },
+          {
+            "text": "cadence = v / stride; stride = 1,5 + (3,0 − 1,5)·speedNorm (meter per siklus)",
+            "mono": true
+          },
+          {
+            "text": "fleksi lutut = lerp(1,05; 2,09 rad) ≈ 60° jalan → 120° lari; BENTUK kurva lari dari loop referensi 20-key (Catmull-Rom periodik), amplitudo tetap Eric",
+            "mono": true
+          },
+          {
+            "text": "ayunan lengan berlawanan kaki: bahu ±15° jalan → ±35° lari (tangan hip-pocket → chin); siku menutup front-side ~120° / membuka back-side ~60°; telapak pronasi ke paha, jari curl rileks",
+            "mono": true
+          }
         ]
       },
       {
         "title": "Gerak lompat — sumber & rumus",
         "items": [
-          { "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — enam fase: weighing, unweighting, braking, propulsion, flight, landing", "href": "https://doi.org/10.1519/SSC.0000000000000375" },
-          { "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement menambah kerja push-off" },
-          { "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — energi elastis saat braking" },
-          { "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing +±10–11 cm", "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/" },
-          { "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing +8,6 cm" },
-          { "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — kedalaman dip & fleksi lutut braking", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/" },
-          { "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Tesis, Northern Michigan University, 2011 — absorpsi lutut saat mendarat", "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses" },
-          { "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — metode flight-time & impulse–momentum", "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force" },
-          { "text": "h = v₀² / 2g · t_udara = 2v₀ / g (v₀ 7,6 · g 24 → h ≈ 1,20 unit · t ≈ 0,63 s)", "mono": true },
-          { "text": "h = g·t² / 8 (flight-time, Linthorne 2001)", "mono": true },
-          { "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & absorpsi mendarat)", "mono": true }
+          {
+            "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — enam fase: weighing, unweighting, braking, propulsion, flight, landing",
+            "href": "https://doi.org/10.1519/SSC.0000000000000375"
+          },
+          {
+            "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement menambah kerja push-off"
+          },
+          {
+            "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — energi elastis saat braking"
+          },
+          {
+            "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing +±10–11 cm",
+            "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/"
+          },
+          {
+            "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing +8,6 cm"
+          },
+          {
+            "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — kedalaman dip & fleksi lutut braking",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/"
+          },
+          {
+            "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Tesis, Northern Michigan University, 2011 — absorpsi lutut saat mendarat",
+            "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses"
+          },
+          {
+            "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — metode flight-time & impulse–momentum",
+            "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force"
+          },
+          {
+            "text": "h = v₀² / 2g · t_udara = 2v₀ / g (v₀ 7,6 · g 24 → h ≈ 1,20 unit · t ≈ 0,63 s)",
+            "mono": true
+          },
+          {
+            "text": "h = g·t² / 8 (flight-time, Linthorne 2001)",
+            "mono": true
+          },
+          {
+            "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & absorpsi mendarat)",
+            "mono": true
+          }
         ]
       },
       {
         "title": "Rumus fisika & integrasi",
         "items": [
-          { "text": "Proyektil semi-implicit Euler: v += −g·dt; y += v·dt", "mono": true },
-          { "text": "Damp eksponensial bebas frame-rate: x += (target − x)·(1 − e^(−λ·dt))", "mono": true },
-          { "text": "desired = clamp(diff·4, ±MAX_SPEED); dv dibatasi ACCELERATION·dt", "mono": true },
-          { "text": "phase += cadence·2π·dt — kaki terkunci ke tanah, bebas foot-sliding", "mono": true },
-          { "text": "cell = floor(hitPoint ± normal·0,5) — penempatan blok via face normal", "mono": true }
+          {
+            "text": "Proyektil semi-implicit Euler: v += −g·dt; y += v·dt",
+            "mono": true
+          },
+          {
+            "text": "Damp eksponensial bebas frame-rate: x += (target − x)·(1 − e^(−λ·dt))",
+            "mono": true
+          },
+          {
+            "text": "desired = clamp(diff·4, ±MAX_SPEED); dv dibatasi ACCELERATION·dt",
+            "mono": true
+          },
+          {
+            "text": "phase += cadence·2π·dt — kaki terkunci ke tanah, bebas foot-sliding",
+            "mono": true
+          },
+          {
+            "text": "cell = floor(hitPoint ± normal·0,5) — penempatan blok via face normal",
+            "mono": true
+          }
         ]
       }
     ],
     "backToTop": "Kembali ke awal"
+  },
+  "npc": {
+    "lines": [
+      "Selamat datang di Jakarta 2045! Langitnya ramai, tapi tetap tertib.",
+      "Halo! Aku menjaga etape ini sejak 2041. Senang disapa manusia.",
+      "Lihat ke atas: itu jalur udara kelas dua. Jangan menyeberang sembarangan.",
+      "Monas sekarang menyala sepanjang malam. Kebanggaan kami semua.",
+      "Kopi? Aku tidak minum. Tapi ada kedai bagus di etape tiga.",
+      "PT Cartenz membangun jaringanku. Aku dibuat untuk menyapa, bukan menggantikan.",
+      "Jika tersesat, ikuti pita cahaya di tanah. Ia selalu menuju cakrawala.",
+      "Sapaanmu tercatat. Terima kasih sudah mampir, manusia."
+    ]
   }
 }

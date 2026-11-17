@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport } from '../three/shared'
+import { cadenceFor, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport, adventureSpawn, tpWhoosh, TP_DUR, TP_VANISH, TP_WHOOSH } from '../three/shared'
 import { input, lockState, resetInput, setTapAim } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
@@ -20,6 +20,9 @@ const PLAYER_RADIUS = 0.34
 const PLAYER_HEIGHT = 1.72
 const CAMERA_DISTANCE = 5.4
 const CAMERA_HEIGHT = 1.9
+// free roam pulls back and drops the eye line so the skyline stays in frame
+const ROAM_DISTANCE = 7.6
+const ROAM_HEIGHT = 2.5
 
 /** player state lives outside React so leaving and re-entering keeps the pose */
 const player = {
@@ -184,6 +187,9 @@ export function GameScene() {
   const surfaceAt = (x: number, z: number) => {
     const cx = Math.floor(x)
     const cz = Math.floor(z)
+    // free roam walks the whole city; only the arena carries blocks
+    if (useGame.getState().adventure && (Math.abs(cx) > ARENA_HALF || Math.abs(cz) > ARENA_HALF))
+      return 0
     let top = 0
     for (let y = ARENA_MAX_Y - 1; y >= 0; y--) {
       if (occupancyRef.current.has(`${cx},${y},${cz}`)) {
@@ -197,6 +203,8 @@ export function GameScene() {
   const blocked = (x: number, z: number, feetY: number) => {
     const cx = Math.floor(x)
     const cz = Math.floor(z)
+    if (useGame.getState().adventure && (Math.abs(cx) > ARENA_HALF || Math.abs(cz) > ARENA_HALF))
+      return false
     const minY = Math.floor(feetY + 0.6)
     const maxY = Math.floor(feetY + PLAYER_HEIGHT)
     for (let y = minY; y <= maxY; y++) {
@@ -207,12 +215,11 @@ export function GameScene() {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
-    // the teleport sequence is journey grammar: only CharacterDriver advances
-    // it, and the driver is site-only. Entering Play mid-sequence would freeze
-    // Eric mid-vanish (shrunken + spun), so hand over to the game clean.
-    if (teleport.t >= 0) teleport.t = -1
-
     const st = useGame.getState()
+    // the teleport sequence is journey grammar: only CharacterDriver advances
+    // it in site mode. Free adventure drives its own station-jump beams here;
+    // entering Play mid-sequence would freeze Eric mid-vanish, so hand over clean.
+    if (!st.adventure && teleport.t >= 0) teleport.t = -1
     if (st.paused || st.gate !== 'none' || st.result) {
       player.vx = 0
       player.vz = 0
@@ -220,6 +227,60 @@ export function GameScene() {
       input.lookX = 0
       input.lookY = 0
       return
+    }
+
+    // --- free adventure: spawn anywhere, station jumps ride the beam grammar
+    if (st.adventure) {
+      const sp = adventureSpawn
+      if (sp.x != null && sp.z != null && !sp.beam && teleport.t < 0) {
+        player.x = sp.x - ORIGIN.x
+        player.z = sp.z - ORIGIN.z
+        player.y = 0
+        player.vy = 0
+        player.jumpState = 0
+        player.pitch = 0.02
+        sp.x = null
+        sp.z = null
+      }
+      if (sp.x != null && sp.z != null && sp.beam && teleport.t < 0) {
+        teleport.from.copy(characterPos.current)
+        teleport.to.set(sp.x, 0, sp.z)
+        teleport.t = 0
+      }
+      if (teleport.t >= 0) {
+        teleport.t += dt
+        characterPos.current.lerpVectors(teleport.from, teleport.to, tpWhoosh(teleport.t))
+        characterYaw.current = player.facing
+        gait.moving = 0
+        gait.move01 = 0
+        gait.lift = 0
+        player.vx = 0
+        player.vz = 0
+        if (sp.x != null && sp.z != null && teleport.t >= TP_VANISH + TP_WHOOSH * 0.5) {
+          player.x = sp.x - ORIGIN.x
+          player.z = sp.z - ORIGIN.z
+          player.y = 0
+          player.vy = 0
+          player.jumpState = 0
+          player.impact = 0
+          sp.x = null
+          sp.z = null
+          sp.beam = false
+        }
+        if (teleport.t >= TP_DUR) teleport.t = -1
+        const horiz = Math.cos(player.pitch) * ROAM_DISTANCE
+        camera.position.set(
+          characterPos.current.x + Math.sin(player.yaw) * horiz,
+          characterPos.current.y + ROAM_HEIGHT + Math.sin(player.pitch) * ROAM_DISTANCE,
+          characterPos.current.z + Math.cos(player.yaw) * horiz,
+        )
+        camera.lookAt(
+          characterPos.current.x,
+          characterPos.current.y + 1.15,
+          characterPos.current.z,
+        )
+        return
+      }
     }
 
     // --- look
@@ -243,10 +304,14 @@ export function GameScene() {
     player.vz = damp(player.vz, dirZ, ACCELERATION, dt)
 
     const limit = ARENA_HALF - PLAYER_RADIUS
-    const nx = clamp(player.x + player.vx * dt, -limit, limit)
+    const minX = st.adventure ? -12 - ORIGIN.x : -limit
+    const maxX = st.adventure ? 142 - ORIGIN.x : limit
+    const minZ = st.adventure ? -44 - ORIGIN.z : -limit
+    const maxZ = st.adventure ? 44 - ORIGIN.z : limit
+    const nx = clamp(player.x + player.vx * dt, minX, maxX)
     if (!blocked(nx, player.z, player.y)) player.x = nx
     else player.vx = 0
-    const nz = clamp(player.z + player.vz * dt, -limit, limit)
+    const nz = clamp(player.z + player.vz * dt, minZ, maxZ)
     if (!blocked(player.x, nz, player.y)) player.z = nz
     else player.vz = 0
 
@@ -320,8 +385,10 @@ export function GameScene() {
     if (player.y >= 4) useGame.getState().openVista()
 
     // --- third-person camera
-    const horizontal = Math.cos(player.pitch) * CAMERA_DISTANCE
-    const eyeY = player.y + CAMERA_HEIGHT + Math.sin(player.pitch) * CAMERA_DISTANCE
+    const camDist = st.adventure ? ROAM_DISTANCE : CAMERA_DISTANCE
+    const camHeight = st.adventure ? ROAM_HEIGHT : CAMERA_HEIGHT
+    const horizontal = Math.cos(player.pitch) * camDist
+    const eyeY = player.y + camHeight + Math.sin(player.pitch) * camDist
     camera.position.set(
       ORIGIN.x + player.x + Math.sin(player.yaw) * horizontal,
       eyeY,
@@ -329,8 +396,11 @@ export function GameScene() {
     )
     camera.lookAt(ORIGIN.x + player.x, player.y + 1.15, ORIGIN.z + player.z)
 
-    // --- build / destroy
-    if (input.breakQueued || input.placeQueued) {
+    // --- build / destroy (challenge mode only; free roam explores, not builds)
+    if (st.adventure) {
+      input.breakQueued = false
+      input.placeQueued = false
+    } else if (input.breakQueued || input.placeQueued) {
       const isBreak = input.breakQueued
       input.breakQueued = false
       input.placeQueued = false

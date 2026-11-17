@@ -1,5 +1,6 @@
-import { Languages, Menu, X } from 'lucide-react'
+import { Compass, Languages, Menu, X } from 'lucide-react'
 import { useState } from 'react'
+import { useGame } from '../game/store'
 import { jumpTo } from '../journey/jump'
 import { STATIONS } from '../journey/stations'
 import { useJourney } from '../journey/store'
@@ -59,6 +60,18 @@ export function Nav() {
 
         <div className="flex shrink-0 items-center gap-2">
           <button
+            onClick={() => {
+              setOpen(false)
+              useGame.getState().enterAdventure()
+            }}
+            className="flex items-center gap-1.5 rounded-full border border-[#f2b23c]/60 px-3 py-1.5 text-xs font-bold text-[#f2b23c] transition hover:bg-[#f2b23c]/15 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+            aria-label={t.nav.roam}
+            title={t.nav.roam}
+          >
+            <Compass size={14} />
+            <span className="hidden sm:inline">{t.nav.roam}</span>
+          </button>
+          <button
             onClick={toggle}
             className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
             aria-label={t.nav.language}
@@ -82,6 +95,16 @@ export function Nav() {
           className="mx-auto flex max-h-[70vh] w-[min(96vw,120rem)] flex-col gap-1 overflow-y-auto rounded-b-2xl bg-[#101418]/95 p-4 backdrop-blur xl:hidden"
           aria-label="Mobile"
         >
+          <button
+            onClick={() => {
+              setOpen(false)
+              useGame.getState().enterAdventure()
+            }}
+            className="mb-1 flex items-center gap-2 rounded-lg border border-[#f2b23c]/50 bg-[#f2b23c]/10 px-3 py-2.5 text-left font-bold text-[#f2b23c] transition hover:bg-[#f2b23c]/20"
+          >
+            <Compass size={15} />
+            {t.nav.roam}
+          </button>
           {t.nav.links.map((l) => (
             <button
               key={l.id}

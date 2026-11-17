@@ -97,3 +97,14 @@ export function tpRing(t: number) {
   if (t < TP_MATERIALISE) return 0
   return THREE.MathUtils.clamp((t - TP_MATERIALISE) / (TP_DUR - TP_MATERIALISE), 0, 1)
 }
+
+// --- free adventure (Jakarta 2045) -----------------------------------------
+/** day↔night atmosphere mix, written by <Atmosphere/>, read by city materials */
+export const atmoMix = { night: 0 }
+
+/** pending free-roam spawn in world coords; beam plays the teleport grammar */
+export const adventureSpawn = {
+  x: null as number | null,
+  z: null as number | null,
+  beam: false,
+}

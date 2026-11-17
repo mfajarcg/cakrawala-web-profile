@@ -129,4 +129,9 @@ export const audio = {
       noise(0.12, 0.12, 1200)
     }, 480)
   },
+  greet() {
+    tone(660, 0.1, 'sine', 0.22)
+    window.setTimeout(() => tone(880, 0.14, 'sine', 0.22), 90)
+    window.setTimeout(() => tone(1320, 0.18, 'triangle', 0.12), 190)
+  },
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { STATIONS } from '../journey/stations'
 import { scrollBridge } from '../journey/scroll'
+import { adventureSpawn, characterPos, teleport } from '../three/shared'
 import { audio } from './audio'
 import { addScore, bestTime, TIME_LIMIT, type Difficulty } from './leaderboard'
 import { cascade, isSupported, NOTICE_KEYS, scanMeaning, type NoticeKey } from './meaning'
@@ -168,6 +169,8 @@ function saveBlocks(blocks: PlacedBlock[]) {
 
 interface GameState {
   mode: Mode
+  /** free-roam Jakarta 2045: whole world walkable, no build, no clock */
+  adventure: boolean
   /** full-screen cover opacity target used by the fade between site and game */
   cover: boolean
   /** true while the pause menu holds the cursor, so the loop freezes */
@@ -203,6 +206,8 @@ interface GameState {
   /** transient win card awaiting a name / next action */
   result: RunResult | null
   enter: () => void
+  enterAdventure: () => void
+  jumpStation: (index: number) => void
   exit: () => void
   setPaused: (paused: boolean) => void
   select: (kind: BlockKind) => void
@@ -224,6 +229,7 @@ interface GameState {
 export function runTicking(s: GameState): boolean {
   return (
     s.mode === 'game' &&
+    !s.adventure &&
     !s.paused &&
     s.gate === 'none' &&
     !s.result &&
@@ -238,24 +244,52 @@ let swapTimer: ReturnType<typeof setTimeout> | undefined
 let coverTimer: ReturnType<typeof setTimeout> | undefined
 
 export const useGame = create<GameState>((set, get) => {
-  const swap = (mode: Mode) => {
-    if (mode === get().mode) return
+  const swap = (mode: Mode, adventure = false) => {
+    if (mode === get().mode && adventure === get().adventure) return
     clearTimeout(swapTimer)
     clearTimeout(coverTimer)
     set({ cover: true })
     // switch scenes only once the cover is fully opaque, then fade back in
     swapTimer = setTimeout(() => {
       if (mode === 'game') {
-        set({ mode, paused: false, gate: 'entry', result: null, celebrate: false })
+        set({
+          mode,
+          paused: false,
+          gate: adventure ? 'none' : 'entry',
+          result: null,
+          celebrate: false,
+          adventure,
+        })
+        if (adventure) {
+          // free roam starts exactly where the journey left the character
+          teleport.t = -1
+          adventureSpawn.x = characterPos.current.x
+          adventureSpawn.z = characterPos.current.z
+          adventureSpawn.beam = false
+        }
         scrollBridge.lock(true)
       } else {
-        set({ mode, paused: false, gate: 'none', result: null, celebrate: false })
+        const back = get().adventure ? nearestStation() : PLAY_STATION
+        set({ mode, paused: false, gate: 'none', result: null, celebrate: false, adventure: false })
         saveRun()
         scrollBridge.lock(false)
-        requestAnimationFrame(() => scrollBridge.toStation(PLAY_STATION))
+        requestAnimationFrame(() => scrollBridge.toStation(back))
       }
     }, 320)
     coverTimer = setTimeout(() => set({ cover: false }), 420)
+  }
+
+  const nearestStation = () => {
+    let best = 0
+    let bestD = Infinity
+    STATIONS.forEach((s, i) => {
+      const d = Math.abs(s.x - characterPos.current.x)
+      if (d < bestD) {
+        bestD = d
+        best = i
+      }
+    })
+    return best
   }
 
   const meta = loadMeta()
@@ -333,6 +367,7 @@ export const useGame = create<GameState>((set, get) => {
 
   return {
     mode: 'site',
+    adventure: false,
     cover: false,
     paused: false,
     blocks: loadBlocks(),
@@ -352,6 +387,15 @@ export const useGame = create<GameState>((set, get) => {
     finished: runMeta.finished,
     result: null,
     enter: () => swap('game'),
+    enterAdventure: () => swap('game', true),
+    jumpStation: (index) => {
+      const s = STATIONS[index]
+      if (!s || !get().adventure) return
+      adventureSpawn.x = s.x
+      adventureSpawn.z = s.z + 1.6
+      adventureSpawn.beam = true
+      audio.teleport()
+    },
     exit: () => swap('site'),
     setPaused: (paused) => {
       set({ paused })

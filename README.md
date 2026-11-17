@@ -114,10 +114,13 @@ Canvas (fixed, React Three Fiber)
 │  │  ├─ Character.tsx         # driver gerak + rig FBX + gait prosedural + blob shadow
 │  │  ├─ runLoop.ts            # bentuk kurva lutut/siku lari dari loop referensi Sketchfab
 │  │  ├─ Stations.tsx          # prop voxel tiap stasiun + pohon
-│  │  └─ shared.ts             # characterPos/characterYaw/gait + cadenceFor()
+│  │  ├─ FutureCity.tsx        # Jakarta 2045: menara neon, Monas, billboard, skytrain, mobil terbang
+│  │  ├─ Robots.tsx            # 6 robot NPC idle/wander + lambai & bubble sapa
+│  │  └─ shared.ts             # characterPos/characterYaw/gait + atmoMix + adventureSpawn
 │  ├─ game/
-│  │  ├─ store.ts              # mode, cover, paused, blocks, selected + localStorage
+│  │  ├─ store.ts              # mode, cover, paused, blocks, selected, adventure + localStorage
 │  │  ├─ meaning.ts            # hukum fondasi, scanMeaning, cascade, kunci renungan
+│  │  ├─ robots.ts             # definisi 6 NPC, radius sapa, daftar disapa persisten
 │  │  ├─ audio.ts              # bunyi sintetis WebAudio + mute persisten
 │  │  ├─ layout.ts             # ARENA_ORIGIN (stasiun Play) + arenaRefs
 │  │  ├─ Arena.tsx             # blok yang dirender di dunia journey, kedua mode
@@ -283,6 +286,37 @@ menyalakan countdown.
   menutupnya lebih dulu sebelum aksi jeda/keluar biasa.
 - Bunyi baru: `timeWarn` (tiap detik ≤5), `timeout` (slide saw + noise), `record`
   (empat nada triangle) — semuanya tetap hormat pada mute.
+
+### 4.7 Jelajah Bebas — Jakarta 2045
+
+Tombol **Jelajah** di Nav (dan tombol sekunder di PlayMoment) masuk ke mode
+`adventure`: flag boolean di atas `mode: 'game'`, sehingga seluruh mesin Play
+(kamera, collision, input, HUD, jeda, Esc dua tahap) dipakai ulang tanpa mode ketiga.
+Bedanya: mulai di posisi karakter saat itu (bukan arena), bebas berjalan ke seluruh
+dunia, dan tidak ada pasang/hancurkan blok.
+
+- **Kota malam** (`three/FutureCity.tsx`): 22 menara berjendela instanced (satu draw
+  call) menghadap jalur pejalan, crown neon + beacon atap, Monas bercahaya, tiga
+  billboard holo (JAKARTA 2045 / CAKRAWALA / NUSANTARA AI), skytrain layang melingkar,
+  10 mobil terbang berjejak neon pada 5 lane, bintang, dan dome gradient horizon.
+  Semua neon memakai `meshBasicMaterial toneMapped={false} fog={false}` agar menyala
+  siang maupun malam; `Atmosphere` menulis `atmoMix.night` untuk melerp langit,
+  cahaya bulan, aspal, grid, dan pita jalur hanya saat adventure.
+- **Kamera jelajah**: fov 75 (vs 65), jarak 7,6 / tinggi 2,5 (vs 5,4 / 1,9), pitch
+  awal 0,02 supaya skyline, mobil terbang, dan Monas tetap dalam frame.
+- **Robot NPC** (`game/robots.ts` + `three/Robots.tsx`): 6 robot voxel (BIMA-07,
+  SRI-11, GATOT-3, MERAK-5, NUSA-21, KOMODO-8) ber-idle wander di tiap etape.
+  Mendekat ≤2,4 m memunculkan prompt **Sapa** (tombol `E` / ketuk di sentuh); robot
+  menghadap pemain, melompat kecil, melambai, dan membuka bubble dialog
+  (`Html`, di-clamp ke viewport lewat `calculatePosition`). Daftar robot yang sudah
+  disapa persist di `cakrawala-npc-v1` dan ditampilkan sebagai `n/6` di kartu HUD.
+- **Lompat etape**: kartu HUD kiri memuat 11 chip stasiun; menekan chip memakai
+  grammar teleport yang sama dengan lompatan situs (sinar dari atas, 0,95 s) lalu
+  mendarat 1,6 m di depan stasiun. Keluar (Esc dua tahap / menu) mengembalikan
+  situs ke etape terdekat dari posisi karakter, bukan selalu Play.
+- HUD adventure menyembunyikan hotbar/crosshair/trofi/hapus; Control Deck dan
+  kontrol sentuh bertukar ke aksi jelajah (Lompat, Sapa, Lari); menu jeda menampilkan
+  jumlah robot disapa, bukan hapus arena.
 
 ---
 
@@ -682,6 +716,7 @@ Catatan kejujuran data:
 | `cakrawala-meaning-v1` | `{ best, done, vista, unlocked[] }` — rekor tinggi, status selesai, koleksi renungan | `src/game/store.ts` |
 | `cakrawala-run-v1` | `{ difficulty, remaining, finished }` — run berwaktu yang ditahan saat jeda/keluar | `src/game/store.ts` |
 | `cakrawala-scores-v1` | Array skor `{ name, time, difficulty, at }` maks 50, urut waktu naik | `src/game/leaderboard.ts` |
+| `cakrawala-npc-v1` | Array id robot yang sudah disapa di Jelajah Bebas | `src/game/robots.ts` |
 | `cakrawala-audio-v1` | `'off'` bila mute, `'on'` bila aktif (absen = aktif) | `src/game/audio.ts` |
 | `cakrawala-hud-deck-v1` | `'closed'` bila Control Deck dilipat | `src/game/GameHud.tsx` |
 | `cakrawala-lang` | `"id"` atau `"en"` | `src/lib/i18n.tsx` |

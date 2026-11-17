@@ -11,8 +11,10 @@ import { scrollBridge } from '../journey/scroll'
 import { STATIONS } from '../journey/stations'
 import { useJourney } from '../journey/store'
 import { Character } from './Character'
+import { FutureCity } from './FutureCity'
 import { getPath } from './path'
-import { characterPos, characterYaw } from './shared'
+import { Robots } from './Robots'
+import { atmoMix, characterPos, characterYaw } from './shared'
 import { Stations } from './Stations'
 
 const ISO_OFFSET = new THREE.Vector3(16, 16, 16)
@@ -63,29 +65,71 @@ function Atmosphere() {
   const scene = useThree((s) => s.scene)
   const inGame = useGame((s) => s.mode === 'game')
   const dawn = useGame((s) => s.vista || s.done)
+  const adventure = useGame((s) => s.adventure)
   const light = useRef<THREE.DirectionalLight>(null)
+  const ambient = useRef<THREE.AmbientLight>(null)
   const mix = useRef(0)
+  const night = useRef(0)
   const sky = useMemo(() => new THREE.Color('#e9eff3'), [])
   const daySky = useMemo(() => new THREE.Color('#e9eff3'), [])
   const dawnSky = useMemo(() => new THREE.Color('#f5e2c4'), [])
+  const nightSky = useMemo(() => new THREE.Color('#0d1524'), [])
   const dayLight = useMemo(() => new THREE.Color('#ffffff'), [])
   const dawnLight = useMemo(() => new THREE.Color('#ffd9a0'), [])
+  const moonLight = useMemo(() => new THREE.Color('#8fb6e4'), [])
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const target = inGame && dawn ? 1 : 0
     mix.current = THREE.MathUtils.damp(mix.current, target, 1.1, dt)
+    night.current = THREE.MathUtils.damp(night.current, adventure ? 1 : 0, 1.4, dt)
+    atmoMix.night = night.current
     const m = mix.current
-    sky.copy(daySky).lerp(dawnSky, m)
+    const n = night.current
+    sky.copy(daySky).lerp(dawnSky, m).lerp(nightSky, n)
     scene.background = sky
     if (scene.fog) (scene.fog as THREE.Fog).color.copy(sky)
     if (light.current) {
-      light.current.color.copy(dayLight).lerp(dawnLight, m)
-      light.current.intensity = 1.15 + 0.4 * m
+      light.current.color.copy(dayLight).lerp(dawnLight, m).lerp(moonLight, n)
+      light.current.intensity = 1.15 + 0.4 * m - 0.6 * n
     }
+    if (ambient.current) ambient.current.intensity = 0.95 - 0.55 * n
   })
 
-  return <directionalLight ref={light} position={[12, 24, 8]} intensity={1.15} />
+  return (
+    <>
+      <directionalLight ref={light} position={[12, 24, 8]} intensity={1.15} />
+      <ambientLight ref={ambient} intensity={0.95} />
+    </>
+  )
+}
+
+/** the walkway turns to dark asphalt after dark so the neon carries the scene */
+function GroundPlane() {
+  const mat = useRef<THREE.MeshStandardMaterial>(null)
+  const day = useMemo(() => new THREE.Color('#dfe8ec'), [])
+  const night = useMemo(() => new THREE.Color('#141c26'), [])
+  useFrame(() => {
+    if (mat.current) mat.current.color.copy(day).lerp(night, atmoMix.night)
+  })
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[65, -0.05, 0]}>
+      <planeGeometry args={[320, 180]} />
+      <meshStandardMaterial ref={mat} color="#dfe8ec" flatShading />
+    </mesh>
+  )
+}
+
+/** the grid dims to blue steel after dark instead of glaring white */
+function GroundGrid() {
+  const ref = useRef<THREE.GridHelper>(null)
+  const day = useMemo(() => new THREE.Color('#ffffff'), [])
+  const night = useMemo(() => new THREE.Color('#20304a'), [])
+  useFrame(() => {
+    const mat = ref.current?.material as THREE.LineBasicMaterial | undefined
+    if (mat) mat.color.copy(day).lerp(night, atmoMix.night)
+  })
+  return <gridHelper ref={ref} args={[320, 80, '#cfdce2', '#cfdce2']} position={[65, 0, 0]} />
 }
 
 /** warm dust motes drifting around the walker — journey-mode atmosphere only */
@@ -131,15 +175,21 @@ function JourneyDust() {
 }
 
 function PathRibbon() {
+  const mat = useRef<THREE.MeshStandardMaterial>(null)
+  const day = useMemo(() => new THREE.Color('#ffffff'), [])
+  const night = useMemo(() => new THREE.Color('#33465c'), [])
   const geometry = useMemo(() => {
     const curve = getPath()
     const tube = new THREE.TubeGeometry(curve, 120, 1.3, 8, false)
     tube.scale(1, 0.01, 1) // flatten the tube into a ribbon
     return tube
   }, [])
+  useFrame(() => {
+    if (mat.current) mat.current.color.copy(day).lerp(night, atmoMix.night)
+  })
   return (
     <mesh geometry={geometry} position={[0, 0.02, 0]}>
-      <meshStandardMaterial color="#ffffff" flatShading />
+      <meshStandardMaterial ref={mat} color="#ffffff" flatShading />
     </mesh>
   )
 }
@@ -350,6 +400,7 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
 function CanvasSetup() {
   const pov = useJourney((s) => s.pov)
   const mode = useGame((s) => s.mode)
+  const adventure = useGame((s) => s.adventure)
   const inGame = mode === 'game'
 
   return (
@@ -370,22 +421,20 @@ function CanvasSetup() {
       />
       <PerspectiveCamera
         makeDefault={inGame || pov === 'fp'}
-        fov={65}
+        fov={inGame && adventure ? 75 : 65}
         near={0.1}
         far={200}
       />
       <color attach="background" args={['#e9eff3']} />
       <fog attach="fog" args={['#e9eff3', 45, 130]} />
-      <ambientLight intensity={0.95} />
       <Atmosphere />
       {!inGame && <JourneyDust />}
       {/* one world for both modes: play mode only adds the player controller */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[65, -0.05, 0]}>
-        <planeGeometry args={[320, 180]} />
-        <meshStandardMaterial color="#dfe8ec" flatShading />
-      </mesh>
-      <gridHelper args={[320, 80, '#cfdce2', '#cfdce2']} position={[65, 0, 0]} />
+      <GroundPlane />
+      <GroundGrid />
       <PathRibbon />
+      <FutureCity />
+      <Robots />
       <Stations />
       <Arena />
       {inGame ? <GameScene /> : <CameraRig />}

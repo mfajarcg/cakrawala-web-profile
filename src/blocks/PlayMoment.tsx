@@ -1,4 +1,4 @@
-import { Play } from 'lucide-react'
+import { Compass, Play } from 'lucide-react'
 import { LAYERS, LAYER_ROMAN } from '../game/meaning'
 import { BLOCK_COLORS, useGame } from '../game/store'
 import { useI18n } from '../lib/i18n'
@@ -7,6 +7,7 @@ import { Panel } from './Panel'
 export function PlayMoment() {
   const { t } = useI18n()
   const enter = useGame((s) => s.enter)
+  const enterAdventure = useGame((s) => s.enterAdventure)
   const saved = useGame((s) => s.blocks.length)
 
   return (
@@ -49,6 +50,14 @@ export function PlayMoment() {
         >
           <Play size={16} fill="currentColor" />
           {t.play.cta}
+        </button>
+
+        <button
+          onClick={enterAdventure}
+          className="mt-3 flex items-center gap-2 rounded-full border border-[#35c4ff]/50 px-5 py-2.5 text-xs font-bold text-[#7fd0ff] transition hover:bg-[#35c4ff]/15 focus-visible:outline-2 focus-visible:outline-white"
+        >
+          <Compass size={14} />
+          {t.play.roam.title} — Jakarta 2045
         </button>
 
         {saved > 0 && (

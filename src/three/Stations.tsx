@@ -72,7 +72,13 @@ function Lamp({ position }: { position: [number, number, number] }) {
       <Cylinder args={[0.05, 0.07, 2.5, 6]} position={[0, 1.25, 0]} color={INK} />
       <mesh position={[0, 2.6, 0]}>
         <sphereGeometry args={[0.16, 10, 8]} />
-        <meshStandardMaterial color={WARM} emissive={WARM} emissiveIntensity={1.4} flatShading />
+        <meshStandardMaterial
+          color={WARM}
+          emissive={WARM}
+          emissiveIntensity={2}
+          toneMapped={false}
+          flatShading
+        />
       </mesh>
     </group>
   )

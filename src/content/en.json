@@ -6,22 +6,56 @@
   },
   "nav": {
     "links": [
-      { "id": "hero", "label": "Home" },
-      { "id": "story", "label": "A Day" },
-      { "id": "services", "label": "Services" },
-      { "id": "credibility", "label": "Credibility" },
-      { "id": "numbers", "label": "Numbers" },
-      { "id": "signature", "label": "Story" },
-      { "id": "market", "label": "Clients" },
-      { "id": "about", "label": "About" },
-      { "id": "play", "label": "Play" },
-      { "id": "contact", "label": "Contact" },
-      { "id": "footer", "label": "Tribute" }
+      {
+        "id": "hero",
+        "label": "Home"
+      },
+      {
+        "id": "story",
+        "label": "A Day"
+      },
+      {
+        "id": "services",
+        "label": "Services"
+      },
+      {
+        "id": "credibility",
+        "label": "Credibility"
+      },
+      {
+        "id": "numbers",
+        "label": "Numbers"
+      },
+      {
+        "id": "signature",
+        "label": "Story"
+      },
+      {
+        "id": "market",
+        "label": "Clients"
+      },
+      {
+        "id": "about",
+        "label": "About"
+      },
+      {
+        "id": "play",
+        "label": "Play"
+      },
+      {
+        "id": "contact",
+        "label": "Contact"
+      },
+      {
+        "id": "footer",
+        "label": "Tribute"
+      }
     ],
     "language": "ID",
     "menu": "Menu",
     "povFollow": "Orbit",
-    "povFirst": "First Person"
+    "povFirst": "First Person",
+    "roam": "Roam"
   },
   "hero": {
     "eyebrow": "IT Consulting for Central & Local Government",
@@ -107,7 +141,12 @@
   "credibility": {
     "title": "Credibility",
     "lead": "Standardized, certified, and trusted by world-class institutions.",
-    "certs": ["BSSN", "ISO 9001", "ISO 27001", "PSE (Electronic System Provider)"],
+    "certs": [
+      "BSSN",
+      "ISO 9001",
+      "ISO 27001",
+      "PSE (Electronic System Provider)"
+    ],
     "techTitle": "Technologies & standards we use",
     "tech": [
       "Microsoft Power Platform",
@@ -124,12 +163,37 @@
     "title": "In Numbers",
     "lead": "Real figures from 12 years of work.",
     "items": [
-      { "value": 12, "suffix": "", "label": "years at work since 2014" },
-      { "value": 200, "suffix": "+", "label": "local governments across Indonesia" },
-      { "value": 15, "suffix": "+", "label": "ministries, institutions & international bodies" },
-      { "value": 15.4, "suffix": "M+", "label": "business IDs validated in the OSS 2.0 migration", "decimals": 1 },
-      { "value": 15, "suffix": "", "label": "flagship national projects" },
-      { "value": 5, "suffix": "", "label": "PERURI Non-SAP applications we maintain" }
+      {
+        "value": 12,
+        "suffix": "",
+        "label": "years at work since 2014"
+      },
+      {
+        "value": 200,
+        "suffix": "+",
+        "label": "local governments across Indonesia"
+      },
+      {
+        "value": 15,
+        "suffix": "+",
+        "label": "ministries, institutions & international bodies"
+      },
+      {
+        "value": 15.4,
+        "suffix": "M+",
+        "label": "business IDs validated in the OSS 2.0 migration",
+        "decimals": 1
+      },
+      {
+        "value": 15,
+        "suffix": "",
+        "label": "flagship national projects"
+      },
+      {
+        "value": 5,
+        "suffix": "",
+        "label": "PERURI Non-SAP applications we maintain"
+      }
     ]
   },
   "signature": {
@@ -181,9 +245,18 @@
     "body": "PT Cartenz Technology Indonesia was founded in 2014 with the spirit of \"Turning Vision into Action\". Cakrawala is our IT consulting service team for central government institutions — continuing a track record as a pioneer of integrated digital public services for local tax and online transaction monitoring.",
     "vision": "Turning Vision into Action",
     "facts": [
-      { "label": "Founded", "value": "2014" },
-      { "label": "Focus", "value": "IT consulting for central & local government" },
-      { "label": "Parent", "value": "PT Cartenz Technology Indonesia" }
+      {
+        "label": "Founded",
+        "value": "2014"
+      },
+      {
+        "label": "Focus",
+        "value": "IT consulting for central & local government"
+      },
+      {
+        "label": "Parent",
+        "value": "PT Cartenz Technology Indonesia"
+      }
     ]
   },
   "play": {
@@ -240,10 +313,22 @@
       "diffLead": "Stack the five-layer Meaningful Stack before time runs out.",
       "back": "Back",
       "diff": {
-        "easy": { "name": "Easy", "desc": "Relaxed building, generous clock." },
-        "medium": { "name": "Medium", "desc": "A normal working pace." },
-        "hard": { "name": "Hard", "desc": "Real pressure, think fast." },
-        "epic": { "name": "Epic", "desc": "Lightning. For those who know it by heart." }
+        "easy": {
+          "name": "Easy",
+          "desc": "Relaxed building, generous clock."
+        },
+        "medium": {
+          "name": "Medium",
+          "desc": "A normal working pace."
+        },
+        "hard": {
+          "name": "Hard",
+          "desc": "Real pressure, think fast."
+        },
+        "epic": {
+          "name": "Epic",
+          "desc": "Lightning. For those who know it by heart."
+        }
       },
       "timerFree": "Free build",
       "timerDone": "Done",
@@ -314,13 +399,42 @@
       "soundOff": "Sound: off"
     },
     "blocks": [
-      { "kind": "server", "label": "Roadmap & Blueprint" },
-      { "kind": "cloud", "label": "Platform Development" },
-      { "kind": "doc", "label": "PMQA" },
-      { "kind": "laptop", "label": "Change Management" },
-      { "kind": "gear", "label": "Operation/Maintenance" },
-      { "kind": "coffee", "label": "Consultant energy ☕" }
-    ]
+      {
+        "kind": "server",
+        "label": "Roadmap & Blueprint"
+      },
+      {
+        "kind": "cloud",
+        "label": "Platform Development"
+      },
+      {
+        "kind": "doc",
+        "label": "PMQA"
+      },
+      {
+        "kind": "laptop",
+        "label": "Change Management"
+      },
+      {
+        "kind": "gear",
+        "label": "Operation/Maintenance"
+      },
+      {
+        "kind": "coffee",
+        "label": "Consultant energy ☕"
+      }
+    ],
+    "roam": {
+      "title": "Free Roam",
+      "lead": "Jakarta 2045: flying cars above the lanes, a skytrain circling the skyline, guardian robots at every stage. Start anywhere, greet anyone.",
+      "jump": "Jump to stage",
+      "robots": "Robots greeted",
+      "greet": "Greet",
+      "greetHint": "A robot is near — say hello!",
+      "touchHint": "Left joystick moves, drag right to look. Walk up to a robot and tap Greet.",
+      "deckGreet": "Greet robot",
+      "exitNote": "Esc returns to the nearest stage"
+    }
   },
   "contact": {
     "title": "Contact",
@@ -356,69 +470,186 @@
       {
         "title": "Technology & assets",
         "items": [
-          { "text": "React, TypeScript, Vite, Tailwind CSS (MIT)" },
-          { "text": "Three.js & React Three Fiber (MIT) — isometric 3D world" },
-          { "text": "GSAP & Lenis (MIT) — journey scroll animation" },
-          { "text": "Zustand (MIT) — journey & game state" },
-          { "text": "Lucide (ISC) — icons" },
-          { "text": "Playwright-core (Apache-2.0) — screenshot & gameplay QA", "href": "https://playwright.dev" },
-          { "text": "3D character model \"Eric Rigged 001\" by Renderpeople (free3d.com) — Personal Use License", "href": "https://free3d.com" }
+          {
+            "text": "React, TypeScript, Vite, Tailwind CSS (MIT)"
+          },
+          {
+            "text": "Three.js & React Three Fiber (MIT) — isometric 3D world"
+          },
+          {
+            "text": "GSAP & Lenis (MIT) — journey scroll animation"
+          },
+          {
+            "text": "Zustand (MIT) — journey & game state"
+          },
+          {
+            "text": "Lucide (ISC) — icons"
+          },
+          {
+            "text": "Playwright-core (Apache-2.0) — screenshot & gameplay QA",
+            "href": "https://playwright.dev"
+          },
+          {
+            "text": "3D character model \"Eric Rigged 001\" by Renderpeople (free3d.com) — Personal Use License",
+            "href": "https://free3d.com"
+          }
         ]
       },
       {
         "title": "Company documents",
         "items": [
-          { "text": "PT Cartenz Technology Indonesia company profile deck (PPTX) — source of all facts, figures, service list, and ~42 partner logos (slide 2)" },
-          { "text": "Official website cartenz.co.id — Cakrawala positioning, Wisma Bumiputera 9th floor address, contact channels", "href": "https://cartenz.co.id" },
-          { "text": "PLAN.md §3 & §8 — mapping of the 12 blocks to deck data and editorial decisions" },
-          { "text": "Partner, ministry, & institution logos — trademarks of their respective owners" }
+          {
+            "text": "PT Cartenz Technology Indonesia company profile deck (PPTX) — source of all facts, figures, service list, and ~42 partner logos (slide 2)"
+          },
+          {
+            "text": "Official website cartenz.co.id — Cakrawala positioning, Wisma Bumiputera 9th floor address, contact channels",
+            "href": "https://cartenz.co.id"
+          },
+          {
+            "text": "PLAN.md §3 & §8 — mapping of the 12 blocks to deck data and editorial decisions"
+          },
+          {
+            "text": "Partner, ministry, & institution logos — trademarks of their respective owners"
+          }
         ]
       },
       {
         "title": "Running gait — sources & formulas",
         "items": [
-          { "text": "Denys Almaral. \"Male Running (20 frames loop)\" — Sketchfab, Free Standard license. The 20-frame loop (0.667 s @30fps) was sampled via the Viewer API; its knee & elbow flexion shapes are the run reference (runLoop.ts)", "href": "https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd" },
-          { "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — 60/40 stance/swing, ~60° swing knee flexion" },
-          { "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — 40% stance, ~100–120° swing knee flexion, trunk lean" },
-          { "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — step frequency plateaus → 1.9 cycles/s ceiling (~228 steps/min)" },
-          { "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — stride length grows with speed" },
-          { "text": "Van Hooren B, et al. The Relationship Between Running Biomechanics and Running Economy. Sports Med 54(5), 2024 — short contact & efficient knee swing mark economical running", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11127892/" },
-          { "text": "Physio-pedia: Running Biomechanics — the double float phase (both feet airborne) separates running from walking", "href": "https://www.physio-pedia.com/Running_Biomechanics" },
-          { "text": "The Movement System: Biomechanics of Running — elbows ~90° driven backwards, cadence 155–160 steps/min", "href": "https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form" },
-          { "text": "Freelap USA: A Call to Arms — Sprint Mechanics Revisited. The elbow is not locked at 90°: it closes front-side and opens as the shoulder extends; hands travel hip-pocket → chin; shoulders and hands stay relaxed", "href": "https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited" },
-          { "text": "De Vlieger D, et al. Speed-dependent changes in the arm swing during walking. PMC, 2025 — healthy-side shoulder sagittal ROM ~25–30°, growing with speed; mean elbow flexion ~41°", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/" },
-          { "text": "cadence = v / stride; stride = 1.5 + (3.0 − 1.5)·speedNorm (metres per cycle)", "mono": true },
-          { "text": "knee flexion = lerp(1.05; 2.09 rad) ≈ 60° walk → 120° run; run curve SHAPE from the 20-key reference loop (periodic Catmull-Rom), amplitudes stay Eric's", "mono": true },
-          { "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow closes front-side ~120° / opens back-side ~60°; palm pronates toward the thigh, fingers relaxed-curl", "mono": true }
+          {
+            "text": "Denys Almaral. \"Male Running (20 frames loop)\" — Sketchfab, Free Standard license. The 20-frame loop (0.667 s @30fps) was sampled via the Viewer API; its knee & elbow flexion shapes are the run reference (runLoop.ts)",
+            "href": "https://sketchfab.com/3d-models/male-running-20-frames-loop-ed3d7a4b8b124e1591be83ccb4c02dcd"
+          },
+          {
+            "text": "Perry J, Burnfield JM. Gait Analysis: Normal and Pathological Function, 2nd ed. Slack, 2010 — 60/40 stance/swing, ~60° swing knee flexion"
+          },
+          {
+            "text": "Novacheck TF. The biomechanics of running. Gait & Posture 7(1):77–95, 1998 — 40% stance, ~100–120° swing knee flexion, trunk lean"
+          },
+          {
+            "text": "Weyand PG, Sternlight DB, Bellizzi MJ, Wright S. J Appl Physiol 89(5):1991–1999, 2000 — step frequency plateaus → 1.9 cycles/s ceiling (~228 steps/min)"
+          },
+          {
+            "text": "Cavanagh PR, Kram R. Med Sci Sports Exerc 21(4):467–479, 1989 — stride length grows with speed"
+          },
+          {
+            "text": "Van Hooren B, et al. The Relationship Between Running Biomechanics and Running Economy. Sports Med 54(5), 2024 — short contact & efficient knee swing mark economical running",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11127892/"
+          },
+          {
+            "text": "Physio-pedia: Running Biomechanics — the double float phase (both feet airborne) separates running from walking",
+            "href": "https://www.physio-pedia.com/Running_Biomechanics"
+          },
+          {
+            "text": "The Movement System: Biomechanics of Running — elbows ~90° driven backwards, cadence 155–160 steps/min",
+            "href": "https://www.themovementsystem.com/blog/biomechanics-of-running-4-tweaks-to-fix-your-running-form"
+          },
+          {
+            "text": "Freelap USA: A Call to Arms — Sprint Mechanics Revisited. The elbow is not locked at 90°: it closes front-side and opens as the shoulder extends; hands travel hip-pocket → chin; shoulders and hands stay relaxed",
+            "href": "https://freelapusa.com/blogs/articles/a-call-to-arms-sprint-mechanics-revisited"
+          },
+          {
+            "text": "De Vlieger D, et al. Speed-dependent changes in the arm swing during walking. PMC, 2025 — healthy-side shoulder sagittal ROM ~25–30°, growing with speed; mean elbow flexion ~41°",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/"
+          },
+          {
+            "text": "cadence = v / stride; stride = 1.5 + (3.0 − 1.5)·speedNorm (metres per cycle)",
+            "mono": true
+          },
+          {
+            "text": "knee flexion = lerp(1.05; 2.09 rad) ≈ 60° walk → 120° run; run curve SHAPE from the 20-key reference loop (periodic Catmull-Rom), amplitudes stay Eric's",
+            "mono": true
+          },
+          {
+            "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow closes front-side ~120° / opens back-side ~60°; palm pronates toward the thigh, fingers relaxed-curl",
+            "mono": true
+          }
         ]
       },
       {
         "title": "Jump — sources & formulas",
         "items": [
-          { "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — six phases: weighing, unweighting, braking, propulsion, flight, landing", "href": "https://doi.org/10.1519/SSC.0000000000000375" },
-          { "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement adds push-off work" },
-          { "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — elastic energy during braking" },
-          { "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing adds ~10–11 cm", "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/" },
-          { "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing adds 8.6 cm" },
-          { "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — dip depth & braking knee flexion", "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/" },
-          { "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Thesis, Northern Michigan University, 2011 — landing knee absorption", "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses" },
-          { "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — flight-time & impulse–momentum methods", "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force" },
-          { "text": "h = v₀² / 2g · t_flight = 2v₀ / g (v₀ 7.6 · g 24 → h ≈ 1.20 units · t ≈ 0.63 s)", "mono": true },
-          { "text": "h = g·t² / 8 (flight-time method, Linthorne 2001)", "mono": true },
-          { "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & landing absorption)", "mono": true }
+          {
+            "text": "Owen NJ, Watkins J, Kilduff LP, Bevan HR, Bennett MA. Understanding the key phases of the countermovement jump force-time curve. Strength Cond J 40(4):96–106, 2018 — six phases: weighing, unweighting, braking, propulsion, flight, landing",
+            "href": "https://doi.org/10.1519/SSC.0000000000000375"
+          },
+          {
+            "text": "Bobbert MF, Gerritsen KGM, Litjens MCA, Van Soest AJ. Why is countermovement jump height greater than squat jump height? Med Sci Sports Exerc 28(11):1402–1412, 1996 — countermovement adds push-off work"
+          },
+          {
+            "text": "Komi PV, Bosco C. Utilization of stored elastic energy in leg extensor muscles by men and women. Med Sci Sports Exerc 10(4):261–265, 1978 — elastic energy during braking"
+          },
+          {
+            "text": "Harman EA, Rosenstein MT, Frykman PN, Rosenstein RM. The effects of arms and countermovement on vertical jumping. Med Sci Sports Exerc 22(6):817–823, 1990 — arm swing adds ~10–11 cm",
+            "href": "https://pubmed.ncbi.nlm.nih.gov/2287261/"
+          },
+          {
+            "text": "Lees A, Vanrenterghem J, De Clercq D. Understanding how an arm swing enhances performance in the vertical jump. J Biomech 37(12):1929–1940, 2004 — arm swing adds 8.6 cm"
+          },
+          {
+            "text": "McHugh MP et al. Effect of countermovement depth on the neuromechanics of countermovement jumps. 2024 — dip depth & braking knee flexion",
+            "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11208864/"
+          },
+          {
+            "text": "Petushek EJ. 2D video vs electrogoniometry: countermovement jump and landing knee flexion angle. Thesis, Northern Michigan University, 2011 — landing knee absorption",
+            "href": "https://commons.nmu.edu/cgi/viewcontent.cgi?article=1522&context=theses"
+          },
+          {
+            "text": "Linthorne NP. Analysis of standing vertical jumps using a force platform. Am J Phys 69(11):1198–1206, 2001 — flight-time & impulse–momentum methods",
+            "href": "https://pubs.aip.org/aapt/ajp/article/69/11/1198/529369/Analysis-of-standing-vertical-jumps-using-a-force"
+          },
+          {
+            "text": "h = v₀² / 2g · t_flight = 2v₀ / g (v₀ 7.6 · g 24 → h ≈ 1.20 units · t ≈ 0.63 s)",
+            "mono": true
+          },
+          {
+            "text": "h = g·t² / 8 (flight-time method, Linthorne 2001)",
+            "mono": true
+          },
+          {
+            "text": "J = ∫F dt = m·Δv (impulse–momentum: take-off & landing absorption)",
+            "mono": true
+          }
         ]
       },
       {
         "title": "Physics & integration formulas",
         "items": [
-          { "text": "Semi-implicit Euler projectile: v += −g·dt; y += v·dt", "mono": true },
-          { "text": "Frame-rate independent exponential damp: x += (target − x)·(1 − e^(−λ·dt))", "mono": true },
-          { "text": "desired = clamp(diff·4, ±MAX_SPEED); dv capped by ACCELERATION·dt", "mono": true },
-          { "text": "phase += cadence·2π·dt — feet locked to the ground, no foot-sliding", "mono": true },
-          { "text": "cell = floor(hitPoint ± normal·0.5) — block placement via face normal", "mono": true }
+          {
+            "text": "Semi-implicit Euler projectile: v += −g·dt; y += v·dt",
+            "mono": true
+          },
+          {
+            "text": "Frame-rate independent exponential damp: x += (target − x)·(1 − e^(−λ·dt))",
+            "mono": true
+          },
+          {
+            "text": "desired = clamp(diff·4, ±MAX_SPEED); dv capped by ACCELERATION·dt",
+            "mono": true
+          },
+          {
+            "text": "phase += cadence·2π·dt — feet locked to the ground, no foot-sliding",
+            "mono": true
+          },
+          {
+            "text": "cell = floor(hitPoint ± normal·0.5) — block placement via face normal",
+            "mono": true
+          }
         ]
       }
     ],
     "backToTop": "Back to start"
+  },
+  "npc": {
+    "lines": [
+      "Welcome to Jakarta 2045! The sky is busy, but it keeps its order.",
+      "Hello! I have kept this stage since 2041. Lovely to be greeted.",
+      "Look up: that is the second-class air lane. Please do not jaywalk.",
+      "Monas burns light all night now. The pride of us all.",
+      "Coffee? I do not drink. But there is a good shop at stage three.",
+      "PT Cartenz built my network. I was made to greet, not to replace.",
+      "If you are lost, follow the ribbon of light on the ground. It always leads to the horizon.",
+      "Your greeting is logged. Thank you for stopping by, human."
+    ]
   }
 }

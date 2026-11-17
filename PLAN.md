@@ -1127,3 +1127,54 @@ Regresi: play-qa, meaning-qa (MEANING_QA_OK), mobile-play-qa (MOBILE_PLAY_OK), g
 verify2, layout-qa (LAYOUT_OK), touch-qa (TOUCH_OK), jump-qa — semua errors []; skrip QA
 lama dismiss gate entry lewat tombol "Tetap masuk". `tsc -b` + `npm run build` bersih.
 README §4.6 + pohon file + tabel state + tabel persistensi; PLAN §27 ini.
+
+---
+
+## 28. Jakarta 2045: kota malam, mobil terbang, robot NPC, Jelajah Bebas
+
+**Permintaan:** environment keren bertema Jakarta masa depan (mobil terbang, robot
+NPC), tombol switch ke mode free adventure yang bisa mulai di mana saja, dan bisa
+menyapa NPC robot.
+
+**Arsitektur:** bukan mode ketiga. `useGame.adventure: boolean` di atas `mode:'game'`
+memakai ulang seluruh mesin Play (kamera, collision, input, HUD, jeda, Esc dua tahap).
+`swap(mode, adventure)` sets gate `'none'` untuk adventure (tanpa gate entry) dan
+`adventureSpawn` di posisi karakter saat itu; keluar kembali ke etape terdekat
+(`nearestStation()`), bukan selalu Play. `runTicking` mengecualikan adventure.
+
+**Kota (`three/FutureCity.tsx`):** 22 menara (shell gelap) + jendela instanced satu
+draw call menghadap jalur pejalan (sisi dalam, karena follow-cam melihat dari dalam),
+crown neon + beacon, Monas skala 0,62 bercahaya, 3 billboard holo canvas-texture,
+skytrain layang (beam + strip neon + 3 gerbong jendela menyala), 10 mobil terbang
+(5 lane, jejak neon), 220 bintang, dome gradient horizon (opacity = night), dan dua
+garis kerb neon menyusuri jalur. Semua neon `meshBasicMaterial toneMapped={false}
+fog={false}` agar menyala siang/malam dan tidak pudar oleh fog.
+
+**Malam (`World.tsx`):** `Atmosphere` menulis `atmoMix.night` (damp 1,4) hanya saat
+adventure; melerp langit ke `#0d1524`, cahaya bulan `#8fb6e4`, intensitas dir/ambient
+turun, `GroundPlane` ke aspal `#141c26`, `GroundGrid` ke `#20304a`, `PathRibbon` ke
+`#33465c`. Siang/situs & tantangan tetap palet brand terang.
+
+**Kamera jelajah (`GameScene.tsx`):** fov 75 (vs 65), `ROAM_DISTANCE 7,6` /
+`ROAM_HEIGHT 2,5` (vs 5,4/1,9), pitch awal 0,02 — skyline, mobil terbang, dan Monas
+tetap dalam frame (pitch lama 0,24 + fov 65 membuat semua neon di atas frame).
+
+**Robot (`game/robots.ts` + `three/Robots.tsx`):** 6 NPC voxel ber-idle wander;
+`GreetProbe` (throttle 0,12 s) set `near` bila ≤2,4 m dan hanya saat adventure aktif.
+Sapa (E / ketuk) → robot menghadap pemain, hop, lambai, visor menyala, bubble `Html`
+(di-clamp viewport via `calculatePosition`), bunyi `audio.greet()`, daftar disapa
+persist `cakrawala-npc-v1`, penghitung `n/6` di kartu HUD.
+
+**HUD:** kartu AdventureCard (11 chip lompat etape memakai grammar teleport sinar),
+GreetPrompt, deck/touch/pause varian jelajah; hotbar/crosshair/trofi/hapus disembunyikan.
+Nav + PlayMoment menambah tombol Jelajah emas/sian.
+
+**QA:** adventure-qa scratch (dihapus): desktop 1440×900 — masuk tanpa gate, mobil
+terbang bergerak, lompat etape 5 mendarat x≈52, prompt sapa + bubble BIMA-07 + persist,
+gerak bebas, pause tanpa hapus + ada robot, keluar ke etape terdekat; mobile 390×844 —
+joystick, tanpa hotbar, chip etape 9, prompt & bubble NUSA-21 muat viewport, tanpa
+overflow, keluar ke situs. ADVENTURE_QA_OK, errors []. Screenshot
+shots/adventure-{night,greet,monas,mobile}.png. Regresi: regression-qa scratch (dihapus)
+21 cek + suite permanen play-qa, meaning-qa, layout-qa, mobile-play-qa, verify2,
+touch-qa, jump-qa, gait-qa — semua errors []. `tsc -b` + `npm run build` bersih.
+README §4.7 + pohon file + persistensi; PLAN §28 ini.
