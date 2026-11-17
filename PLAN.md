@@ -1044,3 +1044,28 @@ verify2 (burst ok, teleport immediate) errors []; play-qa, jump-qa, meaning-qa
 (LAYOUT_OK) semua hijau. Tribute: +2 sumber (Freelap, De Vlieger) ID+EN, baris mono
 rumus lengan diperbarui; README §6.3 tabel + §9.1 + peta tribute diperbarui.
 `tsc -b` + build bersih; scratch (hand/yaw/yawtrace) dihapus.
+
+## 26. Top menu lengkap semua section (11 link) + highlight aktif
+
+**Masalah:** menu atas hanya memuat 7 link (services…contact); station `hero`, `story`,
+`play`, `footer` tidak bisa dicapai dari menu (hero hanya lewat logo).
+
+**Perubahan:**
+- `content/id.json` + `en.json`: `nav.links` diisi 11 entri dalam urutan station —
+  hero (Beranda/Home), story (Satu Hari/A Day), services, credibility, numbers,
+  signature (Kisah/Story), market, about, play (Play), contact, footer (Tribute).
+  Label story ≠ signature agar tidak bentrok ("Satu Hari" vs "Kisah").
+- `blocks/Nav.tsx`: subscribe `useJourney(s => s.activeStation)` → `STATIONS[i].id`;
+  link aktif diberi `aria-current="page"`, teks putih semibold, dan garis emas
+  `#f2b23c` beranimasi (`scale-x`); mobile aktif = bg-white/10 + semibold.
+  Breakpoint desktop `lg→xl` (≥1280px) agar 11 link muat tanpa overflow; di bawah xl
+  hamburger. Menu mobile `max-h-[70vh] overflow-y-auto` agar 11 item muat di layar pendek.
+  Logo + kontrol `shrink-0`, link `whitespace-nowrap`.
+
+**QA (nav-qa scratch, dihapus setelah):** 7 viewport (390/1024/1280/1440/1920/2560/3840)
+semua 11 link, label cocok, tanpa overflow horizontal; ≥1280 inline, <1280 hamburger.
+Highlight: awal Beranda → klik Play → Play → Tribute → Tribute → Satu Hari → Satu Hari.
+Mobile: buka 11 item, klik Kontak menutup menu + scroll, buka lagi highlight Kontak.
+Console errors []. Regresi verify2 (burst ok, teleport immediate) + jump-qa (tribute
+close-return, phone overflow false) errors []; `tsc -b` + build bersih.
+README baris Nav + §store activeStation + tabel blok 01 diperbarui.

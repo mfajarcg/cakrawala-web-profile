@@ -6,13 +6,17 @@
   },
   "nav": {
     "links": [
+      { "id": "hero", "label": "Home" },
+      { "id": "story", "label": "A Day" },
       { "id": "services", "label": "Services" },
       { "id": "credibility", "label": "Credibility" },
       { "id": "numbers", "label": "Numbers" },
       { "id": "signature", "label": "Story" },
       { "id": "market", "label": "Clients" },
       { "id": "about", "label": "About" },
-      { "id": "contact", "label": "Contact" }
+      { "id": "play", "label": "Play" },
+      { "id": "contact", "label": "Contact" },
+      { "id": "footer", "label": "Tribute" }
     ],
     "language": "ID",
     "menu": "Menu",

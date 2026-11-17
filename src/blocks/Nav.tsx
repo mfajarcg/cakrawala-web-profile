@@ -1,6 +1,8 @@
 import { Languages, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { jumpTo } from '../journey/jump'
+import { STATIONS } from '../journey/stations'
+import { useJourney } from '../journey/store'
 import { useI18n } from '../lib/i18n'
 
 const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-white.svg`
@@ -8,6 +10,7 @@ const LOGO = `${import.meta.env.BASE_URL}logo/cakrawala-white.svg`
 export function Nav() {
   const { t, toggle } = useI18n()
   const [open, setOpen] = useState(false)
+  const active = STATIONS[useJourney((s) => s.activeStation)]?.id
 
   const jump = (id: string) => {
     setOpen(false)
@@ -23,7 +26,7 @@ export function Nav() {
             e.preventDefault()
             jump('hero')
           }}
-          className="flex items-center gap-3"
+          className="flex shrink-0 items-center gap-3"
           aria-label="Cakrawala"
         >
           <img src={LOGO} alt="Cakrawala" className="h-9 w-9 rounded-sm bg-white object-contain p-0.5" />
@@ -33,19 +36,28 @@ export function Nav() {
           </span>
         </a>
 
-        <nav className="hidden items-center gap-5 lg:flex" aria-label="Main">
+        <nav className="hidden items-center gap-4 xl:flex" aria-label="Main">
           {t.nav.links.map((l) => (
             <button
               key={l.id}
               onClick={() => jump(l.id)}
-              className="text-sm text-white/85 transition hover:text-white focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
+              aria-current={active === l.id ? 'page' : undefined}
+              className={`relative whitespace-nowrap text-sm transition focus-visible:outline-2 focus-visible:outline-[#f2b23c] ${
+                active === l.id ? 'font-semibold text-white' : 'text-white/70 hover:text-white'
+              }`}
             >
               {l.label}
+              <span
+                aria-hidden
+                className={`absolute -bottom-1.5 left-0 h-0.5 w-full origin-left rounded-full bg-[#f2b23c] transition-transform duration-300 ${
+                  active === l.id ? 'scale-x-100' : 'scale-x-0'
+                }`}
+              />
             </button>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={toggle}
             className="flex items-center gap-1.5 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#f2b23c]"
@@ -55,7 +67,7 @@ export function Nav() {
             {t.nav.language}
           </button>
           <button
-            className="rounded-full border border-white/25 p-1.5 text-white lg:hidden"
+            className="rounded-full border border-white/25 p-1.5 text-white xl:hidden"
             onClick={() => setOpen((o) => !o)}
             aria-label={t.nav.menu}
             aria-expanded={open}
@@ -67,14 +79,19 @@ export function Nav() {
 
       {open && (
         <nav
-          className="mx-auto flex w-[min(96vw,120rem)] flex-col gap-1 rounded-b-2xl bg-[#101418]/95 p-4 backdrop-blur lg:hidden"
+          className="mx-auto flex max-h-[70vh] w-[min(96vw,120rem)] flex-col gap-1 overflow-y-auto rounded-b-2xl bg-[#101418]/95 p-4 backdrop-blur xl:hidden"
           aria-label="Mobile"
         >
           {t.nav.links.map((l) => (
             <button
               key={l.id}
               onClick={() => jump(l.id)}
-              className="rounded-lg px-3 py-2.5 text-left text-white/90 transition hover:bg-white/10"
+              aria-current={active === l.id ? 'page' : undefined}
+              className={`rounded-lg px-3 py-2.5 text-left transition ${
+                active === l.id
+                  ? 'bg-white/10 font-semibold text-white'
+                  : 'text-white/80 hover:bg-white/10'
+              }`}
             >
               {l.label}
             </button>

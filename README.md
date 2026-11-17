@@ -88,7 +88,7 @@ Canvas (fixed, React Three Fiber)
 │  ├─ main.tsx
 │  ├─ index.css / styles/tokens.css   # Tailwind v4 + token warna + skala font
 │  ├─ blocks/                  # 12 blok DOM
-│  │  ├─ Nav.tsx               #   01 Navigation (sticky, ID/EN, hamburger)
+│  │  ├─ Nav.tsx               #   01 Navigation (sticky, ID/EN, 11 link + highlight aktif, hamburger <xl)
 │  │  ├─ Hero.tsx              #   02 Hero
 │  │  ├─ Story.tsx             #   03 Cinematic Story
 │  │  ├─ Services.tsx          #   04 Services (panel lebar 3 kolom)
@@ -193,8 +193,8 @@ memanggil `jumpTo(id)` → `scrollBridge.toStation(index)`.
 | `journey/store.ts` | `progress`, `target`, `activeStation`, `pov` | controller (`setTarget`), driver (`tick`) | Character, CameraRig, Nav |
 | `game/store.ts` | `mode`, `cover`, `paused`, `blocks`, `selected` | PlayMoment, HUD, GameScene | App, World, GameScene |
 
-`activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk status rail nav dan
-titik fokus kamera.
+`activeStation = round(progress × (STATION_COUNT − 1))`, dipakai untuk highlight section aktif
+di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
 
 ### 4.4 Lapisan 3D
 
@@ -260,7 +260,7 @@ LookPad diletakkan di bawah kluster HUD (`-z-10`) supaya tidak mencegat ketukan 
 
 | Blok | Komponen | Stasiun | `data-station` | Kolom konten | Posisi path (x, z) |
 |---|---|---|---|---|---|
-| 01 Navigation | `Nav.tsx` | — (sticky, tanpa stasiun) | — | — | — |
+| 01 Navigation | `Nav.tsx` | — (sticky; 11 link semua stasiun, highlight aktif) | — | — | — |
 | 02 Hero | `Hero.tsx` | 1 · `hero` | 1 | kiri | 0, 0 |
 | 03 Story | `Story.tsx` | 2 · `story` | 2 | kiri | 13, −3,5 |
 | 04 Services | `Services.tsx` | 3 · `services` | 3 | kiri | 26, 3,5 |

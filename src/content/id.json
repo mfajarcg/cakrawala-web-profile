@@ -6,13 +6,17 @@
   },
   "nav": {
     "links": [
+      { "id": "hero", "label": "Beranda" },
+      { "id": "story", "label": "Satu Hari" },
       { "id": "services", "label": "Layanan" },
       { "id": "credibility", "label": "Kredibilitas" },
       { "id": "numbers", "label": "Angka" },
       { "id": "signature", "label": "Kisah" },
       { "id": "market", "label": "Pengguna" },
       { "id": "about", "label": "Tentang" },
-      { "id": "contact", "label": "Kontak" }
+      { "id": "play", "label": "Play" },
+      { "id": "contact", "label": "Kontak" },
+      { "id": "footer", "label": "Tribute" }
     ],
     "language": "EN",
     "menu": "Menu",
