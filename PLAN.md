@@ -1232,3 +1232,43 @@ regresi ditemukan & diperbaiki: pill tema membuat cluster HUD kanan lewat 390 px
 → padding px-2/sm:px-3 + gap-1,5/sm:gap-2 (meaning-qa 390px no overflow PASS).
 `tsc -b` + `npm run build` bersih. README §4.2/§4.7/§4.8/§6.4 + persistensi;
 PLAN §29 ini.
+
+## 30. User manual PDF: 27 screenshot semua fitur + petunjuk, 16 halaman A4
+
+**Permintaan:** setelah semua fitur selesai, buat user manual PDF berisi screenshot
+semua fitur dan petunjuk penggunaan; serahkan PDF di percakapan dan letakkan di
+folder Downloads.
+
+**Capture (scratch dihapus setelah pakai):** playwright-core + Edge headless, storage
+baru per konteks. Desktop 1440×900: hero malam & siang, EN, panel Layanan, checkpoint,
+Play + gate, pemilih difficulty, HUD run, jeda, blok pertama + toast renungan, menang
+0:07.2 Easy + rekor + isi nama + Simpan, papan skor, timeout, selebrasi fajar, daftar
+renungan, kota Monas, sapa BIMA-07, sinar teleport (lompat ≥2 stasiun dari Play),
+tribute fullscreen, kontak terisi. Mobile 390×844 `hasTouch/isMobile`: hero + PiP,
+menu, Play sentuh, jelajah sentuh. Total 27 png di `docs/manual/`.
+
+**Jebakan koordinat (penting untuk capture berikutnya):** `player.x/z` pada store game
+adalah **arena-local**; `GameScene.tsx:452` menambah ORIGIN (104, −0.5) saat menulis
+`characterPos`. Teleport pemain untuk foto harus memakai `x−104, z+0.5` dari koordinat
+world; jika tidak, karakter mendarat 104 m dari target dan GreetProbe tidak pernah aktif.
+Vista Monas yang bersih: world (52, 6.5) menghadap yaw −0.33 (posisi (52, −8) tertutup
+slab billboard). Sapa robot: dekati home robot (mis. BIMA (3.5, 2.8) → local
+(−100.5, 3.3)) + offset kecil sampai body memuat "Sapa BIMA-07", lalu tekan `e`.
+
+**Manual:** `docs/user-manual.html`, bahasa Indonesia, 16 bagian cetak (cover gelap
+dengan plate logo putih + TOC dua kolom, 15 bagian bernomor, referensi cepat kunci
+desktop/mobile + tabel localStorage + troubleshooting + atribusi). CSS cetak:
+`@page A4 margin 13/12/14mm`, `.page { page-break-after: always }`, figur `.w120`
+121 mm / `.w150` 152 mm / pasangan mobile `.row .fig` 62 mm, keycap `.key`, kotak
+`.tip` emas & `.note` biru, footer `.foot` per halaman.
+
+**Render PDF:** Edge headless `page.pdf({ printBackground: true, preferCSSPageSize:
+true })` atas `file://…/docs/user-manual.html` setelah `waitForFunction` semua img
+complete + naturalWidth > 0; output `C:/Users/USER/Downloads/Cakrawala-User-Manual.pdf`.
+Verifikasi visual tiap halaman via Read PDF. Iterasi pagination: render pertama 18
+halaman — bagian 7 & 11 kelebihan tinggi sehingga `.foot` yatim ke halaman kosong;
+fix empat figur keduanya ke `.fig.w110` (110 mm, hemat ±13,8 mm/bagian) → tepat 16
+halaman, semua footer di tempat, halaman 16 "· selesai". ±4,55 MB.
+
+**Dokumentasi:** README §8 sub-bagian "Panduan pengguna (PDF)". Scratch capture/fix/
+pdf dihapus; tidak ada aset/library baru sehingga tribute tidak berubah.

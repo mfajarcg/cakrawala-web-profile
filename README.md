@@ -838,6 +838,19 @@ di atasnya, Hancurkan memecah sel yang diketuk, mute persisten, geser LookPad me
 dan menghapus reticle, joystick menggerakkan pemain, kluster HUD tidak saling overlap maupun
 keluar layar, dan Keluar mengembalikan journey dengan build tersimpan.
 
+### Panduan pengguna (PDF)
+
+Sumber manual: `docs/user-manual.html` — 16 halaman A4 berbahasa Indonesia (cover +
+15 bagian), memakai 27 screenshot fitur di `docs/manual/m01…m27.png` (desktop malam/siang,
+EN, gate/difficulty/HUD run, jeda, menang/rekor/papan skor, timeout, selebrasi, renungan,
+jelajah + sapa robot, tribute, kontak, dan mobile browse/play/jelajah). Render PDF:
+`playwright-core` + Edge headless membuka HTML via `file://`, menunggu semua img complete,
+lalu `page.pdf({ printBackground: true, preferCSSPageSize: true })` dengan
+`@page { size: A4; margin: 13mm 12mm 14mm }` dan `.page { page-break-after: always }`.
+Hasil distribusi: `Cakrawala-User-Manual.pdf` di folder Downloads pengguna (16 halaman,
+±4,5 MB). Figur dua-tumpuk memakai `.fig.w120` (121 mm); bagian 7 & 11 yang padat memakai
+`.fig.w110` (110 mm) agar footer tidak yatim ke halaman berikutnya.
+
 ---
 
 ## 9. Atribusi

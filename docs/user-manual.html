@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cakrawala — Panduan Pengguna</title>
+<style>
+  @page { size: A4; margin: 13mm 12mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #16202b; background: #ffffff;
+    font-size: 10.5pt; line-height: 1.5;
+  }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  h1, h2, h3 { margin: 0; line-height: 1.2; }
+  p { margin: 0 0 6pt; }
+  .kicker {
+    font-size: 8pt; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: #2e6f8e; margin-bottom: 3pt;
+  }
+  h2 { font-size: 17pt; color: #101418; margin-bottom: 6pt; }
+  h2 .no { color: #f2b23c; margin-right: 6pt; }
+  .lead { color: #46586a; margin-bottom: 8pt; }
+  .fig { margin: 7pt 0 4pt; }
+  .fig img {
+    width: 100%; display: block; border: 1px solid #c9d4dd;
+    border-radius: 5pt; background: #0b1118;
+  }
+  .fig.w120 { width: 121mm; margin-left: auto; margin-right: auto; }
+  .fig.w110 { width: 110mm; margin-left: auto; margin-right: auto; }
+  .fig.w150 { width: 152mm; margin-left: auto; margin-right: auto; }
+  .cap { font-size: 8pt; color: #5a6c7d; margin: 3pt 0 8pt; text-align: center; }
+  .cap b { color: #2e6f8e; }
+  .row { display: flex; gap: 6mm; justify-content: center; }
+  .row .fig { width: 62mm; margin: 7pt 0 4pt; }
+  ol, ul { margin: 0 0 7pt; padding-left: 16pt; }
+  li { margin-bottom: 3pt; }
+  li b, p b { color: #101418; }
+  .tip {
+    border-left: 3pt solid #f2b23c; background: #fdf6e7;
+    padding: 6pt 9pt; border-radius: 0 4pt 4pt 0; margin: 7pt 0;
+    font-size: 9.5pt; color: #6b4d10;
+  }
+  .tip b { color: #8a6413; }
+  .note {
+    border-left: 3pt solid #408fb4; background: #eef5f9;
+    padding: 6pt 9pt; border-radius: 0 4pt 4pt 0; margin: 7pt 0;
+    font-size: 9.5pt; color: #23566d;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 5pt 0 8pt; font-size: 9pt; }
+  th, td { border: 1px solid #d5dde5; padding: 3.5pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #101418; color: #f2b23c; font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; }
+  td.k { font-family: Consolas, "Courier New", monospace; font-size: 8.5pt; color: #2e6f8e; white-space: nowrap; }
+  .keys { display: flex; flex-wrap: wrap; gap: 4pt; margin: 4pt 0 8pt; }
+  .key {
+    border: 1px solid #b9c6d2; border-bottom-width: 2.5pt; border-radius: 4pt;
+    background: #f2f6f9; padding: 1.5pt 6pt; font-size: 8.5pt; font-weight: 700; color: #16202b;
+  }
+  /* cover */
+  .cover {
+    background: linear-gradient(160deg, #0b1118 0%, #10202e 55%, #14344a 100%);
+    color: #e8eef2; border-radius: 8pt; padding: 16mm 14mm; height: 262mm;
+    display: flex; flex-direction: column;
+  }
+  .cover .plate {
+    width: 26mm; height: 26mm; background: #fff; border-radius: 6pt;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 10mm;
+  }
+  .cover .plate img { width: 20mm; height: 20mm; }
+  .cover h1 { font-size: 30pt; color: #ffffff; letter-spacing: -.01em; }
+  .cover .sub { font-size: 12pt; color: #8fc9e8; margin: 3mm 0 6mm; font-weight: 600; }
+  .cover .tag {
+    display: inline-block; align-self: flex-start; background: #f2b23c; color: #101418;
+    font-weight: 700; font-size: 9.5pt; padding: 2pt 9pt; border-radius: 999pt; margin-bottom: 8mm;
+  }
+  .cover p { color: rgba(226,234,240,.82); font-size: 10.5pt; max-width: 150mm; }
+  .cover .toc { margin-top: auto; border-top: 1px solid rgba(255,255,255,.18); padding-top: 6mm; }
+  .cover .toc h3 { font-size: 9pt; letter-spacing: .16em; color: #f2b23c; text-transform: uppercase; margin-bottom: 4mm; }
+  .cover .toc ol { columns: 2; column-gap: 12mm; padding-left: 14pt; font-size: 9.5pt; color: rgba(226,234,240,.9); }
+  .cover .toc li { margin-bottom: 2.2pt; break-inside: avoid; }
+  .cover .meta { margin-top: 6mm; font-size: 8.5pt; color: rgba(226,234,240,.55); }
+  .foot { margin-top: 8pt; font-size: 8pt; color: #8496a6; border-top: 1px solid #e9eff3; padding-top: 4pt; }
+</style>
+</head>
+<body>
+
+<!-- ============================== COVER ============================== -->
+<section class="page">
+  <div class="cover">
+    <div class="plate"><img src="../public/logo/cakrawala-white.svg" alt="Logo Cakrawala" /></div>
+    <div class="kicker" style="color:#7fd0ff">PT Cartenz Technology Indonesia</div>
+    <h1>Cakrawala</h1>
+    <div class="sub">Panduan Pengguna — profil perusahaan interaktif &amp; playground 3D</div>
+    <span class="tag">“Kolaborasi untuk Negeri”</span>
+    <p>Cakrawala adalah profil PT Cartenz Technology Indonesia yang bisa dijelajahi:
+    sebelas stasiun konten ditempuh dengan berjalan bersama karakter Eric di dunia
+    isometrik, lengkap dengan playground membangun blok, tantangan berwaktu,
+    dan jelajah bebas Jakarta 2045. Panduan ini memuat tangkapan layar setiap
+    fitur beserta petunjuk pemakaiannya.</p>
+    <p style="margin-top:4mm">Berlaku untuk desktop (mouse &amp; keyboard) dan mobile (layar sentuh).
+    Tampilan default adalah <b style="color:#ffd075">mode malam</b>; seluruh panel, HUD, dan dunia 3D
+    mengikuti tema yang dipilih.</p>
+    <div class="toc">
+      <h3>Isi panduan</h3>
+      <ol>
+        <li>Memulai &amp; navigasi sebelas stasiun</li>
+        <li>Tema malam/siang &amp; bahasa ID/EN</li>
+        <li>Panel konten &amp; checkpoint presisi</li>
+        <li>Teleportasi bersinar &amp; sudut pandang</li>
+        <li>Play Character &amp; gate masuk</li>
+        <li>Tantangan berwaktu &amp; HUD</li>
+        <li>Jeda, kontrol, &amp; Tumpukan Bermakna</li>
+        <li>Selebrasi &amp; koleksi renungan</li>
+        <li>Menang, rekor, &amp; nama papan skor</li>
+        <li>Papan skor &amp; waktu habis</li>
+        <li>Jelajah Bebas Jakarta 2045 &amp; robot NPC</li>
+        <li>Tribute fullscreen &amp; kontak</li>
+        <li>Mobile: browsing &amp; jendela PiP</li>
+        <li>Mobile: Play &amp; jelajah sentuh</li>
+        <li>Referensi cepat &amp; pemecahan masalah</li>
+      </ol>
+    </div>
+    <div class="meta">Versi 1.0 · 17 November 2026 · mfajarcg.github.io/cakrawala-web-profile · Disusun untuk The Qoder Challenge</div>
+  </div>
+</section>
+
+<!-- ============================== 1 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 1</div>
+  <h2><span class="no">01</span>Memulai &amp; navigasi sebelas stasiun</h2>
+  <p class="lead">Buka laman di browser modern (Chrome/Edge/Firefox/Safari). Tidak perlu instalasi;
+  seluruh progres disimpan di browser Anda.</p>
+  <div class="fig w150"><img src="manual/m01-hero-night.png" alt="Hero mode malam" /></div>
+  <div class="cap"><b>Gambar 1.</b> Tampilan pertama: kolom substansi di kiri, dunia 3D di kanan, nav sebelas stasiun di atas.</div>
+  <ol>
+    <li><b>Scroll / roda mouse</b> membuat Eric berjalan ke stasiun berikutnya; halaman berhenti tepat di tengah stasiun (checkpoint).</li>
+    <li><b>Panah ← / →</b> (atau ↑ / ↓) melangkah satu stasiun; satu ketukan = satu hop berjalan beranimasi.</li>
+    <li><b>Klik menu atas</b> (Beranda … Tribute) melompat ke stasiun mana pun; lompatan tidak berurutan memicu sinar teleportasi (Bagian 4).</li>
+    <li><b>Titik-titik rel</b> di tepi pane 3D menunjukkan posisi sebelas stasiun; titik emas = stasiun aktif.</li>
+    <li>Di <b>mobile</b>, swipe vertikal menggantikan roda mouse: satu gestur = minimal satu checkpoint searah swipe.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Garis emas di bawah label nav menandai stasiun yang sedang ditempati Eric — bukan sekadar tautan yang terakhir diklik.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 2</div>
+</section>
+
+<!-- ============================== 2 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 2</div>
+  <h2><span class="no">02</span>Tema malam/siang &amp; bahasa ID/EN</h2>
+  <p class="lead">Mode malam adalah default. Tombol tema tersedia di tiga tempat sehingga browsing,
+  tantangan, dan jelajah bebas semuanya bisa berganti tampilan.</p>
+  <div class="fig w120"><img src="manual/m02-hero-day.png" alt="Hero mode siang" /></div>
+  <div class="cap"><b>Gambar 2.</b> Mode siang: kertas terang, pane 3D siang, tombol nav berubah menjadi “Malam”.</div>
+  <div class="fig w120"><img src="manual/m07-hero-en.png" alt="Hero bahasa Inggris" /></div>
+  <div class="cap"><b>Gambar 3.</b> Bahasa Inggris aktif: seluruh narasi, nav, dan HUD berbahasa Inggris; tombol menjadi “ID”.</div>
+  <ol>
+    <li><b>Nav kanan</b>: klik tombol berikon bulan/matahari (label <b>Malam</b>/<b>Siang</b>) untuk berganti tema.</li>
+    <li><b>Menu mobile</b>: baris “Mode siang”/“Mode malam” melakukan hal yang sama.</li>
+    <li><b>Dalam game</b> (Play maupun Jelajah): tombol ikon matahari/bulan di pojok kanan-atas HUD, sebelah tombol suara.</li>
+    <li>Tema mengubah <b>seluruh elemen DOM</b> (panel, kartu, formulir, scrollbar) <b>dan dunia 3D</b> (langit, cahaya bulan, aspal, grid, jendela menara).</li>
+    <li><b>Bahasa</b>: tombol <b>EN</b>/<b>ID</b> di nav mengganti seluruh kamus konten; pilihan tema dan bahasa persist di browser.</li>
+  </ol>
+  <div class="note"><b>Catatan.</b> Plat logo di Hero/Footer/nav tetap putih pada mode malam agar marka hitam terbaca — ini disengaja, bukan elemen yang terlewat.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 3</div>
+</section>
+
+<!-- ============================== 3 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 3</div>
+  <h2><span class="no">03</span>Panel konten &amp; checkpoint presisi</h2>
+  <p class="lead">Setiap stasiun memakai layout split yang konsisten: kiri substansi, kanan dunia 3D.
+  Panel gelap memakai permukaan bertingkat dengan teks kontras tinggi.</p>
+  <div class="fig w120"><img src="manual/m03-services-night.png" alt="Panel Layanan malam" /></div>
+  <div class="cap"><b>Gambar 4.</b> Stasiun Layanan: tujuh kartu layanan nyata PT Cartenz dalam grid dua kolom di atas permukaan gelap.</div>
+  <div class="fig w120"><img src="manual/m04-stop-night.png" alt="Checkpoint Angka" /></div>
+  <div class="cap"><b>Gambar 5.</b> Stasiun Angka: halaman berhenti tepat di tengah panel; Eric berhenti penuh di checkpoint (drift 0 px).</div>
+  <ol>
+    <li>Scroll sampai halaman <b>terkunci sebentar</b> lalu mendarat: itu snap checkpoint, bukan halaman membeku.</li>
+    <li>Posisi berhenti dihitung dari tinggi panel sesungguhnya, sehingga ganti bahasa atau resize jendela tetap mendarat presisi.</li>
+    <li>Konten stasiun: <b>Satu Hari</b> (alur kerja), <b>Layanan</b> (7 layanan), <b>Kredibilitas</b> (sertifikasi &amp; mitra), <b>Angka</b> (statistik nyata), <b>Kisah</b>, <b>Pengguna</b>, <b>Tentang</b>, <b>Play</b>, <b>Kontak</b>, <b>Tribute</b>.</li>
+    <li>Di mobile, konten memenuhi lebar layar; dunia 3D menjadi jendela PiP (Bagian 13).</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Angka-angka (12 tahun, 200+ pemda, 15+ kementerian/lembaga, 15,4 jt+ NIB, 15 proyek, 5 aplikasi) bersumber dari deck company profile PT Cartenz — lihat Tribute untuk atribusi lengkap.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 4</div>
+</section>
+
+<!-- ============================== 4 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 4</div>
+  <h2><span class="no">04</span>Teleportasi bersinar &amp; sudut pandang</h2>
+  <p class="lead">Melompat lebih dari satu stasiun tidak membuat Eric berjalan jauh: ia berteleportasi
+  dengan sinar dari atas, lalu mendarat tepat di checkpoint tujuan.</p>
+  <div class="fig w120"><img src="manual/m18-teleport-beam.png" alt="Sinar teleportasi" /></div>
+  <div class="cap"><b>Gambar 6.</b> Sinar teleport emas + cincin pendaratan saat melompat dari Play ke Kredibilitas (lompatan tidak berurutan).</div>
+  <div class="fig w120"><img src="manual/m06-first-person.png" alt="Sudut pandang first person" /></div>
+  <div class="cap"><b>Gambar 7.</b> PoV First Person: kamera setinggi mata Eric menyusuri jalur; tombol berubah menjadi “PoV: First Person”.</div>
+  <ol>
+    <li>Klik tautan nav yang berjarak ≥ 2 stasiun → Eric lenyap, sinar turun, ia muncul di stasiun tujuan (±0,95 s).</li>
+    <li>Lompatan berurutan (1 stasiun) tetap berupa <b>hop berjalan</b> biasa agar perjalanan terasa menyambung.</li>
+    <li>Tombol <b>PoV</b> di pojok kanan-bawah pane 3D mengganti <b>Orbit</b> (isometrik mengikuti Eric) ↔ <b>First Person</b>.</li>
+    <li>Grammar teleport yang sama dipakai chip lompat etape di Jelajah Bebas (Bagian 11).</li>
+  </ol>
+  <div class="note"><b>Catatan.</b> Pada mode malam kamera isometrik turun sedikit agar skyline kota terbaca; menara tetap menyala di kedua sisinya sehingga tidak ada slab gelap saat mengorbit.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 5</div>
+</section>
+
+<!-- ============================== 5 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 5</div>
+  <h2><span class="no">05</span>Play Character &amp; gate masuk</h2>
+  <p class="lead">Stasiun Play adalah pintu masuk playground 3D. Bangunan blok Anda sebelumnya
+  selalu ditawarkan kembali saat masuk.</p>
+  <div class="fig w120"><img src="manual/m05-play-section.png" alt="Panel Play" /></div>
+  <div class="cap"><b>Gambar 8.</b> Panel Play menjelaskan tujuan: Tumpukan Bermakna lima lapis, I Fondasi → V Rawat, beserta jumlah blok tersimpan.</div>
+  <div class="fig w120"><img src="manual/m08-gate.png" alt="Gate masuk playground" /></div>
+  <div class="cap"><b>Gambar 9.</b> Gate “Masuk Playground”: blok tersimpan, rekor tercepat, dan tiga pilihan masuk.</div>
+  <ol>
+    <li>Klik <b>Mulai Play Character</b> (panel Play) atau tombol <b>Play</b> di nav lalu CTA-nya.</li>
+    <li><b>Lanjutkan tantangan</b> — muncul bila ada run berwaktu yang ditahan; sisa waktu dipulihkan.</li>
+    <li><b>Tetap masuk (bebas)</b> — masuk tanpa timer, bangunan lama tetap ada, tanpa notifikasi apa pun.</li>
+    <li><b>Mulai dari awal</b> — membuka pemilih difficulty (Bagian 6); arena dimulai kosong untuk run baru.</li>
+    <li>Di mobile, gate dan seluruh dialog muncul penuh layar dengan tombol yang muat di 390 px.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Blok tersimpan dihitung dari bangunan terakhir Anda di dunia bersama — keluar dari game tidak menghapus karya.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 6</div>
+</section>
+
+<!-- ============================== 6 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 6</div>
+  <h2><span class="no">06</span>Tantangan berwaktu &amp; HUD</h2>
+  <p class="lead">Empat tingkat kesulitan dengan batas waktu berbeda. Selesaikan Tumpukan Bermakna
+  sebelum waktu habis untuk mencatat rekor.</p>
+  <div class="fig w120"><img src="manual/m09-difficulty.png" alt="Pemilih difficulty" /></div>
+  <div class="cap"><b>Gambar 10.</b> Pemilih tantangan: Easy 10:00, Medium 5:00, Hard 2:00, Epic 0:30.</div>
+  <div class="fig w120"><img src="manual/m10-run-hud.png" alt="HUD tantangan" /></div>
+  <div class="cap"><b>Gambar 11.</b> HUD run: kartu kiri memuat ladder Makna 0/5, tinggi tumpukan, dan timer EASY 9:58 dengan bar sisa waktu.</div>
+  <table>
+    <tr><th>Difficulty</th><th>Waktu</th><th>Cocok untuk</th></tr>
+    <tr><td><b>Easy</b></td><td>10:00</td><td>Santai membangun, waktu longgar.</td></tr>
+    <tr><td><b>Medium</b></td><td>5:00</td><td>Ritme kerja normal.</td></tr>
+    <tr><td><b>Hard</b></td><td>2:00</td><td>Tekanan nyata, berpikir cepat.</td></tr>
+    <tr><td><b>Epic</b></td><td>0:30</td><td>Kilat — hanya untuk yang hafal urutan blok.</td></tr>
+  </table>
+  <ol>
+    <li>Timer berjalan hanya saat bermain; <b>jeda dan keluar menahan waktu</b> (hold), bukan menghabisinya.</li>
+    <li>Bar waktu berubah memerah dan teks “Waktu menipis!” muncul saat sisa waktu kritis.</li>
+    <li>Keluar di tengah run → gate berikutnya menawarkan <b>Lanjutkan tantangan</b> dengan sisa waktu yang sama.</li>
+  </ol>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 7</div>
+</section>
+
+<!-- ============================== 7 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 7</div>
+  <h2><span class="no">07</span>Jeda, kontrol, &amp; Tumpukan Bermakna</h2>
+  <p class="lead">Esc dua tahap: sekali membuka jeda (kursor aktif), sekali lagi keluar ke situs.
+  Blok hanya berdiri di atas fondasi yang kokoh — urutan adalah aturan mainnya.</p>
+  <div class="fig w110"><img src="manual/m11-pause.png" alt="Dialog jeda" /></div>
+  <div class="cap"><b>Gambar 12.</b> Dialog Jeda: blok tersimpan, koleksi renungan, Lanjutkan / Hapus semua / Keluar. Timer ditahan selama jeda.</div>
+  <div class="fig w110"><img src="manual/m12-first-block.png" alt="Blok pertama + renungan" /></div>
+  <div class="cap"><b>Gambar 13.</b> Blok fondasi pertama placed: ladder Makna 1/5 dan toast renungan “Fondasi pertama” muncul.</div>
+  <div class="keys">
+    <span class="key">W A S D</span><span class="key">Shift = lari</span><span class="key">Space = lompat</span>
+    <span class="key">Klik kiri = hancurkan</span><span class="key">Klik kanan = pasang</span>
+    <span class="key">1–5 = material</span><span class="key">Esc = jeda / keluar</span>
+  </div>
+  <ol>
+    <li>Pilih material di hotbar (bawah tengah): <b>I Fondasi</b> (server), <b>II Karya</b> (cloud), <b>III Mutu</b> (doc), <b>IV Perubahan</b> (laptop), <b>V Rawat</b> (gear).</li>
+    <li>Arahkan crosshair ke tanah lalu <b>klik kanan</b> untuk fondasi; ke sisi atas blok untuk menumpuk lapis berikutnya.</li>
+    <li>Menumpuk <b>tidak berurutan</b> ditolak (“Tanpa fondasi”); mencabut fondasi meruntuhkan yang bertumpu padanya (“Fondasi runtuh”).</li>
+    <li>Lima lapis berurutan = <b>Tumpukan Bermakna selesai</b> → selebrasi + fajar (Bagian 8) dan, bila run berwaktu, popup rekor (Bagian 9).</li>
+    <li><b>Hapus semua</b> di dialog jeda meminta konfirmasi dulu; bangunan lama tetap persist sampai Anda benar-benar menghapusnya.</li>
+  </ol>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 8</div>
+</section>
+
+<!-- ============================== 8 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 8</div>
+  <h2><span class="no">08</span>Selebrasi &amp; koleksi renungan</h2>
+  <p class="lead">Menyelesaikan tumpukan membuka cakrawala: cahaya fajar menyapu kota dan kartu
+  selebrasi muncul. Setiap peristiwa bermakna menambah satu renungan ke koleksi Anda.</p>
+  <div class="fig w120"><img src="manual/m25-celebrate.png" alt="Selebrasi fajar" /></div>
+  <div class="cap"><b>Gambar 14.</b> Kartu “Cakrawala terbuka” dengan latar fajar; kursor dibebaskan otomatis agar kartu bisa dibaca.</div>
+  <div class="fig w120"><img src="manual/m26-renungan.png" alt="Koleksi renungan" /></div>
+  <div class="cap"><b>Gambar 15.</b> Daftar renungan di dialog jeda: enam aphorisma terbuka lewat peristiwa bermain (fondasi pertama, pasangan lapis, selesai, vista, tolakan, runtuh).</div>
+  <ol>
+    <li>Selesaikan lima lapis berurutan → selebrasi + status <b>vista</b> terbuka; langit beralih ke fajar selama kartu tampil.</li>
+    <li>Renungan tersimpan permanen di browser dan terlihat kembali lewat dialog jeda kapan pun.</li>
+    <li>Rekor tinggi tumpukan (<b>best</b>) dicatat terpisah dari rekor waktu tantangan.</li>
+    <li>Setelah selebrasi, lanjutkan membangun bebas atau keluar — dunia tetap menyimpan bangunan Anda.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Mencabut fondasi yang memikul blok lain juga membuka renungan “Fondasi runtuh” — kegagalan pun bagian dari koleksi.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 9</div>
+</section>
+
+<!-- ============================== 9 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 9</div>
+  <h2><span class="no">09</span>Menang, rekor, &amp; nama papan skor</h2>
+  <p class="lead">Run berwaktu yang selesai memunculkan popup hasil: waktu tercatat, penanda rekor
+  baru, dan kolom nama untuk papan skor.</p>
+  <div class="fig w120"><img src="manual/m13-win.png" alt="Popup menang" /></div>
+  <div class="cap"><b>Gambar 16.</b> Popup “Tumpukan Bermakna selesai”: rekor baru, waktu 0:07.2 (Easy), kolom nama, dan tiga tindakan lanjutan.</div>
+  <div class="fig w120"><img src="manual/m14-saved.png" alt="Skor tersimpan" /></div>
+  <div class="cap"><b>Gambar 17.</b> Setelah Simpan: nota hijau “Tercatat di papan skor” dan baris entri peringkat 1 muncul di popup yang sama.</div>
+  <ol>
+    <li>Selesaikan lima lapis sebelum waktu habis → popup hasil terbuka otomatis.</li>
+    <li>Bila waktu Anda tercepat untuk difficulty tersebut, pita emas <b>“Rekor baru — waktu tercepat!”</b> tampil.</li>
+    <li>Ketik nama pada kolom <b>Namamu untuk papan skor</b> lalu klik <b>Simpan</b>; kosongkan maka tercatat sebagai “Anonim”.</li>
+    <li><b>Main lagi</b> mengulang difficulty yang sama dengan waktu penuh; <b>Lanjut bebas</b> menutup popup dan bermain tanpa timer; <b>Keluar</b> kembali ke situs.</li>
+  </ol>
+  <div class="note"><b>Catatan.</b> Skor disimpan di browser Anda (maks 50 entri, urut waktu tercepat) — tidak ada data yang dikirim ke server.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 10</div>
+</section>
+
+<!-- ============================== 10 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 10</div>
+  <h2><span class="no">10</span>Papan skor &amp; waktu habis</h2>
+  <p class="lead">Papan skor merangkum rekor tercepat semua difficulty. Kehabisan waktu tidak
+  menghukum: tantangan diulang otomatis dengan waktu penuh.</p>
+  <div class="fig w120"><img src="manual/m15-scoreboard.png" alt="Papan skor" /></div>
+  <div class="cap"><b>Gambar 18.</b> Papan Skor (tombol trofi di HUD): peringkat, nama, badge difficulty, dan waktu tercatat.</div>
+  <div class="fig w120"><img src="manual/m27-timeout.png" alt="Popup waktu habis" /></div>
+  <div class="cap"><b>Gambar 19.</b> Popup “Waktu habis”: tumpukan belum selesai, tantangan diulang dari awal dengan waktu penuh.</div>
+  <ol>
+    <li>Klik ikon <b>trofi</b> di pojok kanan-atas HUD untuk membuka/menutup Papan Skor kapan pun saat bermain.</li>
+    <li>Entri menampilkan peringkat, nama, difficulty, dan waktu; entri terbaru Anda disorot setelah menyimpan.</li>
+    <li>Bila timer mencapai 0:00 → popup <b>Waktu habis</b> muncul sebentar lalu run <b>restart otomatis</b> dengan waktu penuh difficulty yang sama.</li>
+    <li>Belum ada catatan? Papan menampilkan “Belum ada catatan. Jadilah yang pertama.”</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Epic 0:30 hanya mungkin bila Anda hafal urutan material 1→5 dan arah crosshair — latih dulu di Easy tanpa timer lewat “Tetap masuk (bebas)”.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 11</div>
+</section>
+
+<!-- ============================== 11 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 11</div>
+  <h2><span class="no">11</span>Jelajah Bebas Jakarta 2045 &amp; robot NPC</h2>
+  <p class="lead">Tombol Jelajah memasuki mode bebas: mulai di posisi Eric saat itu, berjalan ke
+  seluruh kota malam, menyapa enam robot penjaga etape.</p>
+  <div class="fig w110"><img src="manual/m16-adventure-monas.png" alt="Kota malam dan Monas" /></div>
+  <div class="cap"><b>Gambar 20.</b> Jakarta 2045: Monas bercahaya, skytrain layang, billboard holo, menara berjendela neon, bintang, dan mobil terbang berjejak.</div>
+  <div class="fig w110"><img src="manual/m17-greet.png" alt="Menyapa robot BIMA-07" /></div>
+  <div class="cap"><b>Gambar 21.</b> Menyapa BIMA-07: bubble dialog, prompt “Sapa BIMA-07”, dan penghitung robot disapa 1/6 di kartu HUD.</div>
+  <ol>
+    <li>Klik <b>Jelajah</b> di nav (atau tombol sekunder di panel Play) → masuk tanpa gate, di posisi Eric sekarang.</li>
+    <li><b>Chip 1–11</b> di kartu HUD kiri melompat ke etape mana pun dengan grammar teleport bersinar.</li>
+    <li>Mendekat ≤ 2,4 m dari robot memunculkan prompt <b>Sapa</b>; tekan <b>E</b> (desktop) atau ketuk prompt (mobile).</li>
+    <li>Robot menghadap Anda, melompat kecil, melambai, dan membuka bubble dialog; penghitung <b>n/6</b> bertambah dan persist.</li>
+    <li>Enam robot: <b>BIMA-07, SRI-11, GATOT-3, MERAK-5, NUSA-21, KOMODO-8</b> — satu di tiap etape ganjil-genap sepanjang jalur.</li>
+    <li><b>Esc dua tahap</b> / menu → Keluar mengembalikan situs ke <b>etape terdekat</b> dari posisi Anda, bukan selalu Play.</li>
+  </ol>
+  <div class="note"><b>Catatan.</b> Kamera jelajah memakai boom anti-tembus: ia otomatis menarik diri atau berayun ke arah bersih bila dinding/menara/paviliun menghalangi, sehingga tidak pernah terjebak di dalam geometri.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 12</div>
+</section>
+
+<!-- ============================== 12 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 12</div>
+  <h2><span class="no">12</span>Tribute fullscreen &amp; kontak</h2>
+  <p class="lead">Tribute mencatat seluruh sumber laman ini dalam satu layar penuh; Kontak membuka
+  jalur kolaborasi nyata ke PT Cartenz.</p>
+  <div class="fig w120"><img src="manual/m20-tribute.png" alt="Tribute fullscreen" /></div>
+  <div class="cap"><b>Gambar 22.</b> Tribute &amp; Atribusi layar penuh: rail indeks lima kelompok sumber di kiri, daftar bertaut di kanan, tombol tutup di pojok.</div>
+  <div class="fig w120"><img src="manual/m19-contact-night.png" alt="Formulir kontak" /></div>
+  <div class="cap"><b>Gambar 23.</b> Stasiun Kontak malam: alamat Wisma Bumiputera, telepon/WhatsApp, email, LinkedIn, dan formulir yang membuka aplikasi email Anda.</div>
+  <ol>
+    <li>Klik kartu <b>Tribute &amp; Atribusi</b> di footer (atau nav “Tribute”) → overlay layar penuh terbuka.</li>
+    <li>Scroll di dalam overlay hanya menggulir kredit; halaman di belakangnya diam. Rail indeks melompat ke kelompok sumber.</li>
+    <li>Tutup lewat tombol <b>×</b> pojok kanan-atas atau <b>Esc</b> → kembali persis ke section sebelumnya.</li>
+    <li>Di <b>Kontak</b>, isi Nama/Email/Pesan lalu <b>Kirim via Email</b>: aplikasi email Anda terbuka dengan isi sudah terprefill; tidak ada data tersimpan di server.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Tribute memuat atribusi teknologi (React, Three.js, GSAP/Lenis, Zustand, Lucide, Playwright), dokumen perusahaan, serta riset biomekanika gerak lari/lompat yang dipakai rig Eric.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 13</div>
+</section>
+
+<!-- ============================== 13 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 13</div>
+  <h2><span class="no">13</span>Mobile: browsing &amp; jendela PiP</h2>
+  <p class="lead">Di layar &lt; 768 px konten substansi memenuhi lebar layar; dunia 3D melayang sebagai
+  jendela Picture-in-Picture yang bisa digeser dan diperbesar.</p>
+  <div class="row">
+    <div>
+      <div class="fig"><img src="manual/m21-mobile-hero.png" alt="Mobile hero malam" /></div>
+      <div class="cap"><b>Gambar 24.</b> Hero mobile malam dengan PiP di pojok kanan-bawah.</div>
+    </div>
+    <div>
+      <div class="fig"><img src="manual/m22-mobile-menu.png" alt="Menu mobile" /></div>
+      <div class="cap"><b>Gambar 25.</b> Menu mobile: Jelajah, baris tema, dan sebelas tautan stasiun.</div>
+    </div>
+  </div>
+  <ol>
+    <li><b>Swipe vertikal</b> berjalan antar checkpoint; momentum sentuh tidak pernah dilawan mundur.</li>
+    <li><b>Geser judul PiP</b> untuk memindahkan jendela; posisi persist setelah reload.</li>
+    <li>Klik ikon <b>perbesar</b> di judul PiP untuk memperluas jendela 3D; klik lagi mengembalikan ukuran kecil.</li>
+    <li>Tombol <b>Orbit</b> di dalam PiP mengganti sudut pandang seperti di desktop.</li>
+    <li><b>Menu</b> (pojok kanan-atas) membuka daftar stasiun + baris <b>Mode siang/malam</b> + tombol Jelajah.</li>
+    <li>Tema malam berlaku penuh di mobile: body, kartu, PiP, dan menu semuanya gelap dengan teks terbaca.</li>
+  </ol>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 14</div>
+</section>
+
+<!-- ============================== 14 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 14</div>
+  <h2><span class="no">14</span>Mobile: Play &amp; jelajah sentuh</h2>
+  <p class="lead">Tanpa pointer lock di layar sentuh: joystick kiri untuk bergerak, geser kanan untuk
+  melihat, ketuk layar untuk membidik.</p>
+  <div class="row">
+    <div>
+      <div class="fig"><img src="manual/m23-mobile-play.png" alt="Play mobile" /></div>
+      <div class="cap"><b>Gambar 26.</b> Play mobile: joystick, hotbar material kiri, tombol Lompat/Hancurkan/Pasang/Lari kanan.</div>
+    </div>
+    <div>
+      <div class="fig"><img src="manual/m24-mobile-adventure.png" alt="Jelajah mobile" /></div>
+      <div class="cap"><b>Gambar 27.</b> Jelajah mobile: chip etape, joystick, tombol Lompat/Lari, dan petunjuk sentuh.</div>
+    </div>
+  </div>
+  <ol>
+    <li><b>Joystick kiri</b> menggerakkan Eric; <b>geser sisi kanan</b> memutar kamera.</li>
+    <li><b>Ketuk layar</b> memunculkan reticle emas di titik bidik; tombol <b>Pasang</b>/<b>Hancurkan</b> bekerja pada titik itu.</li>
+    <li><b>Hotbar material</b> tersusun vertikal di kiri agar tidak overlap dengan joystick; ketuk untuk memilih lapis.</li>
+    <li>Di jelajah, dekati robot lalu ketuk prompt <b>Sapa</b> yang muncul; bubble dialog di-clamp ke viewport sehingga selalu terbaca.</li>
+    <li><b>Menu → Keluar</b> mengembalikan situs ke etape terdekat; dialog jeda mobile muat penuh di 390 px.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Semua dialog (gate, difficulty, jeda, hasil, papan skor) diuji muat dan bebas overflow pada 390×844 — tidak ada tombol yang terpotong.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 15</div>
+</section>
+
+<!-- ============================== 15 ============================== -->
+<section class="page">
+  <div class="kicker">Bagian 15</div>
+  <h2><span class="no">15</span>Referensi cepat &amp; pemecahan masalah</h2>
+  <table>
+    <tr><th>Aksi</th><th>Desktop</th><th>Mobile</th></tr>
+    <tr><td>Berjalan antar stasiun</td><td class="k">scroll / roda / panah</td><td>swipe vertikal</td></tr>
+    <tr><td>Lompat stasiun</td><td class="k">klik nav / chip</td><td>menu / chip etape</td></tr>
+    <tr><td>Gerak / lari / lompat</td><td class="k">WASD / Shift / Space</td><td>joystick / Lari / Lompat</td></tr>
+    <tr><td>Pasang / hancurkan blok</td><td class="k">klik kanan / klik kiri</td><td>ketuk bidik + Pasang / Hancurkan</td></tr>
+    <tr><td>Pilih material</td><td class="k">1–5</td><td>ketuk hotbar</td></tr>
+    <tr><td>Sapa robot</td><td class="k">E</td><td>ketuk prompt Sapa</td></tr>
+    <tr><td>Jeda / keluar</td><td class="k">Esc / Esc</td><td>Menu / Keluar</td></tr>
+    <tr><td>Tema / bahasa / suara</td><td class="k">tombol nav &amp; HUD</td><td>menu / ikon HUD</td></tr>
+  </table>
+  <table>
+    <tr><th>Kunci localStorage</th><th>Isi</th></tr>
+    <tr><td class="k">cakrawala-theme-v1</td><td>Tema malam/siang (absen = malam)</td></tr>
+    <tr><td class="k">cakrawala-lang</td><td>Bahasa id / en</td></tr>
+    <tr><td class="k">cakrawala-play-world-v1</td><td>Bangunan blok bersama</td></tr>
+    <tr><td class="k">cakrawala-meaning-v1</td><td>Rekor tinggi, status selesai, renungan terbuka</td></tr>
+    <tr><td class="k">cakrawala-run-v1</td><td>Run berwaktu yang ditahan (difficulty, sisa waktu)</td></tr>
+    <tr><td class="k">cakrawala-scores-v1</td><td>Papan skor (maks 50, urut waktu naik)</td></tr>
+    <tr><td class="k">cakrawala-npc-v1</td><td>Robot yang sudah disapa</td></tr>
+    <tr><td class="k">cakrawala-audio-v1</td><td>Status mute suara</td></tr>
+    <tr><td class="k">cakrawala-pip-v1</td><td>Posisi &amp; status jendela PiP mobile</td></tr>
+  </table>
+  <ul>
+    <li><b>Kursor terasa terkunci?</b> Esc sekali membuka jeda dan membebaskan kursor; Esc kedua keluar ke situs.</li>
+    <li><b>Ingin mulai benar-benar bersih?</b> Hapus kunci localStorage di atas lewat DevTools → Application → Local Storage, lalu reload.</li>
+    <li><b>Suara tidak terdengar?</b> Cek ikon speaker di HUD (mute persist); browser juga menuntut interaksi pertama sebelum audio boleh bunyi.</li>
+    <li><b>Scroll terasa “mengunci”?</b> Itu snap checkpoint: halaman sengaja mendarat presisi di tengah stasiun sebelum menerima gesture berikutnya.</li>
+    <li><b>Menjalankan lokal:</b> <span class="k">npm install</span> lalu <span class="k">npm run dev</span> → buka <span class="k">http://localhost:5199/cakrawala-web-profile/</span>.</li>
+  </ul>
+  <div class="note"><b>Atribusi.</b> Seluruh sumber teknologi, dokumen perusahaan, dan riset gerak tercantum lengkap di overlay Tribute (Bagian 12). Model karakter “Eric Rigged 001” oleh Renderpeople (free3d.com), Personal Use License.</div>
+  <div class="foot">Cakrawala · Panduan Pengguna · halaman 16 · selesai</div>
+</section>
+
+</body>
+</html>
