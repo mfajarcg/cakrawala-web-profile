@@ -1,6 +1,6 @@
 import { OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { GripVertical, Maximize2, Minimize2 } from 'lucide-react'
+import { ChevronDown, GripVertical, Maximize2, Minimize2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import * as THREE from 'three'
 import { PovButton } from '../blocks/PovButton'
@@ -332,12 +332,13 @@ interface PipState {
   x: number
   y: number
   expanded: boolean
+  minimized: boolean
 }
 
-function pipSize(expanded: boolean) {
+function pipSize(expanded: boolean, minimized = false) {
   const vw = window.innerWidth
   const w = Math.round(expanded ? Math.min(vw * 0.86, 400) : Math.min(vw * 0.46, 210))
-  return { w, h: Math.round(w * 1.18) }
+  return { w, h: minimized ? PIP_HEADER : Math.round(w * 1.18) }
 }
 
 function clampPos(x: number, y: number, w: number, h: number) {
@@ -350,7 +351,7 @@ function clampPos(x: number, y: number, w: number, h: number) {
 function defaultPip(): PipState {
   const { w, h } = pipSize(false)
   const pos = clampPos(window.innerWidth - w - 12, window.innerHeight - h - 12, w, h)
-  return { x: pos.x, y: pos.y, expanded: false }
+  return { x: pos.x, y: pos.y, expanded: false, minimized: false }
 }
 
 function loadPip(): PipState {
@@ -359,9 +360,10 @@ function loadPip(): PipState {
     if (!raw) return defaultPip()
     const p = JSON.parse(raw) as Partial<PipState>
     const expanded = !!p.expanded
-    const { w, h } = pipSize(expanded)
+    const minimized = !!p.minimized
+    const { w, h } = pipSize(expanded, minimized)
     const pos = clampPos(Number(p.x) || 0, Number(p.y) || 0, w, h)
-    return { x: pos.x, y: pos.y, expanded }
+    return { x: pos.x, y: pos.y, expanded, minimized }
   } catch {
     return defaultPip()
   }
@@ -394,10 +396,11 @@ export function World() {
     cls = 'fixed top-0 bottom-0 right-0 z-0 flex flex-col border-l border-[#101418]/10 shadow-[-1rem_0_3rem_rgba(16,20,24,0.07)]'
     style = { left: '46%' }
   } else {
-    const { w, h } = pipSize(pip.state.expanded)
+    const { w, h } = pipSize(pip.state.expanded, pip.state.minimized)
     cls = 'fixed z-20 flex flex-col overflow-hidden rounded-xl border border-[#101418]/15 bg-[#e9eff3] shadow-[0_0.75rem_2rem_rgba(16,20,24,0.3)]'
     style = { left: pip.state.x, top: pip.state.y, width: w, height: h, touchAction: 'none' }
   }
+  const mobileMinimized = !inGame && !desktop && pip.state.minimized
 
   return (
     <div
@@ -419,21 +422,35 @@ export function World() {
             <GripVertical size={12} className="opacity-70" />
             Dunia 3D
           </span>
-          <button
-            onClick={pip.toggleExpanded}
-            onPointerDown={(e) => e.stopPropagation()}
-            aria-label={pip.state.expanded ? 'Kecilkan jendela 3D' : 'Besarkan jendela 3D'}
-            className="flex h-5 w-5 items-center justify-center rounded text-white/80 transition hover:bg-white/15 hover:text-white"
-          >
-            {pip.state.expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-          </button>
+          <span className="flex items-center gap-0.5">
+            {!pip.state.minimized && (
+              <button
+                onClick={pip.toggleExpanded}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label={pip.state.expanded ? 'Kecilkan jendela 3D' : 'Besarkan jendela 3D'}
+                className="flex h-5 w-5 items-center justify-center rounded text-white/80 transition hover:bg-white/15 hover:text-white"
+              >
+                {pip.state.expanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+              </button>
+            )}
+            <button
+              onClick={pip.toggleMinimized}
+              onPointerDown={(e) => e.stopPropagation()}
+              aria-label={pip.state.minimized ? 'Buka jendela 3D' : 'Ciutkan jendela 3D'}
+              className="flex h-5 w-5 items-center justify-center rounded text-white/80 transition hover:bg-white/15 hover:text-white"
+            >
+              {pip.state.minimized ? <Maximize2 size={12} /> : <ChevronDown size={12} />}
+            </button>
+          </span>
         </div>
       )}
-      <div className="relative min-h-0 flex-1">
-        <CanvasSetup />
-        {!inGame && <PovButton />}
-        {!inGame && desktop && <StationRail />}
-      </div>
+      {!mobileMinimized && (
+        <div className="relative min-h-0 flex-1">
+          <CanvasSetup />
+          {!inGame && <PovButton />}
+          {!inGame && desktop && <StationRail />}
+        </div>
+      )}
     </div>
   )
 }
@@ -448,7 +465,7 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
   useEffect(() => {
     const onResize = () =>
       setState((p) => {
-        const { w, h } = pipSize(p.expanded)
+        const { w, h } = pipSize(p.expanded, p.minimized)
         return { ...p, ...clampPos(p.x, p.y, w, h) }
       })
     window.addEventListener('resize', onResize)
@@ -471,7 +488,7 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
   }
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return
-    const { w, h } = pipSize(latest.current.expanded)
+    const { w, h } = pipSize(latest.current.expanded, latest.current.minimized)
     const nx = drag.current.ox + (e.clientX - drag.current.px)
     const ny = drag.current.oy + (e.clientY - drag.current.py)
     setState((p) => ({ ...p, ...clampPos(nx, ny, w, h) }))
@@ -486,8 +503,17 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
   const toggleExpanded = () =>
     setState((p) => {
       const expanded = !p.expanded
-      const { w, h } = pipSize(expanded)
+      const { w, h } = pipSize(expanded, p.minimized)
       const next = { ...p, ...clampPos(p.x, p.y, w, h), expanded }
+      save(next)
+      return next
+    })
+
+  const toggleMinimized = () =>
+    setState((p) => {
+      const minimized = !p.minimized
+      const { w, h } = pipSize(p.expanded, minimized)
+      const next = { ...p, ...clampPos(p.x, p.y, w, h), minimized }
       save(next)
       return next
     })
@@ -496,13 +522,20 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
   useEffect(() => {
     if (!inGame && !desktop) {
       setState((p) => {
-        const { w, h } = pipSize(p.expanded)
+        const { w, h } = pipSize(p.expanded, p.minimized)
         return { ...p, ...clampPos(p.x, p.y, w, h) }
       })
     }
   }, [inGame, desktop])
 
-  return { state, onPointerDown, onPointerMove, onPointerUp, toggleExpanded }
+  return {
+    state,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    toggleExpanded,
+    toggleMinimized,
+  }
 }
 
 function CanvasSetup() {
