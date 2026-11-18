@@ -22,20 +22,6 @@ export function Credibility() {
       </div>
 
       <h3 className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#101418]/50">
-        {t.credibility.techTitle}
-      </h3>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {t.credibility.tech.map((tech) => (
-          <span
-            key={tech}
-            className="rounded-lg border border-black/10 px-3 py-1.5 text-xs font-medium text-[#101418]/80"
-          >
-            {tech}
-          </span>
-        ))}
-      </div>
-
-      <h3 className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#101418]/50">
         {t.credibility.stackTitle}
       </h3>
       <div className="mt-3 flex flex-wrap gap-2">
