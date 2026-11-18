@@ -788,7 +788,7 @@ function EricVisual() {
   return (
     <>
       <group ref={root} scale={MODEL_SCALE} visible={mode === 'game' || pov !== 'fp'}>
-        <primitive object={fbx} />
+        <primitive object={fbx} dispose={null} />
       </group>
       <mesh
         ref={shadow}

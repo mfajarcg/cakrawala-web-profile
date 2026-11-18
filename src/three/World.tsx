@@ -401,6 +401,7 @@ export function World() {
     style = { left: pip.state.x, top: pip.state.y, width: w, height: h, touchAction: 'none' }
   }
   const mobileMinimized = !inGame && !desktop && pip.state.minimized
+  const canvasH = pipSize(pip.state.expanded).h - PIP_HEADER
 
   return (
     <div
@@ -444,13 +445,21 @@ export function World() {
           </span>
         </div>
       )}
-      {!mobileMinimized && (
-        <div className="relative min-h-0 flex-1">
-          <CanvasSetup />
-          {!inGame && <PovButton />}
-          {!inGame && desktop && <StationRail />}
-        </div>
-      )}
+      {/* keep the canvas mounted when minimized: unmounting disposes the
+          shared FBX rig and the character comes back broken */}
+      <div
+        className="relative min-h-0 flex-1"
+        style={
+          mobileMinimized
+            ? { position: 'absolute', top: PIP_HEADER, left: 0, width: '100%', height: canvasH }
+            : undefined
+        }
+        aria-hidden={mobileMinimized || undefined}
+      >
+        <CanvasSetup paused={mobileMinimized} />
+        {!inGame && <PovButton />}
+        {!inGame && desktop && <StationRail />}
+      </div>
     </div>
   )
 }
@@ -538,7 +547,7 @@ function usePipFrame(inGame: boolean, desktop: boolean) {
   }
 }
 
-function CanvasSetup() {
+function CanvasSetup({ paused = false }: { paused?: boolean }) {
   const pov = useJourney((s) => s.pov)
   const mode = useGame((s) => s.mode)
   const adventure = useGame((s) => s.adventure)
@@ -546,6 +555,7 @@ function CanvasSetup() {
 
   return (
     <Canvas
+      frameloop={paused ? 'never' : 'always'}
       dpr={[1, 2]}
       gl={{
         antialias: true,
