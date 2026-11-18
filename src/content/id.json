@@ -160,6 +160,22 @@
       "ISO/IEC 11179",
       "RACI Matrix"
     ],
+    "stackTitle": "Framework & stack teknologi",
+    "stack": [
+      "Vite",
+      "Next.js",
+      "NGINX",
+      "React",
+      "Node.js",
+      "TypeScript"
+    ],
+    "methodsTitle": "Framework & metodologi",
+    "methods": [
+      "DAMA-DMBOK",
+      "PMBOK",
+      "TOGAF",
+      "Scrumfall (Scrum + Waterfall)"
+    ],
     "partnersTitle": "Mitra & pengguna layanan",
     "partnersNote": "Logo milik masing-masing pemegang merek; ditampilkan sebagai referensi portofolio."
   },

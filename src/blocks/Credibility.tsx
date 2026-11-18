@@ -36,6 +36,34 @@ export function Credibility() {
       </div>
 
       <h3 className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#101418]/50">
+        {t.credibility.stackTitle}
+      </h3>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {t.credibility.stack.map((tech) => (
+          <span
+            key={tech}
+            className="rounded-lg border border-black/10 px-3 py-1.5 text-xs font-medium text-[#101418]/80"
+          >
+            {tech}
+          </span>
+        ))}
+      </div>
+
+      <h3 className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#101418]/50">
+        {t.credibility.methodsTitle}
+      </h3>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {t.credibility.methods.map((method) => (
+          <span
+            key={method}
+            className="rounded-lg border border-black/10 px-3 py-1.5 text-xs font-medium text-[#101418]/80"
+          >
+            {method}
+          </span>
+        ))}
+      </div>
+
+      <h3 className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#101418]/50">
         {t.credibility.partnersTitle}
       </h3>
       <p className="mt-2 text-xs italic text-[#101418]/50">{t.credibility.partnersNote}</p>
