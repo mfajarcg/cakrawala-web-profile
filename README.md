@@ -232,7 +232,8 @@ di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
    `lockState.lastLostAt` (300 ms) mencegah Esc yang sama melakukan dua aksi; kehilangan lock tak
    sukarela (mis. alt-tab) tetap menjeda agar jam tantangan tertahan.
 6. `Lanjutkan` tidak mengunci kursor lagi; klik dunia mengunci ulang sesuai permintaan
-   (bila lock ditolak, aim jatuh ke `freeAim`).
+   (lock ditolak dua kali beruntun — mis. iframe tanpa izin atau cooldown browser pasca-Esc —
+   baru aim jatuh ke `freeAim`; lock yang berhasil kemudian membersihkan `freeAim`).
 7. Setiap perubahan blok langsung disimpan ke `localStorage['cakrawala-play-world-v1']`, dan
    blok itu tetap terlihat di stasiun Play setelah keluar maupun setelah reload.
 8. **Lapisan falsafah.** Lima jenis blok adalah lima lapis sistem hidup — I Fondasi /
@@ -775,7 +776,7 @@ stride) — untuk menghasilkan gerak yang plausibel dan bebas foot-sliding.
 | [three.js CatmullRomCurve3](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3) | Kurva path, `tension`, `getPointAt`, `getTangentAt`. |
 | [Lenis](https://github.com/darkroomengineering/lenis) | `scrollTo(target, { duration, easing })` dan perilaku `lerp: 0.09, smoothWheel: false`. |
 | [React Three Fiber — hooks](https://r3f.docs.pmnd.rs/api/hooks) | `useFrame` delta (di-clamp 50 ms) dan `useThree` untuk kamera/ukuran. |
-| [MDN Pointer Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API) | Aim kamera game; fallback `freeAim` bila lock ditolak. |
+| [MDN Pointer Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API) | Aim kamera game; fallback `freeAim` bila lock ditolak dua kali beruntun. |
 
 ---
 
