@@ -202,10 +202,14 @@ export function GameScene() {
       input.aimX = _ndc.x
       input.aimY = _ndc.y
       el.requestPointerLock?.()
-      // pointer lock can be refused (iframes, permissions); fall back to
-      // cursor aiming so breaking and placing still work
+      // pointer lock can be refused (iframes, permissions, or the browser's
+      // cooldown right after an Esc); only a repeated refusal falls back to
+      // cursor aiming, so a transient refusal still re-locks on the next click
       window.setTimeout(() => {
-        if (document.pointerLockElement !== el) input.freeAim = true
+        if (document.pointerLockElement !== el) {
+          lockState.refusals += 1
+          if (lockState.refusals >= 2) input.freeAim = true
+        }
       }, 600)
     }
     const onContext = (e: MouseEvent) => {
@@ -248,19 +252,25 @@ export function GameScene() {
     }
   }, [gl])
 
-  // losing the lock (Esc, alt-tab) opens the pause menu instead of leaving the
-  // camera spinning with a hidden cursor
+  // an involuntary loss (Esc aside, alt-tab) opens the pause menu so the clock
+  // holds; a voluntary Esc just frees the cursor and keeps the world running
   useEffect(() => {
     const el = gl.domElement
     let wasLocked = document.pointerLockElement === el
     const onChange = () => {
       const locked = document.pointerLockElement === el
+      if (locked) {
+        lockState.refusals = 0
+        input.freeAim = false
+        input.pointAim = null
+      }
       if (wasLocked && !locked) {
         lockState.lastLostAt = performance.now()
         resetInput()
         // completion / run modals release the lock on purpose; not a pause
         const st = useGame.getState()
-        if (!st.celebrate && st.gate === 'none' && !st.result) st.setPaused(true)
+        const voluntary = performance.now() - lockState.escAt < 300
+        if (!voluntary && !st.celebrate && st.gate === 'none' && !st.result) st.setPaused(true)
       }
       wasLocked = locked
     }

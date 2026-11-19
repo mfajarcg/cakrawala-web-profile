@@ -281,7 +281,7 @@
     "gameHintTouch": "Left joystick walks · drag the right side to look · action buttons on the right",
     "menu": "Menu",
     "pauseTitle": "Paused",
-    "pauseLead": "The cursor is free. Press Esc again to exit, or keep playing.",
+    "pauseLead": "The cursor is free. Esc again exits, or keep playing — click the world to lock the cursor again.",
     "resume": "Resume",
     "clearConfirm": "Delete {count} blocks?",
     "clearYes": "Yes, delete",
@@ -298,8 +298,10 @@
     "mouseRight": "Right-click",
     "deckPick": "Pick material",
     "deckEscTitle": "Exit",
-    "deckEsc": "Pause, Esc again to exit",
-    "escHint": "Esc once: pause · Esc twice: exit",
+    "deckEsc": "Free cursor → pause → exit",
+    "escFree": "Free cursor",
+    "cursorHint": "Click the world: lock cursor · Esc: pause",
+    "escHint": "Esc 1: free cursor · Esc 2: pause · Esc 3: exit",
     "saved": "Blocks saved",
     "exit": "Exit",
     "clear": "Clear all",
@@ -448,7 +450,7 @@
       "zoomWheel": "Scroll",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
-      "exitNote": "Esc returns to the nearest stage"
+      "exitNote": "Staged Esc: cursor → pause → nearest stage"
     }
   },
   "contact": {

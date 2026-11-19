@@ -85,14 +85,22 @@ const saved = await page.evaluate(() =>
 console.log('blocks after place', saved.length, saved[0])
 await page.screenshot({ path: 'shots/qa-05-place.png' })
 
-// --- escape stage one: pause menu, not exit
+// --- escape stage one: free the cursor, the world keeps running
+await page.keyboard.press('Escape')
+await page.waitForTimeout(500)
+const freed = await page.evaluate(() => ({
+  dialog: !!document.querySelector('[role="dialog"]'),
+  locked: !!document.pointerLockElement,
+}))
+console.log('esc stage one', freed)
+// --- escape stage two: pause menu, not exit
 await page.keyboard.press('Escape')
 await page.waitForTimeout(500)
 const paused = await page.evaluate(() => {
   const dialog = document.querySelector('[role="dialog"]')
   return { dialog: !!dialog, locked: !!document.pointerLockElement }
 })
-console.log('esc stage one', paused)
+console.log('esc stage two', paused)
 await page.screenshot({ path: 'shots/qa-06-pause.png' })
 
 // --- clear needs a second confirmation; cancel keeps the build
@@ -111,13 +119,15 @@ const afterClear = await page.evaluate(() =>
 )
 console.log('clear cancel/confirm', { afterCancel, afterClear })
 
-// --- resume must re-lock, then build again so the site shows blocks afterwards
+// --- resume keeps the cursor free; clicking the world re-locks, then build again
 await page.getByRole('button', { name: /Lanjutkan/i }).click()
 await page.waitForTimeout(900)
 const resumed = await page.evaluate(() => ({
   locked: !!document.pointerLockElement,
   dialog: !!document.querySelector('[role="dialog"]'),
 }))
+await page.mouse.click(720, 450)
+await page.waitForTimeout(600)
 await page.mouse.click(720, 450, { button: 'right' })
 await page.waitForTimeout(400)
 const rebuilt = await page.evaluate(() =>
@@ -125,7 +135,9 @@ const rebuilt = await page.evaluate(() =>
 )
 console.log('resume', resumed, 'rebuilt', rebuilt)
 
-// --- escape stage two from the pause menu returns to the checkpoint
+// --- escape stages from a locked cursor: free, pause, then exit to the checkpoint
+await page.keyboard.press('Escape')
+await page.waitForTimeout(600)
 await page.keyboard.press('Escape')
 await page.waitForTimeout(600)
 await page.keyboard.press('Escape')

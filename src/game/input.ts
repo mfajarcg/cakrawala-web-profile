@@ -88,7 +88,9 @@ export function resetRoamZoom() {
 }
 
 /**
- * Timestamp of the last pointer-lock release. The Escape handler uses it to
- * tell "Esc that closed the lock" apart from a second Esc that should exit.
+ * Timestamps of the last pointer-lock release and of the last voluntary Esc
+ * release: the Escape handler tells "Esc that freed the cursor" apart from an
+ * involuntary loss (alt-tab), which still pauses so the challenge clock holds.
+ * `refusals` counts consecutive failed lock requests before cursor aim latches.
  */
-export const lockState = { lastLostAt: 0 }
+export const lockState = { lastLostAt: 0, escAt: 0, refusals: 0 }

@@ -281,7 +281,7 @@
     "gameHintTouch": "Joystick kiri untuk jalan · geser sisi kanan untuk melihat · tombol aksi di kanan",
     "menu": "Menu",
     "pauseTitle": "Jeda",
-    "pauseLead": "Kursor sudah aktif. Tekan Esc lagi untuk keluar, atau lanjutkan bermain.",
+    "pauseLead": "Kursor sudah aktif. Esc lagi untuk keluar, atau lanjutkan — klik dunia untuk mengunci kursor kembali.",
     "resume": "Lanjutkan",
     "clearConfirm": "Yakin hapus {count} blok?",
     "clearYes": "Ya, hapus",
@@ -298,8 +298,10 @@
     "mouseRight": "Klik kanan",
     "deckPick": "Pilih material",
     "deckEscTitle": "Keluar",
-    "deckEsc": "Jeda, Esc lagi keluar",
-    "escHint": "Esc sekali: jeda · Esc dua kali: keluar",
+    "deckEsc": "Lepas kursor → jeda → keluar",
+    "escFree": "Lepas kursor",
+    "cursorHint": "Klik dunia: kunci kursor · Esc: jeda",
+    "escHint": "Esc 1: lepas kursor · Esc 2: jeda · Esc 3: keluar",
     "saved": "Blok tersimpan",
     "exit": "Keluar",
     "clear": "Hapus semua",
@@ -448,7 +450,7 @@
       "zoomWheel": "Scroll",
       "zoomIn": "Perbesar",
       "zoomOut": "Perkecil",
-      "exitNote": "Esc kembali ke etape terdekat"
+      "exitNote": "Esc bertahap: kursor → jeda → etape terdekat"
     }
   },
   "contact": {

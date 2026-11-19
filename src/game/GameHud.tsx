@@ -198,8 +198,8 @@ export function GameHud() {
     }
   }, [select])
 
-  // escape is handled outside the movement keys: stage one releases the lock
-  // (which opens the pause menu), stage two leaves the playground
+  // escape is staged: one frees the cursor, two opens the pause menu, three
+  // leaves the playground
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'Escape' || e.metaKey || e.ctrlKey || e.altKey) return
@@ -230,16 +230,21 @@ export function GameHud() {
       }
       if (document.pointerLockElement) {
         e.preventDefault()
-        state.setPaused(true)
-        lockState.lastLostAt = performance.now()
+        lockState.escAt = performance.now()
         resetInput()
         document.exitPointerLock()
         return
       }
-      // the same Esc that just closed the lock must not also exit
+      // an Esc landing right on the unlock is the same gesture, not a new stage
       if (performance.now() - lockState.lastLostAt < 300) return
       if (confirmClear) {
         setConfirmClear(false)
+        return
+      }
+      if (!state.paused) {
+        e.preventDefault()
+        resetInput()
+        state.setPaused(true)
         return
       }
       state.exit()
@@ -286,23 +291,11 @@ export function GameHud() {
     setPaused(true)
   }
 
+  // resuming keeps the cursor free; clicking the world re-locks it on demand
   const resume = () => {
     setPaused(false)
     resetInput()
     lockState.lastLostAt = 0
-    // touch aims by tapping; locking would hide the cursor and eat HUD clicks
-    if (touch) return
-    const canvas = document.querySelector<HTMLCanvasElement>('canvas')
-    try {
-      const result = canvas?.requestPointerLock?.() as unknown
-      if (result && typeof (result as Promise<void>).catch === 'function') {
-        ;(result as Promise<void>).catch(() => {
-          input.freeAim = true
-        })
-      }
-    } catch {
-      input.freeAim = true
-    }
   }
 
   const toggleDeck = () => {
@@ -394,16 +387,23 @@ export function GameHud() {
           {locked && !touch ? (
             <div className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101418]/85 px-3 py-1.5 text-[0.65rem] font-bold text-white/70 shadow-lg backdrop-blur">
               <Key danger>Esc</Key>
-              {t.play.menu}
+              {t.play.escFree}
             </div>
           ) : (
-            <button
-              {...press(openMenu)}
-              className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-[#101418]/85 px-2.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3.5"
-            >
-              <Keyboard size={14} />
-              {t.play.menu}
-            </button>
+            <>
+              {!locked && !touch && !paused && gate === 'none' && !result && (
+                <div className="hidden items-center gap-2 rounded-full border border-white/15 bg-[#101418]/85 px-3 py-1.5 text-[0.65rem] font-bold text-white/70 shadow-lg backdrop-blur sm:flex">
+                  {t.play.cursorHint}
+                </div>
+              )}
+              <button
+                {...press(openMenu)}
+                className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-[#101418]/85 px-2.5 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 sm:px-3.5"
+              >
+                <Keyboard size={14} />
+                {t.play.menu}
+              </button>
+            </>
           )}
         </div>
       </div>

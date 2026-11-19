@@ -22,7 +22,7 @@ masuk ke dalam dunia itu lewat mode **Play Character**.
 | Kamera | Orthographic isometrik yang mengikuti karakter di tengah pane 3D dengan akselerasi/de-selerasi. |
 | First-person | Tombol PoV mengganti kamera ke perspektif mata karakter (tinggi 1,68 unit). |
 | Play Character | Tombol di stasiun 9 memudarkan situs lalu berpindah ke mode main. Arenanya bukan ruang baru: blok dibangun di tanah yang sama dengan jalur karakter, jadi hasil bangunan tetap terlihat saat kembali ke situs. |
-| Exit | `Esc` dua tahap: Esc pertama membuka menu jeda dan melepas pointer lock, Esc kedua keluar ke checkpoint Play. Blok yang dibangun tetap ada. |
+| Exit | `Esc` bertahap: Esc pertama melepas pointer lock (kursor bebas, dunia tetap berjalan), Esc kedua membuka menu jeda, Esc ketiga keluar ke checkpoint Play. Blok yang dibangun tetap ada. |
 | Tribute | Setiap library/aset yang dipakai dicatat di blok Footer → Tribute & Atribusi. |
 
 Dua lapisan yang harus dipahami:
@@ -138,7 +138,7 @@ Canvas (fixed, React Three Fiber)
 │  ├─ shot.mjs                 # screenshot 5 viewport → shots/
 │  ├─ layout-qa.mjs            # uji split kiri/kanan, rail, PiP drag/expand/persist, breakpoint
 │  ├─ verify2.mjs              # uji gait, wheel-up, jump/break, persistensi
-│  ├─ play-qa.mjs              # uji snap, kolom services, pause/hapus/resume, Esc dua tahap
+│  ├─ play-qa.mjs              # uji snap, kolom services, pause/hapus/resume, Esc bertahap
 │  ├─ jump-qa.mjs              # uji CMJ per fase + tribute + overflow 390
 │  ├─ meaning-qa.mjs           # uji loop falsafah tumpukan blok
 │  ├─ touch-qa.mjs             # uji swipe mengunci checkpoint di layar sentuh
@@ -225,12 +225,14 @@ di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
    hanya menambahkan kontrol pemain, kamera orang ketiga (jarak 5,4 · tinggi 1,9), raycast
    pasang/hancurkan, dan collision grid. Karakter memakai `characterPos` yang sama, jadi ia
    mulai dari tempat ia berhenti di mode situs.
-5. **Esc dua tahap.** Saat pointer terkunci, Esc melepas lock (`pointerlockchange`) dan membuka
-   menu jeda: loop berhenti, kursor kembali, semua tombol bisa diklik. Esc kedua di menu jeda
-   memanggil `exit()`: cover 320 ms → mode `site` → `scrollBridge.toStation(PLAY_STATION)`.
-   `lockState.lastLostAt` (300 ms) mencegah Esc yang sama melakukan dua aksi.
-6. `Lanjutkan` meminta pointer lock lagi dari klik pengguna (bukan otomatis) agar diizinkan
-   browser; bila lock ditolak, aim jatuh ke `freeAim`.
+5. **Esc bertahap.** Saat pointer terkunci, Esc pertama hanya melepas lock: `lockState.escAt`
+   menandai rilis sukarela sehingga `pointerlockchange` tidak menjeda — kursor bebas, dunia tetap
+   berjalan. Esc kedua membuka menu jeda: loop berhenti, semua tombol bisa diklik. Esc ketiga di
+   menu jeda memanggil `exit()`: cover 320 ms → mode `site` → `scrollBridge.toStation(PLAY_STATION)`.
+   `lockState.lastLostAt` (300 ms) mencegah Esc yang sama melakukan dua aksi; kehilangan lock tak
+   sukarela (mis. alt-tab) tetap menjeda agar jam tantangan tertahan.
+6. `Lanjutkan` tidak mengunci kursor lagi; klik dunia mengunci ulang sesuai permintaan
+   (bila lock ditolak, aim jatuh ke `freeAim`).
 7. Setiap perubahan blok langsung disimpan ke `localStorage['cakrawala-play-world-v1']`, dan
    blok itu tetap terlihat di stasiun Play setelah keluar maupun setelah reload.
 8. **Lapisan falsafah.** Lima jenis blok adalah lima lapis sistem hidup — I Fondasi /
@@ -251,7 +253,7 @@ di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
 
 Kontrol desktop ditampilkan di **Control Deck** kiri bawah: `WASD`/panah + `Shift`, `Space`
 lompat, `Klik kiri` hancurkan, `Klik kanan` pasang, `1–5` pilih material, dan `Esc` dengan
-catatan “Jeda, Esc lagi keluar”. Tombol **Hapus semua** memakai konfirmasi dua tahap.
+catatan “Esc: kursor → jeda → keluar”. Tombol **Hapus semua** memakai konfirmasi dua tahap.
 
 Di layar sentuh **tidak ada pointer lock** (lock akan me-retarget semua `click` ke kanvas dan
 mematikan tombol HUD). Sebagai gantinya: **ketuk di mana pun untuk membidik** — cincin amber
@@ -295,7 +297,7 @@ menyalakan countdown.
 
 Tombol **Jelajah** di Nav (dan tombol sekunder di PlayMoment) masuk ke mode
 `adventure`: flag boolean di atas `mode: 'game'`, sehingga seluruh mesin Play
-(kamera, collision, input, HUD, jeda, Esc dua tahap) dipakai ulang tanpa mode ketiga.
+(kamera, collision, input, HUD, jeda, Esc bertahap) dipakai ulang tanpa mode ketiga.
 Bedanya: mulai di posisi karakter saat itu (bukan arena), bebas berjalan ke seluruh
 dunia, dan tidak ada pasang/hancurkan blok.
 
@@ -324,7 +326,7 @@ dunia, dan tidak ada pasang/hancurkan blok.
   disapa persist di `cakrawala-npc-v1` dan ditampilkan sebagai `n/6` di kartu HUD.
 - **Lompat etape**: kartu HUD kiri memuat 11 chip stasiun; menekan chip memakai
   grammar teleport yang sama dengan lompatan situs (sinar dari atas, 0,95 s) lalu
-  mendarat 1,6 m di depan stasiun. Keluar (Esc dua tahap / menu) mengembalikan
+  mendarat 1,6 m di depan stasiun. Keluar (Esc bertahap / menu) mengembalikan
   situs ke etape terdekat dari posisi karakter, bukan selalu Play.
 - HUD adventure menyembunyikan hotbar/crosshair/trofi/hapus; Control Deck dan
   kontrol sentuh bertukar ke aksi jelajah (Lompat, Sapa, Lari); menu jeda menampilkan
@@ -719,8 +721,9 @@ terukur 45–63°. QA memakai freeze in-page per fase (`jumpState`/`vy`/`landT`)
 | Cover mulai pekat → scene swap | 320 ms (cover `opacity` 300 ms) |
 | Cover memudar | pada 420 ms |
 | Kunci scroll | selama mode `game` |
-| Escape tahap 1 | lepas pointer lock → menu jeda; loop berhenti |
-| Escape tahap 2 | `exit()` → `toStation(PLAY_STATION)` setelah unlock |
+| Escape tahap 1 | lepas pointer lock; kursor bebas, dunia tetap berjalan |
+| Escape tahap 2 | menu jeda; loop berhenti |
+| Escape tahap 3 | `exit()` → `toStation(PLAY_STATION)` setelah unlock |
 
 ### 6.7 Ukuran responsif
 
@@ -872,7 +875,7 @@ server di `http://localhost:5199/cakrawala-web-profile/`. Screenshot ditulis ke 
 node scripts/shot.mjs       # 5 viewport: 390 / 1440 / 1920 / 2560 / 3840
 node scripts/layout-qa.mjs  # split 46/54, rail 11 titik, PiP drag/clamp/expand/persist, swipe vs PiP
 node scripts/verify2.mjs    # gait + shadow, wheel-up snap, burst multi-notch, lompatan teleport immediate, jump/break, persistensi reload
-node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, Esc dua tahap
+node scripts/play-qa.mjs    # snap wheel, 3 kolom services, pause/hapus/resume, Esc bertahap
 node scripts/jump-qa.mjs    # CMJ per fase dari kamera samping, tribute 5/11/11, overflow 390
 node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan, renungan, mute
 node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
@@ -882,11 +885,11 @@ node scripts/gait-qa.mjs    # 10 pose beku lari + 3 jalan dari kamera samping + 
 
 Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, kolom services
 adaptif (2 di kolom 46% pada 1440, 3 bila kolom ≥40rem), Pointer Lock aktif, blok bertambah
-setelah klik kanan, **Esc pertama membuka
+setelah klik kanan, **Esc pertama melepas kursor** (dunia tetap berjalan), **Esc kedua membuka
 dialog jeda** (bukan keluar), **Batal** dan **Ya, hapus** berperilaku sesuai konfirmasi,
-**Lanjutkan** mengunci pointer kembali, dan **Esc kedua** mengembalikan `scrollY` ke stasiun
-Play tanpa kehilangan blok. `verify2.mjs` juga menekan Esc dua kali untuk memastikan alur jeda
-→ keluar.
+**Lanjutkan** membiarkan kursor bebas (klik dunia mengunci ulang), dan **Esc ketiga** mengembalikan
+`scrollY` ke stasiun Play tanpa kehilangan blok. `verify2.mjs` juga menekan Esc tiga kali untuk
+memastikan alur kursor → jeda → keluar.
 
 `meaning-qa.mjs` menghitung aim crosshair secara closed-form dari model kamera orbit lalu
 mengirim delta look sintetis (klik tanpa gerak mouse, karena pointer lock mengubah gerakan

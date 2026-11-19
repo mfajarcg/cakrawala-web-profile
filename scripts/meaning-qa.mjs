@@ -81,10 +81,10 @@ const breakBlock = async () => {
   await page.waitForTimeout(320)
 }
 const ensureLocked = async () => {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     if (await page.evaluate(() => !!document.pointerLockElement)) return true
     await page.mouse.click(720, 450)
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1400)
   }
   return page.evaluate(() => !!document.pointerLockElement)
 }
@@ -130,6 +130,9 @@ check('enter game', await page.evaluate(() => document.body.style.overflow === '
 check('lock camera', await ensureLocked())
 await page.keyboard.press('Escape')
 await page.waitForTimeout(500)
+check('esc frees cursor without pause', await page.evaluate(() => !document.pointerLockElement && !document.querySelector('[role="dialog"]')))
+await page.keyboard.press('Escape')
+await page.waitForTimeout(500)
 check('esc opens pause', await page.evaluate(() => !!document.querySelector('[role="dialog"]')))
 const emptyRenungan = await page.evaluate(() => document.body.textContent.includes('Belum ada renungan'))
 check('renungan empty state', emptyRenungan)
@@ -139,7 +142,8 @@ await page.waitForTimeout(400)
 check('arena cleared', (await world()).length === 0)
 await page.getByRole('button', { name: /Lanjutkan/i }).click()
 await page.waitForTimeout(900)
-check('resume re-locks', await ensureLocked())
+check('resume leaves cursor free', await page.evaluate(() => !document.pointerLockElement))
+check('click re-locks after resume', await ensureLocked())
 
 // --- build the ordered five-layer stack -------------------------------------
 await page.keyboard.press('1')
@@ -232,6 +236,8 @@ check('beacon not raycastable', hasBlock(w, 0, 5, -8, 'server'), JSON.stringify(
 await page.screenshot({ path: 'shots/mq-05-beacon.png' })
 
 // --- renungan collection in the pause menu ----------------------------------
+await page.keyboard.press('Escape')
+await page.waitForTimeout(500)
 await page.keyboard.press('Escape')
 await page.waitForTimeout(500)
 const renungan = await page.evaluate(() => {
