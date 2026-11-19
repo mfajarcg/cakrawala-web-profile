@@ -482,16 +482,20 @@
         "title": "Teknologi & aset",
         "items": [
           {
-            "text": "React, TypeScript, Vite, Tailwind CSS (MIT)"
+            "text": "React, Vite, Tailwind CSS (MIT) · TypeScript (Apache-2.0)"
           },
           {
-            "text": "Three.js & React Three Fiber (MIT) — dunia isometric 3D"
+            "text": "Three.js, React Three Fiber & Drei (MIT) — dunia isometric 3D"
           },
           {
-            "text": "GSAP & Lenis (MIT) — animasi scroll perjalanan"
+            "text": "Lenis (MIT) & GSAP (Standard “No Charge”, Webflow) — animasi scroll perjalanan",
+            "href": "https://gsap.com/standard-license"
           },
           {
             "text": "Zustand (MIT) — state perjalanan & game"
+          },
+          {
+            "text": "Matter.js (MIT) — fisika arena Play Character"
           },
           {
             "text": "Lucide (ISC) — ikon"

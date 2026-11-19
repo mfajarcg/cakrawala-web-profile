@@ -912,19 +912,10 @@ Hasil distribusi: `Cakrawala-User-Manual.pdf` di folder Downloads pengguna (16 h
 
 ---
 
-## 9. Atribusi
+## 9. Atribusi & lisensi
 
-| Aset / library | Lisensi |
-|---|---|
-| React, React DOM, Vite, Tailwind CSS | MIT |
-| three.js, @react-three/fiber, @react-three/drei | MIT |
-| Zustand, Lenis, GSAP | MIT |
-| Lucide | ISC |
-| Playwright-core | Apache-2.0 |
-| Karakter konsultan 3D prosedural — dibuat in-house dari geometri Three.js | Milik PT Cartenz Technology Indonesia |
-| Loop lari referensi “Male Running (20 frames loop)” — Denys Almaral (Sketchfab) | **Free Standard** (bentuk kurva sendi, bukan aset yang dibundel) |
-| Logo Cakrawala, screenshot, dan data proyek | Milik PT Cartenz Technology Indonesia |
-| Logo mitra/kementerian | Milik masing-masing pemegang merek |
+Rincian lisensi repositori (§9.2), komponen pihak ketiga (§9.3), aset & karya turunan
+(§9.4), serta catatan history/visibility (§9.5). Sumber ilmiah & dokumen ada di §9.1.
 
 ### 9.1 Sumber ilmiah & dokumen (gerak, fisika, data)
 
@@ -951,3 +942,74 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 
 Daftar tribute di UI bersifat wajib: setiap penambahan atau penghapusan aset/library harus
 disertai pembaruan teks `footer.tribute` di `src/content/id.json` dan `en.json`.
+
+### 9.2 Lisensi repositori
+
+Kode sumber Cakrawala adalah **milik PT Cartenz Technology Indonesia** dan dilindungi hak
+cipta (*all rights reserved*). Repo ini **source-available**: boleh dibaca dan dipelajari,
+tetapi **tidak** memberikan hak untuk memakai ulang, memodifikasi, menjual, atau
+mendistribusikan ulang — termasuk fork untuk keperluan komersial — tanpa izin tertulis
+dari pemilik. Mengubah visibility repo menjadi public **tidak** mengubah ketentuan ini.
+
+Komponen pihak ketiga pada §9.3 tetap tunduk pada lisensi masing-masing dan tidak dicakup
+oleh klaim hak cipta di atas.
+
+### 9.3 Komponen pihak ketiga (versi terpasang)
+
+| Komponen | Versi | Lisensi | Dipakai untuk |
+|---|---|---|---|
+| `react`, `react-dom` | 19.3.1 | MIT | UI |
+| `three` | 0.187.0 | MIT | renderer 3D |
+| `@react-three/fiber` | 9.8.2 | MIT | reconciler React ↔ Three.js |
+| `@react-three/drei` | 10.7.9 | MIT | helper 3D |
+| `zustand` | 5.1.0 | MIT | state global |
+| `lenis` | 1.3.27 | MIT | smooth scroll |
+| `matter-js` | 0.20.0 | MIT | fisika arena Play Character |
+| `lucide-react` | 1.72.0 | ISC | ikon |
+| `gsap` | 3.15.1 | **Standard “No Charge” (Webflow)** — bukan MIT | animasi DOM; lihat catatan di bawah |
+| `tailwindcss`, `@tailwindcss/vite` | 4.3.5 | MIT | styling |
+| `vite`, `@vitejs/plugin-react` | 8.3.8 / 6.3.0 | MIT | build & dev server |
+| `typescript` | 7.0.2 | Apache-2.0 | type checking |
+| `oxlint` | 1.93.0 | MIT | lint |
+| `playwright-core` | 1.65.0 | Apache-2.0 | QA headless |
+| `@types/react`, `@types/react-dom`, `@types/node`, `@types/matter-js` | 19.3.0 / 19.3.0 / 24.19.2 / 0.20.2 | MIT | deklarasi tipe |
+
+**Catatan GSAP.** Sejak 30 April 2025 GSAP memakai *Standard “No Charge” License*
+(© Webflow), **bukan MIT**. Gratis untuk proyek komersial; yang dilarang: memakai GSAP
+untuk *visual animation builder* yang bersaing dengan Webflow, reverse-engineer untuk
+membuat produk pesaing, dan menghapus notice/branding GSAP. Pemakaian di situs profil ini
+termasuk *Permitted Use*. Teks lengkap: <https://gsap.com/standard-license>.
+
+Teks lisensi tiap dependensi ikut terdistribusi dalam paket npm-nya
+(`node_modules/<paket>/LICENSE*`). Untuk repo public, disarankan menambahkan
+`LICENSE` (proprietary) dan `THIRD_PARTY_NOTICES.md` berisi teks lisensi lengkap.
+
+### 9.4 Aset & karya turunan
+
+| Aset | Status / lisensi |
+|---|---|
+| Karakter konsultan 3D prosedural (`Character.tsx`, geometri *loft*) | Karya in-house, milik PT Cartenz Technology Indonesia; tanpa model/tekstur/rig eksternal |
+| Kurva sendi lari (`runLoop.ts`) | Karya turunan dari “Male Running (20 frames loop)” — Denys Almaral, Sketchfab **Free Standard**; yang dipakai hanya bentuk kurva numerik (bukan aset 3D), dengan atribusi |
+| Proporsi tubuh (kanon 7,5 kepala; fraksi Drillis & Contini) | Fakta/rujukan ilmiah, bukan kode berhak cipta; sumber di §6.3 |
+| Logo Cakrawala, screenshot manual, konten & angka proyek | Milik PT Cartenz Technology Indonesia |
+| Nama/logo mitra, kementerian, lembaga | Merek milik masing-masing pemegang; ditampilkan sebagai referensi portofolio |
+| Font `Inter` | Hanya dirujuk sebagai nama family dengan fallback `system-ui`; **tidak ada file font yang dibundel/diunduh**. Bila kelak memuat webfont Inter, lisensinya SIL OFL 1.1 |
+| Model “Eric Rigged 001” (Renderpeople, free3d.com) | **Tidak dipakai di produk akhir**; lisensi *Personal Use* melarang redistribusi. File sudah dihapus dari tree — lihat §9.5 |
+
+### 9.5 Catatan history, visibility, dan data publik
+
+- **History ≠ tree.** Menghapus file di commit terakhir tidak menghapusnya dari git
+  history. Blob `public/models/eric/**` masih tersimpan di commit `d858e73` dan dapat
+  diambil siapa pun bila repo public. Karena lisensi Renderpeople *Personal Use* melarang
+  redistribusi, history perlu dibersihkan (`git filter-repo` atau repo baru dengan satu
+  commit bersih) sebelum repo di-public-kan, atau repo tetap private.
+- **Tanggung jawab fork.** Pihak yang mem-fork untuk komersial bertanggung jawab atas
+  tindakannya sendiri *jika* repo yang di-fork memang berlisensi untuk itu. Repo ini
+  proprietary (§9.2); memublikasikan aset berlisensi *Personal Use* tetap merupakan
+  redistribusi oleh pemilik repo, bukan oleh forker — jadi pembersihan history tetap
+  diperlukan terlepas dari perilaku forker.
+- **Andrew Ryan Sinaga (Managing Director PT Cartenz Technology Indonesia)** adalah
+  informasi publik perusahaan. Fitur likeness pernah dibuat lalu **dicabut**; tidak ada
+  foto atau aset likeness di repo. Catatan perencanaannya ada di `PLAN.md` §18–§19.
+- **Metadata commit.** Sebagian commit memakai email pribadi author; untuk repo public
+  disarankan memakai email noreply GitHub (`git config user.email`).
