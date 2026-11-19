@@ -444,6 +444,10 @@
       "greetHint": "A robot is near — say hello!",
       "touchHint": "Left joystick moves, drag right to look. Walk up to a robot and tap Greet.",
       "deckGreet": "Greet robot",
+      "deckZoom": "Camera zoom",
+      "zoomWheel": "Scroll",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
       "exitNote": "Esc returns to the nearest stage"
     }
   },

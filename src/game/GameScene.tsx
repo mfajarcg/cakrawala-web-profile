@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { cadenceFor, cameraColliders, characterPos, characterYaw, gait, gaitNorm, RUN_SPEED, teleport, adventureSpawn, tpWhoosh, TP_DUR, TP_VANISH, TP_WHOOSH } from '../three/shared'
-import { input, lockState, resetInput, setTapAim } from './input'
+import { input, lockState, resetInput, resetRoamZoom, roamZoom, setTapAim, zoomRoam } from './input'
 import { ARENA_ORIGIN, arenaRefs } from './layout'
 import { ARENA_HALF, ARENA_MAX_Y, cellKey, useGame, type BlockKind, type Cell } from './store'
 
@@ -146,6 +146,7 @@ export function GameScene() {
   const blocks = useGame((s) => s.blocks)
   const place = useGame((s) => s.place)
   const remove = useGame((s) => s.remove)
+  const adventure = useGame((s) => s.adventure)
   const gl = useThree((s) => s.gl)
   const camera = useThree((s) => s.camera)
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
@@ -266,6 +267,30 @@ export function GameScene() {
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [gl])
+
+  // window capture: the journey's wheel handler stops propagation to the canvas
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      const st = useGame.getState()
+      if (!st.adventure || st.paused || st.gate !== 'none' || st.result) return
+      if (e.ctrlKey || e.metaKey) return
+      e.preventDefault()
+      const dy =
+        e.deltaMode === 1
+          ? e.deltaY * 33
+          : e.deltaMode === 2
+            ? e.deltaY * window.innerHeight
+            : e.deltaY
+      zoomRoam(Math.exp(clamp(dy, -240, 240) * 0.0016))
+    }
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    return () => window.removeEventListener('wheel', onWheel, { capture: true })
+  }, [])
+
+  // every stay in free roam starts at the default framing
+  useEffect(() => {
+    resetRoamZoom()
+  }, [adventure])
 
   /** top of the highest block at a cell coordinate, else the arena floor */
   const surfaceAt = (x: number, z: number) => {
@@ -468,8 +493,9 @@ export function GameScene() {
     if (player.y >= 4) useGame.getState().openVista()
 
     // --- third-person camera
-    const camDist = st.adventure ? ROAM_DISTANCE : CAMERA_DISTANCE
-    const camHeight = st.adventure ? ROAM_HEIGHT : CAMERA_HEIGHT
+    roamZoom.value = damp(roamZoom.value, roamZoom.target, 9, dt)
+    const camDist = st.adventure ? ROAM_DISTANCE * roamZoom.value : CAMERA_DISTANCE
+    const camHeight = st.adventure ? ROAM_HEIGHT * roamZoom.value : CAMERA_HEIGHT
     placeBoom(
       camera,
       ORIGIN.x + player.x,

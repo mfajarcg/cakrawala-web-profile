@@ -12,6 +12,8 @@ import {
   Trophy,
   Volume2,
   VolumeX,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react'
 import {
   useEffect,
@@ -28,7 +30,20 @@ import { useI18n } from '../lib/i18n'
 import { useTheme } from '../lib/theme'
 import { STATIONS } from '../journey/stations'
 import { audio } from './audio'
-import { emitAim, input, lockState, resetInput, setTapAim, subscribeAim } from './input'
+import {
+  emitAim,
+  input,
+  lockState,
+  resetInput,
+  ROAM_ZOOM_MAX,
+  ROAM_ZOOM_MIN,
+  ROAM_ZOOM_STEP,
+  roamZoom,
+  setTapAim,
+  subscribeAim,
+  subscribeZoom,
+  zoomRoam,
+} from './input'
 import { LAYERS, LAYER_ROMAN, NOTICE_KEYS } from './meaning'
 import { ROBOTS, useRobots } from './robots'
 import { RunPanels, RunTimer, ScoreBoard } from './RunPanels'
@@ -469,6 +484,7 @@ export function GameHud() {
       <RunPanels />
       <ScoreBoard open={showScores} onClose={() => setShowScores(false)} />
       {adventure && !paused && gate === 'none' && !result && <GreetPrompt />}
+      {adventure && !paused && gate === 'none' && !result && <RoamZoom />}
 
       {!touch && <ControlDeck open={deckOpen} onToggle={toggleDeck} adventure={adventure} />}
       {touch && <TouchControls adventure={adventure} />}
@@ -523,6 +539,35 @@ function AdventureCard() {
         ))}
       </div>
       <p className="mt-1.5 text-[0.6rem] font-semibold text-white/45">{t.play.roam.exitNote}</p>
+    </div>
+  )
+}
+
+function RoamZoom() {
+  const { t } = useI18n()
+  const zoom = useSyncExternalStore(subscribeZoom, () => roamZoom.target)
+  const cls =
+    'pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-[#101418]/85 text-white shadow-lg backdrop-blur transition hover:bg-[#101418] focus-visible:outline-2 focus-visible:outline-white/70 disabled:opacity-35 disabled:hover:bg-[#101418]/85'
+  return (
+    <div data-zoom className="absolute right-4 top-1/2 flex -translate-y-1/2 flex-col gap-1.5">
+      <button
+        {...press(() => zoomRoam(1 / ROAM_ZOOM_STEP))}
+        disabled={zoom <= ROAM_ZOOM_MIN + 1e-6}
+        aria-label={t.play.roam.zoomIn}
+        title={t.play.roam.zoomIn}
+        className={cls}
+      >
+        <ZoomIn size={15} />
+      </button>
+      <button
+        {...press(() => zoomRoam(ROAM_ZOOM_STEP))}
+        disabled={zoom >= ROAM_ZOOM_MAX - 1e-6}
+        aria-label={t.play.roam.zoomOut}
+        title={t.play.roam.zoomOut}
+        className={cls}
+      >
+        <ZoomOut size={15} />
+      </button>
     </div>
   )
 }
@@ -774,9 +819,14 @@ function ControlDeck({
               <Key>Space</Key>
             </ActionRow>
             {adventure ? (
-              <ActionRow label={t.play.roam.deckGreet}>
-                <Key>E</Key>
-              </ActionRow>
+              <>
+                <ActionRow label={t.play.roam.deckGreet}>
+                  <Key>E</Key>
+                </ActionRow>
+                <ActionRow label={t.play.roam.deckZoom}>
+                  <Key>{t.play.roam.zoomWheel}</Key>
+                </ActionRow>
+              </>
             ) : (
               <>
                 <ActionRow label={t.play.deckBreak}>

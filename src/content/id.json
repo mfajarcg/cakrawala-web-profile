@@ -444,6 +444,10 @@
       "greetHint": "Robot di dekatmu — sapa!",
       "touchHint": "Joystick kiri bergerak, geser kanan untuk melihat. Dekati robot lalu ketuk Sapa.",
       "deckGreet": "Sapa robot",
+      "deckZoom": "Zoom kamera",
+      "zoomWheel": "Scroll",
+      "zoomIn": "Perbesar",
+      "zoomOut": "Perkecil",
       "exitNote": "Esc kembali ke etape terdekat"
     }
   },

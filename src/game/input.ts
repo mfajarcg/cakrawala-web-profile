@@ -58,6 +58,35 @@ export function resetInput() {
   emitAim()
 }
 
+/** free-roam boom zoom: DOM handlers write `target`, the game loop damps `value` */
+export const ROAM_ZOOM_MIN = 0.4
+export const ROAM_ZOOM_MAX = 2.6
+export const ROAM_ZOOM_STEP = 1.25
+export const roamZoom = { target: 1, value: 1 }
+
+const zoomListeners = new Set<() => void>()
+
+/** lets the HUD buttons disable at the limits without polling the mutable zoom */
+export function subscribeZoom(fn: () => void) {
+  zoomListeners.add(fn)
+  return () => {
+    zoomListeners.delete(fn)
+  }
+}
+
+export function zoomRoam(factor: number) {
+  const next = Math.min(ROAM_ZOOM_MAX, Math.max(ROAM_ZOOM_MIN, roamZoom.target * factor))
+  if (next === roamZoom.target) return
+  roamZoom.target = next
+  zoomListeners.forEach((fn) => fn())
+}
+
+export function resetRoamZoom() {
+  roamZoom.target = 1
+  roamZoom.value = 1
+  zoomListeners.forEach((fn) => fn())
+}
+
 /**
  * Timestamp of the last pointer-lock release. The Escape handler uses it to
  * tell "Esc that closed the lock" apart from a second Esc that should exit.

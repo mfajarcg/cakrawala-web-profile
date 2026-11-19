@@ -309,6 +309,13 @@ dunia, dan tidak ada pasang/hancurkan blok.
   (§4.8) di **semua** mode, bukan hanya adventure.
 - **Kamera jelajah**: fov 75 (vs 65), jarak 7,6 / tinggi 2,5 (vs 5,4 / 1,9), pitch
   awal 0,02 supaya skyline, mobil terbang, dan Monas tetap dalam frame.
+- **Zoom jelajah** (`game/input.ts` `roamZoom`): scroll mouse atau tombol ikon
+  ZoomIn/ZoomOut di tepi kanan HUD mengalikan jarak/tinggi boom 0,4×–2,6×
+  (tombol melangkah 1,25×, wheel `exp(dy·0,0016)` dengan deltaMode dinormalisasi).
+  Target di-damp (λ 9) oleh loop lalu tetap tunduk pada boom anti-tembus, jadi
+  memperkecil tidak pernah menembus menara. Hanya adventure: jeda/gate/result
+  mengabaikan wheel (scroll milik menu jeda), tombol sembunyi saat jeda, dan
+  tiap masuk jelajah mulai dari 1×. Mode Play tidak terpengaruh.
 - **Robot NPC** (`game/robots.ts` + `three/Robots.tsx`): 6 robot voxel (BIMA-07,
   SRI-11, GATOT-3, MERAK-5, NUSA-21, KOMODO-8) ber-idle wander di tiap etape.
   Mendekat ≤2,4 m memunculkan prompt **Sapa** (tombol `E` / ketuk di sentuh); robot
