@@ -430,13 +430,21 @@ diverifikasi ulang.
 
 ### 6.2 Gerak karakter (longitudinal)
 
-Model kecepatan berbatas akselerasi, bukan lerp eksponensial:
+Model kecepatan berbatas akselerasi dengan profil pengereman, bukan lerp eksponensial:
 
 ```
-desired = clamp((target − progress) × 4, −MAX_SPEED, +MAX_SPEED)
+desired = clamp(sign(diff) × min(√(2·ACCELERATION·|diff|), MAX_SPEED), −MAX_SPEED, +MAX_SPEED)
 dv      = clamp(desired − velocity, −ACCELERATION·dt, +ACCELERATION·dt)
-progress += velocity × turnBrake × dt
+step    = velocity × turnBrake × dt
+step    = diff  bila step akan melewati target (velocity ikut disesuaikan)
+progress += step
 ```
+
+`√(2·a·d)` adalah kecepatan tertinggi yang masih bisa mengerem tepat di target; desired
+proporsional polos (`diff × 4`) membuat karakter overshoot di checkpoint lalu berbalik
+dan mundur. Trim langkah menjamin posisi mendarat **pas** di titik checkpoint (error 0 m
+pada QA), dan karena kecepatan tidak pernah berganti tanda saat mendekati target, badan
+tidak berbalik arah di akhir hop.
 
 | Parameter | Nilai | Alasan |
 |---|---|---|
@@ -469,8 +477,9 @@ Audio `audio.teleport()`: whoosh noise + tone turun 720→200 Hz, lalu chime nai
 pada 0,48 s (materialise); tetap hormat pada mute. Masuk Play di tengah urutan membatalkan
 teleport di GameScene — driver yang memajukan `teleport.t` hanya hidup di mode situs, tanpa
 pembatalan karakter akan membeku mid-vanish (menyusut + spin). Probe QA permanen:
-`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController dan
-`window.__consultantDebug = { g }` (group root karakter untuk kamera QA).
+`window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController,
+`window.__cdebug = { sim, pathLength, maxSpeed, accel, target(), at(t) }` di CharacterDriver
+(dev-only), dan `window.__consultantDebug = { g }` (group root karakter untuk kamera QA).
 
 ### 6.3 Model gait (berjalan & berlari)
 
@@ -882,6 +891,7 @@ node scripts/meaning-qa.mjs # loop falsafah: 5 lapis, reject, cascade, perayaan,
 node scripts/touch-qa.mjs   # swipe mengunci checkpoint (emulasi sentuh CDP, 390×844)
 node scripts/mobile-play-qa.mjs # kontrol Play sentuh: tanpa lock, tap-aim, place/break, HUD bebas overlap
 node scripts/gait-qa.mjs    # 10 pose beku lari + 3 jalan dari kamera samping + live run
+node scripts/stop-qa.mjs    # mendarat pas di checkpoint: tanpa overshoot / balik badan / mundur
 ```
 
 Yang diperiksa `play-qa.mjs`: delta scroll terhadap pusat stasiun = 0, kolom services

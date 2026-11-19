@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import type { ThreeElements } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
@@ -96,6 +96,23 @@ function CharacterDriver() {
   const pos = useMemo(() => new THREE.Vector3(), [])
   const tan = useMemo(() => new THREE.Vector3(), [])
 
+  // dev-only ground truth for the QA harnesses (same spirit as __jdebug)
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const w = window as unknown as Record<string, unknown>
+    w.__cdebug = {
+      sim: sim.current,
+      pathLength,
+      maxSpeed,
+      accel,
+      target: () => useJourney.getState().target,
+      at: (t: number) => curve.getPointAt(clamp01(t)).toArray(),
+    }
+    return () => {
+      delete w.__cdebug
+    }
+  }, [curve, pathLength, maxSpeed, accel])
+
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const { target, tick } = useJourney.getState()
@@ -118,7 +135,14 @@ function CharacterDriver() {
       audio.teleport()
     }
     const diff = targetP - s.progress
-    const desired = clamp(diff * 4, -maxSpeed, maxSpeed)
+    // sqrt(2·a·d) is the fastest speed that can still brake to a halt exactly
+    // at the target; a plain proportional desired speed overshoots checkpoints
+    // and makes the character turn around and walk back
+    const desired = clamp(
+      Math.sign(diff) * Math.min(Math.sqrt(2 * accel * Math.abs(diff)), maxSpeed),
+      -maxSpeed,
+      maxSpeed,
+    )
     const dv = clamp(desired - s.velocity, -accel * dt, accel * dt)
     s.velocity += dv
 
@@ -159,7 +183,17 @@ function CharacterDriver() {
 
     // --- turn-in-place: sharply slow translation while the body re-faces
     const turnBrake = yawErr > 0.35 ? clamp(1 - (yawErr - 0.35) / 1.1, 0, 1) : 1
-    s.progress = clamp01(s.progress + s.velocity * turnBrake * dt)
+    let step = s.velocity * turnBrake * dt
+    // land exactly on the checkpoint: a step that would cross the target is
+    // trimmed to it, and the velocity follows so the gait stays grounded
+    if (diff === 0) {
+      step = 0
+      s.velocity = 0
+    } else if (Math.sign(step) === Math.sign(diff) && Math.abs(step) > Math.abs(diff)) {
+      step = diff
+      s.velocity = step / (turnBrake * dt)
+    }
+    s.progress = clamp01(s.progress + step)
 
     // cadence follows the actual ground speed, so the stride length matches the
     // distance covered and the feet grip the ground
