@@ -81,8 +81,8 @@ Canvas (fixed, React Three Fiber)
 ├─ vite.config.ts              # base: '/cakrawala-web-profile/'
 ├─ .github/workflows/deploy.yml# build + deploy GitHub Pages dari main
 ├─ public/
-│  ├─ logo/                    # logo Cakrawala hitam & putih (SVG)
-│  └─ models/eric/             # rp_eric_rigged_001_ue4.fbx + tex/ (normal; diffuse diganti palet vertex)
+│  └─ logo/                    # logo Cakrawala hitam & putih (SVG)
+│                              # (tanpa aset model eksternal — karakter dibuat prosedural)
 ├─ src/
 │  ├─ App.tsx                  # shell: World + DOM blocks + HUD + fade
 │  ├─ main.tsx
@@ -211,7 +211,7 @@ di nav (`aria-current="page"` + garis emas beranimasi) dan titik fokus kamera.
 |---|---|
 | `World.tsx` | Satu `<Canvas dpr={[1,2]}>`. Ground + grid + path + stasiun + arena + karakter selalu ada; kamera berganti sesuai mode. Mode situs: `OrthographicCamera` (16,16,16) + CameraRig. Mode game / first-person: `PerspectiveCamera` fov 65. |
 | `path.ts` | `CatmullRomCurve3(STATIONS, closed=false, 'catmullrom', tension=0.15)`, di-cache. `getPointAt` / `getTangentAt` untuk posisi & arah hadap. |
-| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait, cut teleport) + `TeleportBeams` (sinar & cincin) + `EricVisual` (FBX + tekstur asli, bone posing, bob pelvis, blob shadow). |
+| `Character.tsx` | `CharacterDriver` (gerak longitudinal, yaw, fase gait, cut teleport) + `TeleportBeams` (sinar & cincin) + `ConsultantVisual` (karakter konsultan low-poly prosedural dari geometri Three.js, pose gait/lompat, bob pelvis, blob shadow). |
 | `Stations.tsx` | Prop voxel per stasiun (gerbang, rak layanan, papan angka, war room, papan tanda Play, resepsionis, gerbang akhir) + pohon tersebar. Arena tidak punya slab sendiri. |
 | `game/Arena.tsx` | Blok voxel pemain, dirender di dunia journey pada kedua mode lewat `ARENA_ORIGIN`; menyediakan plane raycast tak terlihat untuk pasang/hancurkan. |
 | `shared.ts` | `characterPos`, `characterYaw`, `gait {phase, speedNorm, move01, moving, lift}`, `gaitNorm()`/`RUN_SPEED` dan `cadenceFor()` — dipakai bersama situs dan game. |
@@ -371,21 +371,14 @@ tidak pernah flash siang, lalu disinkronkan `useEffect` di `App`.
   `<colorspace_fragment>` wajib di dalam `main()` dan di awal baris.
   `FutureCity StreetGlow` (dua garis cyan jalan kota) kini juga dikali
   `atmoMix.night` — sebelumnya opacity tetap 0,45 sehingga bocor ke siang.
-- **Outline neon Eric** (`Character.tsx`, hanya malam): hull back-face per
-  SkinnedMesh — `new THREE.SkinnedMesh(skin.geometry, hullMat)`,
-  `hull.bind(skin.skeleton, skin.bindMatrix)`, di-`add` ke skin induk;
-  `hullMat` MeshBasicMaterial `#ffcf6e` BackSide transparent depthWrite:false
-  toneMapped:false, `onBeforeCompile` mengganti `begin_vertex` dengan
-  `position + normal * 1.6` (FBX dalam cm). Ditambah fresnel rim pada material
-  badan (`uNightRim`, `#ffd075`, `pow(1−|dot(view, normal)|, 2.6)` × 0,85 emissive).
-  Opacity hull `0,95·night`, rim `night`, hull visible bila `night > 0,02`.
-  **Jebakan StrictMode:** semua mutasi FBX (assign material + menambah hull)
-  harus di `useLayoutEffect` ber-cleanup, BUKAN di `useMemo` — memo dipanggil
-  ganda; run kedua menganggap hull run pertama sebagai "skin", menimpa
-  materialnya, dan membuat hull bersarang, sehingga rig yang dipertahankan
-  menulis opacity/rim ke material yang tidak lagi dipakai mesh mana pun
-  (outline & rim mati tanpa error). Effect memberi tag `userData.ericHull`
-  agar scan berikutnya melewati hull lama.
+- **Neon malam karakter** (`Character.tsx`): tiap bagian utama (jas, celana, sepatu,
+  lengan, telapak tangan, kepala, rambut) dirender dua kali — mesh asli plus *hull*
+  anak ber-`MeshBasicMaterial` `#ffcf6e`, `side: BackSide`, `depthWrite: false`,
+  `toneMapped: false`. Vertex shader hull mengganti `#include <begin_vertex>` dengan
+  `vec3 transformed = vec3( position ) + normal * 0.014`, sehingga siluet menyala
+  1,4 cm di luar mesh. Hull hanya `visible` saat `atmoMix.night > 0.02`, dengan
+  opasitas `0,95 × atmoMix.night`. Material jas/celana/kulit **tanpa** `emissive`,
+  jadi warna karakter di malam identik dengan siang — hanya outline neon yang muncul.
 
 ---
 
@@ -465,9 +458,9 @@ dinolkan (`move01`, `lift`, `jumpState`, `vy`, …) sehingga rig tidak berstride
 Audio `audio.teleport()`: whoosh noise + tone turun 720→200 Hz, lalu chime naik 240→720 Hz
 pada 0,48 s (materialise); tetap hormat pada mute. Masuk Play di tengah urutan membatalkan
 teleport di GameScene — driver yang memajukan `teleport.t` hanya hidup di mode situs, tanpa
-pembatalan Eric akan membeku mid-vanish (menyusut + spin). Probe QA permanen:
+pembatalan karakter akan membeku mid-vanish (menyusut + spin). Probe QA permanen:
 `window.__jdebug = { lenis, lock(), hop(), cursor() }` di JourneyController dan
-`window.__ericDebug = { g }` (group root Eric untuk kamera QA).
+`window.__consultantDebug = { g }` (group root karakter untuk kamera QA).
 
 ### 6.3 Model gait (berjalan & berlari)
 
@@ -522,8 +515,9 @@ bodyY            = −soleGap + lift
 flight berangkat dan mendarat pada tinggi penopang yang sama — tidak ada teleport vertikal
 di batas stance/swing. Hop terpisah dihapus; busur ini sendiri yang memberi double float.
 
-`L_THIGH = 0,42`, `L_SHIN = 0,422`, `HIP_HEIGHT = 0,969`, `ANKLE_TO_SOLE = 0,127` (meter).
-Model FBX diskalakan `0,01` karena authored dalam sentimeter.
+`L_THIGH = 0,42`, `L_SHIN = 0,422`, `HIP_HEIGHT = 0,932` (= `L_THIGH + L_SHIN + ANKLE_TO_SOLE`),
+`ANKLE_TO_SOLE = 0,09` (meter). `soleGap` di atas memastikan sol sepatu menyentuh `y = 0`
+saat kaki stance lurus.
 
 **Temuan yang diperbaiki:** blob shadow awalnya diletakkan `y = 0,012`, di bawah permukaan
 ribbon (≈0,033), sehingga bayangan tidak pernah terlihat dan karakter tampak melayang.
@@ -538,6 +532,30 @@ sagittal. Hinge kini murni `cross(armDir, front)` tanpa prerotasi; bahu menambah
 ±0,375 rad sekitar 90°, dan lean trunk ~15° dipertahankan. Referensi ciri maskulin:
 Rubio 2023 (fleksi trunk pria 16,9–24,6% > wanita) dan Scharl 2024 (ROM pinggul/pelvis
 wanita lebih besar → sway lateral minimal); keduanya masuk tribute.
+
+#### Proporsi tubuh karakter
+
+Model memakai kanon artistik 7,5 kepala dengan tinggi total `H ≈ 1,76 m`; fraksi segmen
+mengikuti Drillis & Contini terhadap tinggi tubuh:
+
+| Segmen | Fraksi `H` | Nilai model | Konstanta |
+|---|---|---|---|
+| Tinggi total | 1,00 | 1,76 m (7,7 kepala) | — |
+| Kepala (dagu→ubun) | 0,130 | 0,229 m | cincin `head` |
+| Sendi bahu | 0,80 | 1,402 m | `SHOULDER_Y 0,44` + torso 0,03 |
+| Sendi pinggul | 0,53 | 0,932 m | `HIP_HEIGHT` |
+| Lutut | 0,29 | 0,512 m | `L_THIGH` |
+| Pergelangan | 0,47 | 0,818 m | `L_UPPER + L_FORE` |
+| Ujung jari | 0,36 | 0,640 m | telapak 0,178 m |
+| Lengan atas | 0,186 | 0,327 m | `L_UPPER` |
+| Lengan bawah | 0,146 | 0,257 m | `L_FORE` |
+| Telapak kaki | 0,152 | 0,275 m | `loftZ` sepatu |
+| Lebar bahu | 0,259 | 0,475 m | `SHOULDER_X ±0,185` + lengan |
+
+Sendi bahu sengaja diturunkan ~1 cm dari 0,808H agar lingkar lengan atas bertemu
+*yoke* jaket tanpa celah *armhole*. Sumber: [Body proportions](https://en.wikipedia.org/wiki/Body_proportions)
+(kanon 7,5 kepala, Richer/Loomis), [Drillis & Contini 1964](https://www.oandplibrary.org/al/1964_01_044.asp)
+(fraksi segmen), [GridMaker figure proportion](https://gridmakerpro.com/grids/artist-guides/figure-proportion/).
 
 ### 6.4 Kamera
 
@@ -590,8 +608,8 @@ Semua aturan makna adalah fungsi murni di `src/game/meaning.ts`:
 
 Lompat bukan sekadar translasi naik: rig memainkan empat fase sesuai kurva force-time CMJ
 (Owen et al. 2018): **braking dip → propulsion → flight → landing absorption**. State mesin
-(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `EricVisual` mem-blend pose lompat di
-atas stride dengan damp eksponensial (λ = 16 pose, λ = 12 bobot).
+(`jumpState 0–3`) ditulis `GameScene` ke `gait`, lalu `ConsultantVisual` mem-blend pose lompat
+di atas stride dengan damp eksponensial (λ = 16 pose, λ = 12 bobot).
 
 | Fase | Durasi | Hip | Lutut | Lengan | Sumber |
 |---|---|---|---|---|---|
@@ -615,8 +633,10 @@ Rumus fisika lompat ( projectile / flight-time / impulse–momentum ):
 
 #### Gait lari & jalan (`jointAt`)
 
-Karakter memakai scan asli **Eric Rigged 001** (tekstur diffuse + normal bawaan). Kurva sendi
-per fase siklus normalised `u` (0 = heel strike) ditulis `jointAt(u, speedNorm)` dan
+Karakter konsultan dibuat prosedural dari geometri *loft* Three.js — penampang cincin
+(`loftY` untuk badan/lengan/kepala, `loftZ` untuk sepatu) dijahit menjadi `BufferGeometry`
+ditambah sphere/kapsul kecil untuk sendi, tanpa aset model eksternal. Kurva sendi per fase
+siklus normalised `u` (0 = heel strike) ditulis `jointAt(u, speedNorm)` dan
 di-interpolasi jalan→lari:
 
 | Sendi | Jalan (`speedNorm` 0) | Lari (`speedNorm` 1) | Sumber |
@@ -633,9 +653,8 @@ di-interpolasi jalan→lari:
 Ayun lengan **berlawanan fase kaki** dengan rentang bahu terpusat
 (`armSwing = (hip − hipMean)·lerp(0,75; 1,08)`): ±15° jalan, ±35° lari, sehingga tangan
 mengayun hip-pocket → chin; siku menutup di front-side (~120°) dan membuka di back-side
-(~60°) — bukan terkunci 90° — memakai kurva siku referensi dengan fase dibalik. Telapak
-pronasi ke paha dan jari curl rileks (3 sendi per jari + thumb, sumbu curl diturunkan dari
-landmark telapak bind-pose). Fase flight
+(~60°) — bukan terkunci 90° — memakai kurva siku referensi dengan fase dibalik. Tangan
+tetap dalam bentuk rileks. Fase flight
 (selang dua kaki melayang, ciri lari vs jalan menurut Physio-pedia) diberi busur vertikal
 `sin(π·flightProg)·lerp(0; 0,06)` di atas interpolasi reach toe-off→contact, supaya lari tidak
 terlihat seperti jalan cepat tanpa membuat badan melompat di batas stance.
@@ -652,8 +671,9 @@ di-retarget dari loop lari 20-frame *"Male Running (20 frames loop)"* karya **De
 satu-sumbu bersih, sehingga rotasi Z lokalnya memberi kurva fleksi autentik — loading-response
 bump di stance dan lipatan swing asimetris, bukan sinus murni. Kurva dinormalisasi 0..1,
 dirotasi agar index 0 = heel strike, di-interpolasi **Catmull-Rom periodik**, lalu dipetakan
-ke rentang sendi Eric (`scripts/sk-loop-gen.mjs` untuk regenerasi). Amplitudo tetap milik Eric
-agar solver `reach()` menjaga telapak stance di tanah; bentuk referensi diblend masuk lewat
+ke rentang sendi karakter (`scripts/sk-loop-gen.mjs` untuk regenerasi). Amplitudo mengikuti
+proporsi karakter agar solver `reach()` menjaga telapak stance di tanah; bentuk referensi
+diblend masuk lewat
 `speedNorm` sehingga jalan tetap memakai kurva analitik. Siku lari menambah osilasi ±11°
 di sekitar hold 90°, berfase terhadap kaki masing-masing.
 
@@ -901,7 +921,7 @@ Hasil distribusi: `Cakrawala-User-Manual.pdf` di folder Downloads pengguna (16 h
 | Zustand, Lenis, GSAP | MIT |
 | Lucide | ISC |
 | Playwright-core | Apache-2.0 |
-| Rig + tekstur “Eric Rigged 001” — Renderpeople (via free3d.com) | **Personal Use License** |
+| Karakter konsultan 3D prosedural — dibuat in-house dari geometri Three.js | Milik PT Cartenz Technology Indonesia |
 | Loop lari referensi “Male Running (20 frames loop)” — Denys Almaral (Sketchfab) | **Free Standard** (bentuk kurva sendi, bukan aset yang dibundel) |
 | Logo Cakrawala, screenshot, dan data proyek | Milik PT Cartenz Technology Indonesia |
 | Logo mitra/kementerian | Milik masing-masing pemegang merek |
@@ -924,11 +944,10 @@ teknologi/aset, dokumen perusahaan, gerak lari, gerak lompat, rumus fisika).
 | McHugh et al. 2024; Petushek 2011 | Kedalaman dip & absorpsi lutut mendarat. |
 | Linthorne 2001; McGinnis 2013 | **Rumus fisika**: flight-time `h=g·t²/8`, impulse–momentum `J=m·Δv`, projectile `h=v₀²/2g`. |
 
-> **Catatan lisensi model:** “Eric Rigged 001” dirilis dengan *Personal Use License*, bukan
-> lisensi komersial. Untuk penggunaan komersial jangka panjang, karakter ini sebaiknya diganti
-> dengan model berlisensi komersial (atau model internal Cartenz). Detail tercatat juga di
-> Footer → Tribute & Atribusi, bersama library lain yang dipakai. Karakter dipakai apa adanya
-> dari scan (tekstur diffuse + normal bawaan); seluruh gerak dibangun prosedural di atas rig.
+> **Catatan aset karakter:** karakter konsultan dibuat dari geometri *loft* prosedural Three.js di
+> `src/three/Character.tsx` dan tidak memakai model, tekstur, atau rig eksternal. Seluruh
+> gerak (gait, lompat, teleport) dibangun prosedural di atas hierarki group tersebut. Detail
+> tercatat juga di Footer → Tribute & Atribusi, bersama library lain yang dipakai.
 
 Daftar tribute di UI bersifat wajib: setiap penambahan atau penghapusan aset/library harus
 disertai pembaruan teks `footer.tribute` di `src/content/id.json` dan `en.json`.

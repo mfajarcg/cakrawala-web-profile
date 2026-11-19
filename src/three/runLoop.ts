@@ -5,9 +5,10 @@
 // API; the knee (bip L Calf) and elbow (bip L Forearm) are clean single-axis
 // hinges, so their local Z-rotation gives the authentic flexion curve. Each
 // curve is normalised 0..1 and rotated so index 0 = heel strike, then mapped
-// onto Eric's calibrated joint ranges in Character.tsx. The shape (loading-
-// response bump, asymmetric swing fold) is the reference's; amplitudes stay
-// Eric's so the reach() foot-lock solver keeps the stance sole grounded.
+// onto the character's calibrated joint ranges in Character.tsx. The shape
+// (loading-response bump, asymmetric swing fold) is the reference's; amplitudes
+// follow the character's proportions so the reach() foot-lock solver keeps the
+// stance sole grounded.
 // Periodic Catmull-Rom keeps the loop C1-smooth across the wrap.
 
 export const KNEE_SHAPE = [0.0684, 0.0978, 0.1615, 0.2158, 0.2929, 0.2177, 0.0696, 0, 0.0965, 0.2459, 0.4158, 0.5743, 0.7152, 0.8546, 0.9941, 1, 0.9334, 0.6666, 0.3355, 0.1173]

@@ -2,7 +2,8 @@
 // sk-loop-extract.mjs (run: node scripts/sk-loop-extract.mjs first).
 // Knee = bip L Calf Z-hinge; elbow = bip L Forearm Z-hinge. Both are pure
 // single-axis hinges (stability 1.0). Cycle is rotated so frame 6 = heel strike
-// (u=0), matching Eric's jointAt convention; knee min at toe-off, peak in swing.
+// (u=0), matching the Character.tsx jointAt convention; knee min at toe-off,
+// peak in swing.
 // Usage: node scripts/sk-loop-gen.mjs [matrices.json]
 import { readFileSync, writeFileSync } from 'node:fs'
 const SRC = process.argv[2] || 'C:/Users/USER/AppData/Local/Temp/run-loop-matrices.json'
@@ -37,9 +38,9 @@ const ts = `// Run-loop joint shapes retargeted from the Sketchfab reference ani
 // API; the knee (bip L Calf) and elbow (bip L Forearm) are clean single-axis
 // hinges, so their local Z-rotation gives the authentic flexion curve. Each
 // curve is normalised 0..1 and rotated so index 0 = heel strike, then mapped
-// onto Eric's calibrated joint ranges in Character.tsx. The shape (loading-
+// onto the character's calibrated joint ranges in Character.tsx. The shape (loading-
 // response bump, asymmetric swing fold) is the reference's; amplitudes stay
-// Eric's so the reach() foot-lock solver keeps the stance sole grounded.
+// the character's so the reach() foot-lock solver keeps the stance sole grounded.
 // Periodic Catmull-Rom keeps the loop C1-smooth across the wrap.
 
 export const RUN_LOOP_KEYS = ${knee.length}

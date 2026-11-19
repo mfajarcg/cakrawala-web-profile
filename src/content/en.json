@@ -275,7 +275,7 @@
     "lead": "Step into the block world: walk, run, jump, then build your own digital infrastructure.",
     "hint": "Every block is one of our real services. Your build is saved automatically in this browser. Raise the Meaningful Stack: Foundation → Craft → Quality → Change → Care.",
     "cta": "Start Play Character",
-    "ctaNote": "You play as the Eric character in an isometric block arena. What you must build: the Meaningful Stack — five layers in order from ground to sky, I Foundation → II Craft → III Quality → IV Change → V Care. A block only stands on what is already solid, and pulling the foundation collapses what rests on it. Break and stack blocks to complete it — everything is saved in this browser, so your build is still there when you come back.",
+    "ctaNote": "You play as a consultant character in an isometric block arena. What you must build: the Meaningful Stack — five layers in order from ground to sky, I Foundation → II Craft → III Quality → IV Change → V Care. A block only stands on what is already solid, and pulling the foundation collapses what rests on it. Break and stack blocks to complete it — everything is saved in this browser, so your build is still there when you come back.",
     "gameTitle": "Cakrawala Playground",
     "gameHint": "WASD / arrows walk · Shift run · Space jump · Left-click break · Right-click place · 1–5 pick material · Esc pauses, Esc again exits",
     "gameHintTouch": "Left joystick walks · drag the right side to look · action buttons on the right",
@@ -501,8 +501,7 @@
             "href": "https://playwright.dev"
           },
           {
-            "text": "3D character model \"Eric Rigged 001\" by Renderpeople (free3d.com) — Personal Use License",
-            "href": "https://free3d.com"
+            "text": "Procedural 3D consultant character — lofted Three.js geometry, no external model assets"
           }
         ]
       },
@@ -564,11 +563,11 @@
             "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/"
           },
           {
-            "text": "Rubio JE, et al. Differences in running biomechanics between young, healthy men and women carrying external loads. PMC, 2023 — men's trunk flexion is 16.9–24.6% greater than women's; Eric's ~15° run lean follows this masculine trait",
+            "text": "Rubio JE, et al. Differences in running biomechanics between young, healthy men and women carrying external loads. PMC, 2023 — men's trunk flexion is 16.9–24.6% greater than women's; the character's ~15° run lean follows this masculine trait",
             "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10579583/"
           },
           {
-            "text": "Scharl T, et al. Gender Differences in the Dynamics and Kinematics of Running. Bioengineering 11(12):1261, 2024 — female runners show larger hip/pelvis ROM; Eric's masculine carriage: elbows hugged to the ribcage, sagittal arm swing, minimal lateral sway",
+            "text": "Scharl T, et al. Gender Differences in the Dynamics and Kinematics of Running. Bioengineering 11(12):1261, 2024 — female runners show larger hip/pelvis ROM; the character's masculine carriage: elbows hugged to the ribcage, sagittal arm swing, minimal lateral sway",
             "href": "https://www.mdpi.com/2306-5354/11/12/1261"
           },
           {
@@ -576,11 +575,11 @@
             "mono": true
           },
           {
-            "text": "knee flexion = lerp(1.05; 2.09 rad) ≈ 60° walk → 120° run; run curve SHAPE from the 20-key reference loop (periodic Catmull-Rom), amplitudes stay Eric's",
+            "text": "knee flexion = lerp(1.05; 2.09 rad) ≈ 60° walk → 120° run; run curve SHAPE from the 20-key reference loop (periodic Catmull-Rom), amplitudes stay calibrated to the character",
             "mono": true
           },
           {
-            "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow ~90° ± 21° at run with a sagittal hinge carried by the shoulder's posed rotation; abduction tightens +0.07 rad with speed (elbows hug the ribcage); palm pronates toward the thigh, fingers relaxed-curl",
+            "text": "arms counter-swing the legs: shoulder ±15° walk → ±35° run (hand hip-pocket → chin); elbow ~90° ± 21° at run with a sagittal hinge carried by the shoulder's posed rotation; abduction tightens +0.07 rad with speed (elbows hug the ribcage); hands stay relaxed",
             "mono": true
           }
         ]

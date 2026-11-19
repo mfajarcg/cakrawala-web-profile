@@ -302,7 +302,7 @@ export function GameScene() {
     const st = useGame.getState()
     // the teleport sequence is journey grammar: only CharacterDriver advances
     // it in site mode. Free adventure drives its own station-jump beams here;
-    // entering Play mid-sequence would freeze Eric mid-vanish, so hand over clean.
+    // entering Play mid-sequence would freeze the character mid-vanish, so hand over clean.
     if (!st.adventure && teleport.t >= 0) teleport.t = -1
     if (st.paused || st.gate !== 'none' || st.result) {
       player.vx = 0

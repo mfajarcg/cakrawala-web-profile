@@ -275,7 +275,7 @@
     "lead": "Masuk ke dunia blok 3D-nya: jalan, lari, lompat, lalu bangun infrastruktur digitalmu sendiri.",
     "hint": "Setiap blok adalah layanan nyata kami. Bangunanmu tersimpan otomatis di browser. Susun Tumpukan Bermakna: Fondasi → Karya → Mutu → Perubahan → Rawat.",
     "cta": "Mulai Play Character",
-    "ctaNote": "Kamu bermain sebagai karakter Eric di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Karya → III Mutu → IV Perubahan → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
+    "ctaNote": "Kamu bermain sebagai karakter konsultan di arena blok isometrik. Yang harus kamu buat: Tumpukan Bermakna — lima lapis berurutan dari tanah ke langit, I Fondasi → II Karya → III Mutu → IV Perubahan → V Rawat. Blok hanya berdiri di atas yang sudah kokoh, dan mencabut fondasi meruntuhkan yang bertumpu. Hancurkan dan susun blok untuk menyelesaikannya — semuanya tersimpan di browser ini, jadi karya itu tetap ada saat kamu kembali.",
     "gameTitle": "Cakrawala Playground",
     "gameHint": "WASD / panah jalan · Shift lari · Spasi lompat · Klik kiri hancurkan · Klik kanan pasang · 1–5 pilih material · Esc jeda, Esc lagi keluar",
     "gameHintTouch": "Joystick kiri untuk jalan · geser sisi kanan untuk melihat · tombol aksi di kanan",
@@ -501,8 +501,7 @@
             "href": "https://playwright.dev"
           },
           {
-            "text": "Model karakter 3D \"Eric Rigged 001\" oleh Renderpeople (free3d.com) — Personal Use License",
-            "href": "https://free3d.com"
+            "text": "Karakter konsultan 3D prosedural — geometri loft Three.js, tanpa aset model eksternal"
           }
         ]
       },
@@ -564,11 +563,11 @@
             "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11698429/"
           },
           {
-            "text": "Rubio JE, dkk. Differences in running biomechanics between young, healthy men and women carrying external loads. PMC, 2023 — fleksi trunk pria 16,9–24,6% lebih besar daripada wanita; lean lari Eric ~15° mengikuti ciri maskulin ini",
+            "text": "Rubio JE, dkk. Differences in running biomechanics between young, healthy men and women carrying external loads. PMC, 2023 — fleksi trunk pria 16,9–24,6% lebih besar daripada wanita; lean lari karakter ~15° mengikuti ciri maskulin ini",
             "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10579583/"
           },
           {
-            "text": "Scharl T, dkk. Gender Differences in the Dynamics and Kinematics of Running. Bioengineering 11(12):1261, 2024 — ROM pinggul/pelvis pelari wanita lebih besar; carriage maskulin Eric: siku rapat ke rusuk, ayunan lengan sagittal, sway lateral minimal",
+            "text": "Scharl T, dkk. Gender Differences in the Dynamics and Kinematics of Running. Bioengineering 11(12):1261, 2024 — ROM pinggul/pelvis pelari wanita lebih besar; carriage maskulin karakter: siku rapat ke rusuk, ayunan lengan sagittal, sway lateral minimal",
             "href": "https://www.mdpi.com/2306-5354/11/12/1261"
           },
           {
@@ -576,11 +575,11 @@
             "mono": true
           },
           {
-            "text": "fleksi lutut = lerp(1,05; 2,09 rad) ≈ 60° jalan → 120° lari; BENTUK kurva lari dari loop referensi 20-key (Catmull-Rom periodik), amplitudo tetap Eric",
+            "text": "fleksi lutut = lerp(1,05; 2,09 rad) ≈ 60° jalan → 120° lari; BENTUK kurva lari dari loop referensi 20-key (Catmull-Rom periodik), amplitudo mengikuti proporsi karakter",
             "mono": true
           },
           {
-            "text": "ayunan lengan berlawanan kaki: bahu ±15° jalan → ±35° lari (tangan hip-pocket → chin); siku ~90° ± 21° saat lari dengan hinge sagittal yang ikut rotasi bahu; abduksi mengetat +0,07 rad seiring kecepatan (siku rapat ke rusuk); telapak pronasi ke paha, jari curl rileks",
+            "text": "ayunan lengan berlawanan kaki: bahu ±15° jalan → ±35° lari (tangan hip-pocket → chin); siku ~90° ± 21° saat lari dengan hinge sagittal yang ikut rotasi bahu; abduksi mengetat +0,07 rad seiring kecepatan (siku rapat ke rusuk); tangan tetap rileks",
             "mono": true
           }
         ]

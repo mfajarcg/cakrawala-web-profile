@@ -1,6 +1,6 @@
-import { useFBX, useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { Suspense, useLayoutEffect, useMemo, useRef } from 'react'
+import type { ThreeElements } from '@react-three/fiber'
+import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { clamp01, useJourney } from '../journey/store'
 import { useGame } from '../game/store'
@@ -23,11 +23,6 @@ import {
 } from './shared'
 import { ELBOW_SHAPE, KNEE_SHAPE, sampleLoop } from './runLoop'
 
-const BASE = import.meta.env.BASE_URL
-const MODEL_URL = `${BASE}models/eric/rp_eric_rigged_001_ue4.fbx`
-const TEX_DIR = `${BASE}models/eric/tex/`
-const MODEL_SCALE = 0.01 // the FBX is authored in centimetres
-
 // Gait parameters follow published biomechanics: walking cadence ~128 spm with
 // a 62/38 stance-swing split and ~60° peak swing knee flexion; running cadence
 // ~176 spm with ~40/60 stance-swing, ~120° swing knee flexion peaked early in
@@ -35,29 +30,32 @@ const MODEL_SCALE = 0.01 // the FBX is authored in centimetres
 // lean (Perry & Burnfield 2010; Novacheck 1998; Physio-pedia Running Biomechanics).
 // The run knee/elbow flexion SHAPE is retargeted from the Sketchfab reference
 // "Male Running (20 frames loop)" by Denys Almaral (see runLoop.ts); amplitudes
-// stay calibrated to Eric's proportions so the reach() foot-lock holds.
+// stay calibrated to the character's proportions so the reach() foot-lock holds.
 const JOURNEY_SPEED = 3.4 // world m/s of a full-speed checkpoint hop
 const JOURNEY_ACCEL = 2.0 // world m/s^2
 const TURN_RATE = 9 // rad/s damp when re-facing
 
-// the rig ships in a 45° A-pose; bring the arms down near the body
-const ARM_ABDUCT = 0.6 // rad
-// palm pronation toward the thigh and finger-curl sense, checked against the
-// bind pose landmarks (palm normal = finger × thumb plane)
-const PRON = 0.47
-const CURL_SIGN = 1
-
-// leg measurements in world units (FBX is in cm), used to keep the stance
-// foot on the ground instead of letting the body float mid-stride
+// leg measurements in world units, used to keep the stance foot on the ground
+// instead of letting the body float mid-stride
 const L_THIGH = 0.42
 const L_SHIN = 0.422
-const HIP_HEIGHT = 0.969
-const ANKLE_TO_SOLE = 0.127
+const ANKLE_TO_SOLE = 0.09
+const HIP_HEIGHT = L_THIGH + L_SHIN + ANKLE_TO_SOLE
 
-const Y_AXIS = new THREE.Vector3(0, 1, 0)
-const Z_AXIS = new THREE.Vector3(0, 0, 1)
+// Body proportions follow the 7.5-head artistic canon (Richer/Loomis, Wikipedia
+// "Body proportions") with Drillis & Contini segment fractions of stature
+// (~1.76 m): hip joint 0.53H, shoulder joint 0.81H, elbow 0.62H, wrist 0.48H,
+// upper arm 0.186H, forearm 0.146H, hand 0.108H, head 0.13H, foot 0.152H.
+const HIP_X = 0.09
+const SHOULDER_X = 0.185
+const SHOULDER_Y = 0.44 // relative to the torso pivot
+const ARM_OUT = 0.09
+const L_UPPER = 0.327
+const L_FORE = 0.257
+const HEAD_Y = 0.6 // head pivot relative to the torso pivot
 
 const TAU = Math.PI * 2
+const FRONT = Math.PI / 2
 const lerp = THREE.MathUtils.lerp
 const clamp = THREE.MathUtils.clamp
 
@@ -72,17 +70,15 @@ export function Character() {
     <>
       <CharacterDriver />
       <TeleportBeams />
-      <Suspense fallback={null}>
-        <EricVisual />
-      </Suspense>
+      <ConsultantVisual />
     </>
   )
 }
 
 /**
  * Walks the character along the isometric path and publishes its pose for the
- * camera rig and the rigged model. Separate from the visual so the model can
- * load asynchronously without stalling the journey.
+ * camera rig and the procedural model. Separate from the visual so the scene
+ * does not stall while the model mounts.
  */
 function CharacterDriver() {
   const sim = useRef({
@@ -269,53 +265,6 @@ function TeleportBeams() {
   )
 }
 
-interface Poser {
-  bone: THREE.Bone
-  rest: THREE.Quaternion
-  /** inverse of the bone's own rest rotation in character space */
-  invRestWorldQ: THREE.Quaternion
-}
-
-/** a joint that can be posed about axes expressed in character space */
-function makePoser(model: THREE.Object3D, name: string): Poser | null {
-  const bone = model.getObjectByName(name) as THREE.Bone | undefined
-  const parent = bone?.parent
-  if (!bone || !parent) return null
-  const parentQ = new THREE.Quaternion()
-  parent.getWorldQuaternion(parentQ)
-  const rest = bone.quaternion.clone()
-  return {
-    bone,
-    rest,
-    invRestWorldQ: parentQ.multiply(rest).invert(),
-  }
-}
-
-const _axis = new THREE.Vector3()
-const _qRot = new THREE.Quaternion()
-
-/**
- * Rotate a bone about one or two axes given in character space (forward +Z,
- * up +Y, the character's left +X) regardless of the rig's own bone bases.
- */
-function poseBone(
-  p: Poser | null,
-  axisA: THREE.Vector3,
-  angleA: number,
-  axisB: THREE.Vector3,
-  angleB: number,
-) {
-  if (!p) return
-  // express the character-space axis in the bone's rest-world frame and
-  // post-multiply, so the net world rotation is about the character axis
-  _axis.copy(axisA).applyQuaternion(p.invRestWorldQ)
-  p.bone.quaternion.copy(p.rest).multiply(_qRot.setFromAxisAngle(_axis, angleA))
-  if (Math.abs(angleB) > 1e-4) {
-    _axis.copy(axisB).applyQuaternion(p.invRestWorldQ)
-    p.bone.quaternion.multiply(_qRot.setFromAxisAngle(_axis, angleB))
-  }
-}
-
 /**
  * Sagittal joint targets over one normalised cycle (u = 0 at heel strike),
  * flexion positive, walk and run parameter sets blended by speedNorm.
@@ -323,7 +272,7 @@ function poseBone(
  * flexes to its peak early (heel toward the butt) then extends before contact;
  * the hip drives forward. `ankle` is the WORLD foot angle (toes-down positive):
  * slightly toes-up at contact, flat through mid-stance, plantarflexed push-off,
- * dorsiflexed clearance in swing — the poser cancels the shin tilt separately.
+ * dorsiflexed clearance in swing — the foot group cancels the shin tilt.
  */
 function jointAt(u: number, sn: number) {
   const stanceFrac = lerp(0.62, 0.4, sn)
@@ -338,8 +287,8 @@ function jointAt(u: number, sn: number) {
   const ankTO = lerp(0.32, 0.5, sn)
   const ankClear = lerp(0.12, 0.2, sn)
   // authentic run knee shape from the Sketchfab reference loop, mapped onto
-  // Eric's run range (0.26 rad extended → 2.09 rad swing fold); blended in by
-  // speed so walking keeps the analytic curve and running adopts the reference
+  // the character's run range (0.26 rad extended → 2.09 rad swing fold);
+  // blended in by speed so walking keeps the analytic curve
   const kneeRef = 0.26 + sampleLoop(KNEE_SHAPE, u) * (2.09 - 0.26)
   if (u < stanceFrac) {
     const s = u / stanceFrac
@@ -378,61 +327,446 @@ function useBlobShadow() {
   }, [])
 }
 
-function EricVisual() {
-  const fbx = useFBX(MODEL_URL)
-  const [dif, norm] = useTexture([
-    `${TEX_DIR}rp_eric_rigged_001_dif.jpg`,
-    `${TEX_DIR}rp_eric_rigged_001_norm.jpg`,
-  ])
-  const root = useRef<THREE.Group>(null)
-  const shadow = useRef<THREE.Mesh>(null)
-  const blob = useBlobShadow()
-  const jumpPose = useRef({ hip: 0, knee: 0, foot: 0, arm: 0, elbow: 0, spine: 0, neck: 0, w: 0 })
-  const pov = useJourney((s) => s.pov)
-  const mode = useGame((s) => s.mode)
+// --- lofted low-poly body ---------------------------------------------------
+// Rings are stacked along +Y (or +Z for shoes). A ring is a superellipse-ish
+// cross section: x = cx + rx*cos(theta), z = cz + r*sin(theta) with a separate
+// back radius, so torsos, limbs and heads get a chest/back and calf bulge
+// without any texture work. Caps are triangle fans, normals smoothed.
+type Ring = { y: number; rx: number; rz: number; rb?: number; x?: number; z?: number }
 
-  const rig = useMemo(() => {
-    fbx.updateMatrixWorld(true)
-
-    dif.colorSpace = THREE.SRGBColorSpace
-    const material = new THREE.MeshStandardMaterial({
-      map: dif,
-      normalMap: norm,
-      roughness: 0.78,
-      metalness: 0,
-    })
-    // night-only neon rim: fresnel edge glow so the dark suit separates from
-    // the asphalt without touching the day look
-    const rimUniform = { value: 0 }
-    material.onBeforeCompile = (shader) => {
-      shader.uniforms.uNightRim = rimUniform
-      shader.uniforms.uRimColor = { value: new THREE.Color('#ffd075') }
-      shader.fragmentShader = shader.fragmentShader
-        .replace(
-          '#include <common>',
-          '#include <common>\nuniform float uNightRim;\nuniform vec3 uRimColor;',
-        )
-        .replace(
-          '#include <emissivemap_fragment>',
-          `#include <emissivemap_fragment>
-          float rimF = pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 2.6);
-          totalEmissiveRadiance += uRimColor * rimF * uNightRim * 0.85;`,
-        )
+function loftY(rings: Ring[], seg = 12, capStart = true, capEnd = true) {
+  const rows = rings.length
+  const pos: number[] = []
+  const idx: number[] = []
+  for (const r of rings) {
+    for (let j = 0; j < seg; j++) {
+      const th = (j / seg) * TAU
+      const s = Math.sin(th)
+      const rr = s >= 0 ? r.rz : (r.rb ?? r.rz)
+      pos.push((r.x ?? 0) + r.rx * Math.cos(th), r.y, (r.z ?? 0) + rr * s)
     }
-    // read-only scan: the FBX is a shared cached asset and StrictMode
-    // double-invokes memos, so attaching materials/hulls here would orphan the
-    // kept rig's materials and nest hulls inside hulls — wiring lives in the
-    // layout effect below, which cleans up after itself
-    const skins: THREE.SkinnedMesh[] = []
-    fbx.traverse((o) => {
-      if (o.userData.ericHull) return
-      const skin = o as THREE.SkinnedMesh
-      if (skin.isSkinnedMesh && skin.skeleton) skins.push(skin)
-    })
+  }
+  for (let i = 0; i < rows - 1; i++) {
+    for (let j = 0; j < seg; j++) {
+      const j2 = (j + 1) % seg
+      const a = i * seg + j
+      const b = i * seg + j2
+      const c = (i + 1) * seg + j
+      const d = (i + 1) * seg + j2
+      idx.push(a, c, d, a, d, b)
+    }
+  }
+  if (capStart) {
+    const c = pos.length / 3
+    pos.push(rings[0].x ?? 0, rings[0].y, rings[0].z ?? 0)
+    for (let j = 0; j < seg; j++) idx.push(c, j, (j + 1) % seg)
+  }
+  if (capEnd) {
+    const c = pos.length / 3
+    const r = rows - 1
+    pos.push(rings[r].x ?? 0, rings[r].y, rings[r].z ?? 0)
+    for (let j = 0; j < seg; j++) idx.push(c, r * seg + ((j + 1) % seg), r * seg + j)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
+}
 
-    // crisp neon silhouette: back-face hull inflated along the bind normals,
-    // skinned by the same skeleton so the outline follows every posed joint
-    const hullMat = new THREE.MeshBasicMaterial({
+/** open curved strip along the front of a lofted torso (shirt, lapels) */
+type PatchRing = Ring & { a0: number; a1: number }
+
+function patchY(rings: PatchRing[], seg = 8) {
+  const rows = rings.length
+  const stride = seg + 1
+  const pos: number[] = []
+  const idx: number[] = []
+  for (const r of rings) {
+    for (let j = 0; j <= seg; j++) {
+      const th = r.a0 + ((r.a1 - r.a0) * j) / seg
+      const s = Math.sin(th)
+      const rr = s >= 0 ? r.rz : (r.rb ?? r.rz)
+      pos.push((r.x ?? 0) + r.rx * Math.cos(th), r.y, (r.z ?? 0) + rr * s)
+    }
+  }
+  for (let i = 0; i < rows - 1; i++) {
+    for (let j = 0; j < seg; j++) {
+      const a = i * stride + j
+      const b = a + 1
+      const c = (i + 1) * stride + j
+      const d = c + 1
+      idx.push(a, c, d, a, d, b)
+    }
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
+}
+
+type ShoeRing = { z: number; rx: number; ry: number; cx?: number; cy?: number }
+
+function loftZ(rings: ShoeRing[], seg = 10) {
+  const rows = rings.length
+  const pos: number[] = []
+  const idx: number[] = []
+  for (const r of rings) {
+    for (let j = 0; j < seg; j++) {
+      const th = (j / seg) * TAU
+      pos.push((r.cx ?? 0) + r.rx * Math.cos(th), (r.cy ?? 0) + r.ry * Math.sin(th), r.z)
+    }
+  }
+  for (let i = 0; i < rows - 1; i++) {
+    for (let j = 0; j < seg; j++) {
+      const j2 = (j + 1) % seg
+      const a = i * seg + j
+      const b = i * seg + j2
+      const c = (i + 1) * seg + j
+      const d = (i + 1) * seg + j2
+      idx.push(a, b, d, a, d, c)
+    }
+  }
+  const back = pos.length / 3
+  pos.push(rings[0].cx ?? 0, rings[0].cy ?? 0, rings[0].z)
+  for (let j = 0; j < seg; j++) idx.push(back, (j + 1) % seg, j)
+  const front = pos.length / 3
+  const r = rows - 1
+  pos.push(rings[r].cx ?? 0, rings[r].cy ?? 0, rings[r].z)
+  for (let j = 0; j < seg; j++) idx.push(front, r * seg + j, r * seg + ((j + 1) % seg))
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
+}
+
+const sphere = (r: number, w = 10, h = 8) => new THREE.SphereGeometry(r, w, h)
+
+function buildConsultantGeometry() {
+  const pelvis = loftY(
+    [
+      { y: 0.06, rx: 0.148, rz: 0.105, rb: 0.1 },
+      { y: 0.02, rx: 0.156, rz: 0.114, rb: 0.112 },
+      { y: -0.025, rx: 0.154, rz: 0.112, rb: 0.116 },
+      { y: -0.07, rx: 0.14, rz: 0.104, rb: 0.11 },
+      { y: -0.1, rx: 0.116, rz: 0.088, rb: 0.092 },
+      { y: -0.118, rx: 0.082, rz: 0.066, rb: 0.07 },
+    ],
+    14,
+  )
+
+  const thigh = loftY(
+    [
+      { y: 0.075, rx: 0.082, rz: 0.088, rb: 0.086 },
+      { y: 0.01, rx: 0.089, rz: 0.095, rb: 0.092 },
+      { y: -0.1, rx: 0.081, rz: 0.086, rb: 0.084 },
+      { y: -0.22, rx: 0.07, rz: 0.074, rb: 0.072 },
+      { y: -0.33, rx: 0.061, rz: 0.064, rb: 0.063 },
+      { y: -0.42, rx: 0.057, rz: 0.059, rb: 0.058 },
+    ],
+    12,
+  )
+
+  const knee = sphere(0.056, 8, 6)
+
+  const shin = loftY(
+    [
+      { y: 0.015, rx: 0.055, rz: 0.058, rb: 0.056 },
+      { y: -0.07, rx: 0.058, rz: 0.058, rb: 0.072 },
+      { y: -0.16, rx: 0.052, rz: 0.052, rb: 0.062 },
+      { y: -0.28, rx: 0.044, rz: 0.046, rb: 0.046 },
+      { y: -0.38, rx: 0.05, rz: 0.052, rb: 0.05 },
+      { y: -0.422, rx: 0.048, rz: 0.05, rb: 0.048 },
+    ],
+    12,
+  )
+
+  // dress shoe, sole resting on y = -ANKLE_TO_SOLE; ~0.27 m long
+  const shoe = loftZ(
+    [
+      { z: -0.072, rx: 0.03, ry: 0.032, cy: -0.058 },
+      { z: -0.045, rx: 0.042, ry: 0.038, cy: -0.052 },
+      { z: -0.005, rx: 0.048, ry: 0.042, cy: -0.048 },
+      { z: 0.045, rx: 0.049, ry: 0.036, cy: -0.054 },
+      { z: 0.105, rx: 0.047, ry: 0.03, cy: -0.06 },
+      { z: 0.155, rx: 0.041, ry: 0.024, cy: -0.066 },
+      { z: 0.192, rx: 0.029, ry: 0.016, cy: -0.074 },
+    ],
+    10,
+  )
+
+  const sole = loftZ(
+    [
+      { z: -0.068, rx: 0.032, ry: 0.008, cy: -0.082 },
+      { z: -0.04, rx: 0.044, ry: 0.008, cy: -0.082 },
+      { z: 0.0, rx: 0.051, ry: 0.008, cy: -0.082 },
+      { z: 0.05, rx: 0.052, ry: 0.008, cy: -0.082 },
+      { z: 0.11, rx: 0.05, ry: 0.008, cy: -0.082 },
+      { z: 0.16, rx: 0.044, ry: 0.008, cy: -0.082 },
+      { z: 0.196, rx: 0.032, ry: 0.008, cy: -0.082 },
+    ],
+    10,
+  )
+
+  const upperArm = loftY(
+    [
+      { y: 0.02, rx: 0.03, rz: 0.032 },
+      { y: 0.005, rx: 0.048, rz: 0.05 },
+      { y: -0.015, rx: 0.058, rz: 0.06 },
+      { y: -0.09, rx: 0.052, rz: 0.054 },
+      { y: -0.18, rx: 0.047, rz: 0.049 },
+      { y: -0.27, rx: 0.043, rz: 0.045 },
+      { y: -0.327, rx: 0.04, rz: 0.042 },
+    ],
+    12,
+  )
+
+  const elbow = sphere(0.044, 8, 6)
+
+  const forearm = loftY(
+    [
+      { y: 0.02, rx: 0.041, rz: 0.043 },
+      { y: -0.06, rx: 0.042, rz: 0.044 },
+      { y: -0.15, rx: 0.036, rz: 0.038 },
+      { y: -0.225, rx: 0.03, rz: 0.032 },
+    ],
+    10,
+  )
+
+  const cuff = new THREE.CylinderGeometry(0.031, 0.032, 0.03, 10, 1, true)
+
+  const hand = loftY(
+    [
+      { y: 0.028, rx: 0.027, rz: 0.018 },
+      { y: 0.0, rx: 0.031, rz: 0.019 },
+      { y: -0.045, rx: 0.037, rz: 0.02 },
+      { y: -0.085, rx: 0.038, rz: 0.019 },
+      { y: -0.105, rx: 0.036, rz: 0.017, z: 0.002 },
+      { y: -0.135, rx: 0.034, rz: 0.015, z: 0.006 },
+      { y: -0.165, rx: 0.029, rz: 0.012, z: 0.01 },
+      { y: -0.178, rx: 0.016, rz: 0.008, z: 0.012 },
+    ],
+    10,
+  )
+
+  const thumb = new THREE.CapsuleGeometry(0.0105, 0.036, 3, 6)
+
+  const torso = loftY(
+    [
+      { y: -0.045, rx: 0.16, rz: 0.118, rb: 0.114 },
+      { y: 0.01, rx: 0.158, rz: 0.116, rb: 0.112 },
+      { y: 0.08, rx: 0.161, rz: 0.121, rb: 0.112 },
+      { y: 0.16, rx: 0.168, rz: 0.126, rb: 0.115 },
+      { y: 0.24, rx: 0.173, rz: 0.128, rb: 0.118 },
+      { y: 0.32, rx: 0.175, rz: 0.125, rb: 0.119 },
+      { y: 0.39, rx: 0.172, rz: 0.117, rb: 0.117 },
+      { y: 0.425, rx: 0.171, rz: 0.11, rb: 0.114 },
+      { y: 0.45, rx: 0.168, rz: 0.1, rb: 0.108 },
+      { y: 0.465, rx: 0.15, rz: 0.09, rb: 0.098 },
+      { y: 0.478, rx: 0.11, rz: 0.078, rb: 0.086 },
+      { y: 0.49, rx: 0.068, rz: 0.062, rb: 0.066 },
+    ],
+    16,
+  )
+
+  const shirt = patchY(
+    [
+      { y: 0.06, rx: 0.164, rz: 0.123, rb: 0.117, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.16, rx: 0.172, rz: 0.13, rb: 0.119, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.24, rx: 0.177, rz: 0.132, rb: 0.122, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.32, rx: 0.179, rz: 0.129, rb: 0.123, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.39, rx: 0.176, rz: 0.121, rb: 0.121, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.425, rx: 0.172, rz: 0.114, rb: 0.118, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.448, rx: 0.15, rz: 0.104, rb: 0.108, a0: FRONT - 0.64, a1: FRONT + 0.64 },
+      { y: 0.465, rx: 0.142, rz: 0.095, rb: 0.102, a0: FRONT - 0.52, a1: FRONT + 0.52 },
+      { y: 0.488, rx: 0.1, rz: 0.068, rb: 0.074, a0: FRONT - 0.38, a1: FRONT + 0.38 },
+    ],
+    10,
+  )
+
+  const lapel = (side: 1 | -1) => {
+    const rows: [number, number, number, number, number][] = [
+      [0.055, 0.168, 0.126, 0.122, 0.055],
+      [0.15, 0.176, 0.134, 0.123, 0.12],
+      [0.24, 0.181, 0.136, 0.126, 0.18],
+      [0.33, 0.183, 0.133, 0.127, 0.23],
+      [0.41, 0.18, 0.121, 0.125, 0.265],
+      [0.448, 0.158, 0.108, 0.116, 0.285],
+    ]
+    return patchY(
+      rows.map(([y, rx, rz, rb, inner]) => ({
+        y,
+        rx,
+        rz,
+        rb,
+        a0: FRONT + (side > 0 ? inner : -0.63),
+        a1: FRONT + (side > 0 ? 0.63 : -inner),
+      })),
+      6,
+    )
+  }
+
+  const tie = loftY(
+    [
+      { y: 0.155, rx: 0.008, rz: 0.005, z: 0.135 },
+      { y: 0.18, rx: 0.03, rz: 0.006, z: 0.135 },
+      { y: 0.28, rx: 0.026, rz: 0.006, z: 0.133 },
+      { y: 0.36, rx: 0.021, rz: 0.006, z: 0.128 },
+      { y: 0.42, rx: 0.017, rz: 0.006, z: 0.119 },
+      { y: 0.438, rx: 0.02, rz: 0.011, z: 0.111 },
+      { y: 0.458, rx: 0.018, rz: 0.012, z: 0.105 },
+    ],
+    8,
+  )
+
+  const collar = patchY(
+    [
+      { y: 0.44, rx: 0.09, rz: 0.082, rb: 0.076, a0: FRONT + 0.8, a1: FRONT + TAU - 0.8 },
+      { y: 0.48, rx: 0.083, rz: 0.074, rb: 0.07, a0: FRONT + 0.8, a1: FRONT + TAU - 0.8 },
+      { y: 0.515, rx: 0.075, rz: 0.066, rb: 0.064, a0: FRONT + 0.8, a1: FRONT + TAU - 0.8 },
+    ],
+    16,
+  )
+
+  const shirtCollar = loftY(
+    [
+      { y: 0.505, rx: 0.064, rz: 0.058, rb: 0.058 },
+      { y: 0.532, rx: 0.058, rz: 0.054, rb: 0.054 },
+    ],
+    12,
+    false,
+    false,
+  )
+
+  const neck = loftY(
+    [
+      { y: 0.0, rx: 0.062, rz: 0.058, rb: 0.058 },
+      { y: 0.06, rx: 0.055, rz: 0.052, rb: 0.052 },
+      { y: 0.13, rx: 0.049, rz: 0.048, rb: 0.052 },
+      { y: 0.155, rx: 0.046, rz: 0.046, rb: 0.05 },
+    ],
+    10,
+  )
+
+  const head = loftY(
+    [
+      { y: -0.031, rx: 0.021, rz: 0.028, rb: 0.02, z: 0.014 },
+      { y: -0.012, rx: 0.046, rz: 0.064, rb: 0.04, z: 0.012 },
+      { y: 0.018, rx: 0.064, rz: 0.084, rb: 0.058, z: 0.008 },
+      { y: 0.05, rx: 0.073, rz: 0.09, rb: 0.07, z: 0.004 },
+      { y: 0.083, rx: 0.077, rz: 0.092, rb: 0.076, z: 0.002 },
+      { y: 0.115, rx: 0.076, rz: 0.087, rb: 0.08 },
+      { y: 0.15, rx: 0.07, rz: 0.077, rb: 0.076, z: -0.002 },
+      { y: 0.18, rx: 0.053, rz: 0.057, rb: 0.061, z: -0.004 },
+      { y: 0.198, rx: 0.021, rz: 0.022, rb: 0.026, z: -0.004 },
+    ],
+    16,
+  )
+
+  const hair = loftY(
+    [
+      { y: 0.118, rx: 0.08, rz: 0.091, rb: 0.082 },
+      { y: 0.15, rx: 0.075, rz: 0.082, rb: 0.081 },
+      { y: 0.18, rx: 0.058, rz: 0.061, rb: 0.066 },
+      { y: 0.196, rx: 0.035, rz: 0.035, rb: 0.04 },
+      { y: 0.202, rx: 0.012, rz: 0.012, rb: 0.015 },
+    ],
+    12,
+  )
+
+  const hairBack = sphere(0.075, 10, 8)
+
+  const ear = sphere(0.032, 7, 6)
+  const eye = sphere(0.012, 8, 6)
+  const pupil = sphere(0.0055, 6, 5)
+
+  const nose = loftY(
+    [
+      { y: 0.024, rx: 0.016, rz: 0.01, z: 0.098 },
+      { y: 0.042, rx: 0.013, rz: 0.011, z: 0.096 },
+      { y: 0.06, rx: 0.009, rz: 0.008, z: 0.092 },
+      { y: 0.078, rx: 0.007, rz: 0.006, z: 0.089 },
+    ],
+    8,
+  )
+
+  const lens = new THREE.TorusGeometry(0.027, 0.0032, 4, 14)
+  const button = sphere(0.009, 6, 5)
+
+  return {
+    pelvis,
+    thigh,
+    knee,
+    shin,
+    shoe,
+    sole,
+    upperArm,
+    elbow,
+    forearm,
+    cuff,
+    hand,
+    thumb,
+    torso,
+    shirt,
+    lapelR: lapel(1),
+    lapelL: lapel(-1),
+    tie,
+    collar,
+    shirtCollar,
+    neck,
+    head,
+    hair,
+    hairBack,
+    ear,
+    eye,
+    pupil,
+    nose,
+    lens,
+    button,
+  }
+}
+
+type ConsultantGeo = ReturnType<typeof buildConsultantGeometry>
+
+function useConsultantMaterials() {
+  const mats = useMemo(() => {
+    const make = (color: string, roughness = 0.78, metalness = 0) =>
+      new THREE.MeshStandardMaterial({ color, roughness, metalness, flatShading: true })
+    return {
+      jacket: make('#203044', 0.84),
+      jacketDark: make('#182435', 0.86),
+      trousers: make('#2b3a4e', 0.88),
+      shirt: make('#eef3f8', 0.62),
+      tie: make('#dd8a2b', 0.58),
+      skin: make('#c98e6b', 0.76),
+      hair: make('#2a211c', 0.92),
+      shoe: make('#151b23', 0.5, 0.08),
+      belt: make('#0f151d', 0.55),
+      glasses: make('#111827', 0.32, 0.35),
+      eye: make('#f5f2ea', 0.4),
+      pupil: make('#20201e', 0.35),
+      mouth: make('#80514a', 0.7),
+      badge: make('#f8fafc', 0.5),
+      badgeAccent: make('#dd8a2b', 0.52),
+      metal: make('#9aa4b2', 0.35, 0.6),
+    }
+  }, [])
+
+  return mats
+}
+
+type ConsultantMats = ReturnType<typeof useConsultantMaterials>
+
+/**
+ * Night-only neon silhouette, the same trick as the old rigged character: every
+ * garment part renders an inflated back-face copy that writes no depth, so only
+ * the halo outside the body survives. Surface colours are never touched.
+ */
+function useNeonOutline() {
+  return useMemo(() => {
+    const mat = new THREE.MeshBasicMaterial({
       color: '#ffcf6e',
       side: THREE.BackSide,
       transparent: true,
@@ -440,126 +774,81 @@ function EricVisual() {
       depthWrite: false,
       toneMapped: false,
     })
-    hullMat.onBeforeCompile = (shader) => {
+    mat.onBeforeCompile = (shader) => {
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        'vec3 transformed = vec3( position ) + normal * 1.6;',
+        'vec3 transformed = vec3( position ) + normal * 0.014;',
       )
     }
+    return mat
+  }, [])
+}
 
-    // The FBX is UE4-authored, so its character axes are NOT three's +X left /
-    // +Z forward. Derive the true anatomical axes from bone landmarks so that
-    // "flexion" really swings limbs in the sagittal plane instead of twisting
-    // them about their long axis (which is invisible on a straight leg).
-    const worldPos = (name: string) => {
-      const v = new THREE.Vector3()
-      fbx.getObjectByName(name)?.getWorldPosition(v)
-      return v
-    }
-    const up = worldPos('head').sub(worldPos('pelvis'))
-    if (up.lengthSq() < 1e-8) up.copy(Y_AXIS)
-    up.normalize()
-    const front = worldPos('ball_l').sub(worldPos('foot_l'))
-    front.addScaledVector(up, -front.dot(up))
-    if (front.lengthSq() < 1e-8) front.copy(Z_AXIS)
-    front.normalize()
-    const flex = new THREE.Vector3().crossVectors(up, front).normalize()
+type MeshProps = ThreeElements['mesh']
 
-    // Elbow hinge: perpendicular to the A-pose arm and the forward axis. A
-    // child bone's world rotation axis is carried by the parent's POSED
-    // rotation, so the shoulder's swing + abduction already tilt this hinge
-    // correctly — pre-rotating it here would apply the abduction twice and
-    // flare the forearms out sideways instead of folding them sagittally.
-    const hinge = (side: 'l' | 'r') => {
-      const a = new THREE.Vector3()
-      const b = new THREE.Vector3()
-      fbx.getObjectByName(`upperarm_${side}`)!.getWorldPosition(a)
-      fbx.getObjectByName(`lowerarm_${side}`)!.getWorldPosition(b)
-      return new THREE.Vector3().crossVectors(b.sub(a).normalize(), front).normalize()
-    }
+function Part({
+  g,
+  m,
+  outline,
+  ...rest
+}: MeshProps & { g: THREE.BufferGeometry; m: THREE.Material; outline?: THREE.Material }) {
+  return (
+    <mesh geometry={g} material={m} {...rest}>
+      {outline ? <mesh geometry={g} material={outline} visible={false} /> : null}
+    </mesh>
+  )
+}
 
-    // wrist & finger curl axes derived from the bind-pose hand landmarks: the
-    // palm normal is the finger/thumb plane, so a curl always folds toward the
-    // palm whatever orientation the rig ships in
-    const forearmAxis = (side: 'l' | 'r') =>
-      worldPos(`hand_${side}`).sub(worldPos(`lowerarm_${side}`)).normalize()
-    const fingerSet = (side: 'l' | 'r') => {
-      const hand = worldPos(`hand_${side}`)
-      const fDir = worldPos(`middle_03_${side}`).sub(hand).normalize()
-      const tDir = worldPos(`thumb_01_${side}`).sub(hand).normalize()
-      const palm = new THREE.Vector3().crossVectors(fDir, tDir).normalize()
-      const set: { p: Poser | null; axis: THREE.Vector3; row: number; thumb: boolean }[] = []
-      for (const name of ['index', 'middle', 'ring', 'pinky', 'thumb']) {
-        for (let j = 1; j <= 3; j++) {
-          const next = j === 3 ? `${name}_end_${side}` : `${name}_0${j + 1}_${side}`
-          const dir = worldPos(next).sub(worldPos(`${name}_0${j}_${side}`)).normalize()
-          set.push({
-            p: makePoser(fbx, `${name}_0${j}_${side}`),
-            axis: new THREE.Vector3().crossVectors(dir, palm).normalize(),
-            row: j,
-            thumb: name === 'thumb',
-          })
-        }
-      }
-      return set
-    }
+function Hand({
+  side,
+  mats,
+  outline,
+  geo,
+}: {
+  side: -1 | 1
+  mats: ConsultantMats
+  outline: THREE.Material
+  geo: ConsultantGeo
+}) {
+  return (
+    <>
+      <Part g={geo.hand} m={mats.skin} outline={outline} />
+      <mesh
+        geometry={geo.thumb}
+        material={mats.skin}
+        position={[-side * 0.03, -0.042, 0.014]}
+        rotation={[-0.3, 0, -side * 0.45]}
+      />
+    </>
+  )
+}
 
-    return {
-      flex,
-      front,
-      rimUniform,
-      hullMat,
-      bodyMat: material,
-      skins,
-      hulls: [] as THREE.SkinnedMesh[],
-      thighL: makePoser(fbx, 'thigh_l'),
-      calfL: makePoser(fbx, 'calf_l'),
-      footL: makePoser(fbx, 'foot_l'),
-      thighR: makePoser(fbx, 'thigh_r'),
-      calfR: makePoser(fbx, 'calf_r'),
-      footR: makePoser(fbx, 'foot_r'),
-      armL: makePoser(fbx, 'upperarm_l'),
-      elbowL: makePoser(fbx, 'lowerarm_l'),
-      armR: makePoser(fbx, 'upperarm_r'),
-      elbowR: makePoser(fbx, 'lowerarm_r'),
-      handL: makePoser(fbx, 'hand_l'),
-      handR: makePoser(fbx, 'hand_r'),
-      foreL: forearmAxis('l'),
-      foreR: forearmAxis('r'),
-      fingersL: fingerSet('l'),
-      fingersR: fingerSet('r'),
-      spine: makePoser(fbx, 'spine_01'),
-      neck: makePoser(fbx, 'neck_01'),
-      hingeL: hinge('l'),
-      hingeR: hinge('r'),
-    }
-  }, [fbx, dif, norm])
-
-  // all FBX mutation lives here, not in the memo: StrictMode double-invokes
-  // memos but pairs effect setups with cleanups, so the hulls and materials in
-  // the scene always belong to the rig the frame loop actually writes to
-  useLayoutEffect(() => {
-    fbx.traverse((o) => {
-      if (o.userData.ericHull) return
-      const mesh = o as THREE.Mesh
-      if (!mesh.isMesh) return
-      mesh.material = rig.bodyMat
-      mesh.frustumCulled = false
-    })
-    rig.hulls = rig.skins.map((skin) => {
-      const hull = new THREE.SkinnedMesh(skin.geometry, rig.hullMat)
-      hull.bind(skin.skeleton, skin.bindMatrix)
-      hull.frustumCulled = false
-      hull.visible = false
-      hull.userData.ericHull = true
-      skin.add(hull)
-      return hull
-    })
-    return () => {
-      for (const h of rig.hulls) h.parent?.remove(h)
-      rig.hulls = []
-    }
-  }, [rig, fbx])
+function ConsultantVisual() {
+  const mats = useConsultantMaterials()
+  const hull = useNeonOutline()
+  const geo = useMemo(buildConsultantGeometry, [])
+  const root = useRef<THREE.Group>(null)
+  const body = useRef<THREE.Group>(null)
+  const torso = useRef<THREE.Group>(null)
+  const head = useRef<THREE.Group>(null)
+  const hipL = useRef<THREE.Group>(null)
+  const hipR = useRef<THREE.Group>(null)
+  const kneeL = useRef<THREE.Group>(null)
+  const kneeR = useRef<THREE.Group>(null)
+  const footL = useRef<THREE.Group>(null)
+  const footR = useRef<THREE.Group>(null)
+  const shoulderL = useRef<THREE.Group>(null)
+  const shoulderR = useRef<THREE.Group>(null)
+  const elbowL = useRef<THREE.Group>(null)
+  const elbowR = useRef<THREE.Group>(null)
+  const handL = useRef<THREE.Group>(null)
+  const handR = useRef<THREE.Group>(null)
+  const shadow = useRef<THREE.Mesh>(null)
+  const hullOn = useRef(false)
+  const blob = useBlobShadow()
+  const jumpPose = useRef({ hip: 0, knee: 0, foot: 0, arm: 0, elbow: 0, spine: 0, neck: 0, w: 0 })
+  const pov = useJourney((s) => s.pov)
+  const mode = useGame((s) => s.mode)
 
   useFrame((state, delta) => {
     const g = root.current
@@ -574,25 +863,23 @@ function EricVisual() {
     const stanceFrac = lerp(0.62, 0.4, speedNorm)
 
     // each leg gets its own cycle position; the right leg is half a cycle behind
-    const uL = ((phase / TAU) % 1 + 1) % 1
+    const uL = (((phase / TAU) % 1) + 1) % 1
     const uR = (uL + 0.5) % 1
 
     const jL = jointAt(uL, speedNorm)
     const jR = jointAt(uR, speedNorm)
-    // pose sign: + about the flex axis swings a limb BACK, so flexion is negative
-    const hipL = -jL.hip * walkBlend
-    const hipR = -jR.hip * walkBlend
-    const kneeL = jL.knee * walkBlend
-    const kneeR = jR.knee * walkBlend
+    // positive rotation about X swings a hanging limb backward (-Z)
+    const hipFLeg = -jL.hip * walkBlend
+    const hipRLeg = -jR.hip * walkBlend
+    const kneeFLeg = jL.knee * walkBlend
+    const kneeRLeg = jR.knee * walkBlend
     const ankleL = jL.ankle * walkBlend
     const ankleR = jR.ankle * walkBlend
 
     // arms counter-swing the legs about a CENTRED shoulder range (the raw hip
     // curve is asymmetric): walking ±15°, running ±35° so the hand travels
     // hip-pocket → chin instead of hovering in front of the chest. The elbow
-    // is not a locked 90°: it closes front-side and opens back-side as the
-    // shoulder extends (Freelap "A Call to Arms"; Pfaff), using the reference
-    // loop's elbow shape with the phase flipped to match that open/close rule.
+    // closes front-side and opens back-side as the shoulder extends.
     const hipMean = lerp(0.17, 0.21, speedNorm)
     const armGain = lerp(0.75, 1.08, speedNorm) * walkBlend
     const idle = Math.sin(t * 1.7) * 0.02 * (1 - moving)
@@ -602,22 +889,10 @@ function EricVisual() {
     const elbowOsc = lerp(0.12, 0.75, speedNorm) * walkBlend
     const elbowFlexL = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uL)) * elbowOsc
     const elbowFlexR = elbowBase + (0.5 - sampleLoop(ELBOW_SHAPE, uR)) * elbowOsc
-    // relaxed cupped hand (never splayed, never a tight fist): fingers curl,
-    // palm pronates toward the thigh, wrist near neutral with a small
-    // extension flick as the arm sweeps back
-    const CURL = [
-      0,
-      lerp(0.35, 0.75, speedNorm),
-      lerp(0.45, 0.85, speedNorm),
-      lerp(0.3, 0.55, speedNorm),
-    ]
     const wristL = -0.15 * speedNorm * walkBlend * (armSwingL / 0.61)
     const wristR = -0.15 * speedNorm * walkBlend * (armSwingR / 0.61)
     const lean = (speedNorm * speedNorm * 0.22 + speedNorm * 0.04) * walkBlend
-    // masculine run carriage: the elbows hug the ribcage as speed rises (the
-    // residual A-pose abduction shrinks), so the hands drive straight
-    // hip-pocket → chin in the sagittal plane instead of flaring out wide
-    const abduct = ARM_ABDUCT + speedNorm * 0.07
+    const abduct = ARM_OUT + speedNorm * 0.04
 
     // --- countermovement jump pose blended over the stride: braking dip with
     // arms swept back, extension + tuck with arms overhead on the rise, reach
@@ -685,40 +960,45 @@ function EricVisual() {
     jp.w += (tW - jp.w) * kw
     const w = jp.w
 
-    const hipFL = lerp(hipL, jp.hip, w)
-    const hipFR = lerp(hipR, jp.hip, w)
-    const kneeFL = lerp(kneeL, jp.knee, w)
-    const kneeFR = lerp(kneeR, jp.knee, w)
-    const footFL = lerp(-(hipL + kneeL) + ankleL, jp.foot, w)
-    const footFR = lerp(-(hipR + kneeR) + ankleR, jp.foot, w)
-    const armFL = lerp(armSwingL, jp.arm, w)
-    const armFR = lerp(armSwingR, jp.arm, w)
-    const elbowFL = lerp(elbowFlexL, jp.elbow, w)
-    const elbowFR = lerp(elbowFlexR, jp.elbow, w)
+    const hipF = lerp(hipFLeg, jp.hip, w)
+    const hipRr = lerp(hipRLeg, jp.hip, w)
+    const kneeF = lerp(kneeFLeg, jp.knee, w)
+    const kneeRr = lerp(kneeRLeg, jp.knee, w)
+    const footF = lerp(-(hipFLeg + kneeFLeg) + ankleL, jp.foot, w)
+    const footRr = lerp(-(hipRLeg + kneeRLeg) + ankleR, jp.foot, w)
+    const armF = lerp(armSwingL, jp.arm, w)
+    const armRr = lerp(armSwingR, jp.arm, w)
+    const elbowF = lerp(elbowFlexL, jp.elbow, w)
+    const elbowRr = lerp(elbowFlexR, jp.elbow, w)
     const leanF = lerp(lean, jp.spine, w)
     const neckF = lerp(-lean * 0.75, jp.neck, w)
 
-    poseBone(rig.thighL, rig.flex, hipFL, rig.flex, 0)
-    poseBone(rig.thighR, rig.flex, hipFR, rig.flex, 0)
-    poseBone(rig.calfL, rig.flex, kneeFL, rig.flex, 0)
-    poseBone(rig.calfR, rig.flex, kneeFR, rig.flex, 0)
+    if (hipL.current) hipL.current.rotation.x = hipF
+    if (hipR.current) hipR.current.rotation.x = hipRr
+    if (kneeL.current) kneeL.current.rotation.x = kneeF
+    if (kneeR.current) kneeR.current.rotation.x = kneeRr
     // ankle keeps the sole roughly level with the ground
-    poseBone(rig.footL, rig.flex, footFL, rig.flex, 0)
-    poseBone(rig.footR, rig.flex, footFR, rig.flex, 0)
+    if (footL.current) footL.current.rotation.x = footF
+    if (footR.current) footR.current.rotation.x = footRr
 
-    poseBone(rig.armL, rig.flex, armFL, rig.front, -abduct)
-    poseBone(rig.armR, rig.flex, armFR, rig.front, abduct)
-    poseBone(rig.elbowL, rig.hingeL, elbowFL, rig.flex, 0)
-    poseBone(rig.elbowR, rig.hingeR, elbowFR, rig.flex, 0)
-    poseBone(rig.handL, rig.foreL, PRON, rig.flex, wristL)
-    poseBone(rig.handR, rig.foreR, -PRON, rig.flex, wristR)
-    for (const f of rig.fingersL)
-      poseBone(f.p, f.axis, CURL[f.row] * (f.thumb ? 0.6 : 1) * CURL_SIGN, rig.flex, 0)
-    for (const f of rig.fingersR)
-      poseBone(f.p, f.axis, CURL[f.row] * (f.thumb ? 0.6 : 1) * -CURL_SIGN, rig.flex, 0)
+    if (shoulderL.current) shoulderL.current.rotation.set(armF, 0, -abduct)
+    if (shoulderR.current) shoulderR.current.rotation.set(armRr, 0, abduct)
+    if (elbowL.current) elbowL.current.rotation.x = -elbowF
+    if (elbowR.current) elbowR.current.rotation.x = -elbowRr
+    if (handL.current) handL.current.rotation.x = wristL
+    if (handR.current) handR.current.rotation.x = wristR
 
-    poseBone(rig.spine, rig.flex, leanF, rig.flex, 0)
-    poseBone(rig.neck, rig.flex, neckF, rig.flex, 0)
+    if (torso.current) {
+      torso.current.rotation.x = leanF
+      torso.current.rotation.z = Math.sin(phase) * 0.018 * walkBlend
+      // idle breathing lifts the chest a few millimetres, never the whole body
+      torso.current.position.y = 0.03 + Math.sin(t * 1.9) * 0.004 * (1 - moving)
+    }
+    if (head.current) {
+      head.current.rotation.x = neckF
+      head.current.rotation.y = Math.sin(t * 0.37) * 0.06 * (1 - moving)
+      head.current.rotation.z = -Math.sin(phase) * 0.015 * walkBlend
+    }
 
     // drop the pelvis just enough that the stance foot rests on the ground;
     // during flight both feet are tucked, so the body flies
@@ -737,7 +1017,7 @@ function EricVisual() {
       js === 2
         ? HIP_HEIGHT - ANKLE_TO_SOLE
         : js === 1 || js === 3
-          ? reach(hipFL, kneeFL)
+          ? reach(hipF, kneeF)
           : flightProg >= 0
             ? lerp(
                 reach(-jTO.hip * walkBlend, jTO.knee * walkBlend),
@@ -745,8 +1025,8 @@ function EricVisual() {
                 flightProg,
               ) + Math.sin(Math.PI * flightProg) * lerp(0, 0.06, speedNorm) * walkBlend
             : Math.max(
-                stanceL ? reach(hipFL, kneeFL) : -Infinity,
-                stanceR ? reach(hipFR, kneeFR) : -Infinity,
+                stanceL ? reach(hipF, kneeF) : -Infinity,
+                stanceR ? reach(hipRr, kneeRr) : -Infinity,
               )
     const soleGap = HIP_HEIGHT - ANKLE_TO_SOLE - support
     const bodyY = -soleGap + lift
@@ -755,7 +1035,7 @@ function EricVisual() {
     g.position.set(characterPos.current.x, baseY + bodyY, characterPos.current.z)
     g.rotation.y = characterYaw.current
     if (import.meta.env.DEV) {
-      ;(window as unknown as Record<string, unknown>).__ericDebug = { g }
+      ;(window as unknown as Record<string, unknown>).__consultantDebug = { g }
     }
 
     // teleport: dematerialise shrink + rise + spin, hidden during the whoosh,
@@ -766,7 +1046,7 @@ function EricVisual() {
       g.position.y += hidden * 0.4
       if (teleport.t < TP_VANISH) g.rotation.y += hidden * 3
     }
-    g.scale.setScalar(MODEL_SCALE * Math.max(ts, 0.0001))
+    g.scale.setScalar(Math.max(ts, 0.0001))
     g.visible = (mode === 'game' || pov !== 'fp') && ts > 0.02
 
     if (shadow.current) {
@@ -779,16 +1059,197 @@ function EricVisual() {
       ;(shadow.current.material as THREE.MeshBasicMaterial).opacity = 0.8 * fade * clamp(ts, 0, 1)
     }
 
+    // neon silhouette wakes up with the night atmosphere; the suit itself keeps
+    // exactly its daylight colours at every hour
     const n = atmoMix.night
-    rig.rimUniform.value = n
-    rig.hullMat.opacity = 0.95 * n
-    for (const h of rig.hulls) h.visible = n > 0.02
+    hull.opacity = 0.95 * n
+    const glow = n > 0.02
+    if (glow !== hullOn.current) {
+      hullOn.current = glow
+      g.traverse((o) => {
+        const m = o as THREE.Mesh
+        if (m.isMesh && m.material === hull) m.visible = glow
+      })
+    }
   })
 
   return (
     <>
-      <group ref={root} scale={MODEL_SCALE} visible={mode === 'game' || pov !== 'fp'}>
-        <primitive object={fbx} dispose={null} />
+      <group ref={root} visible={mode === 'game' || pov !== 'fp'}>
+        <group ref={body} position={[0, HIP_HEIGHT, 0]}>
+          {/* trouser seat */}
+          <Part g={geo.pelvis} m={mats.trousers} outline={hull} />
+
+          {/* legs */}
+          <group ref={hipL} position={[-HIP_X, 0, 0]}>
+            <Part g={geo.thigh} m={mats.trousers} outline={hull} />
+            <group ref={kneeL} position={[0, -L_THIGH, 0]}>
+              <Part g={geo.knee} m={mats.trousers} outline={hull} />
+              <Part g={geo.shin} m={mats.trousers} outline={hull} />
+              <group ref={footL} position={[0, -L_SHIN, 0]}>
+                <Part g={geo.shoe} m={mats.shoe} outline={hull} />
+                <Part g={geo.sole} m={mats.belt} />
+              </group>
+            </group>
+          </group>
+          <group ref={hipR} position={[HIP_X, 0, 0]}>
+            <Part g={geo.thigh} m={mats.trousers} outline={hull} />
+            <group ref={kneeR} position={[0, -L_THIGH, 0]}>
+              <Part g={geo.knee} m={mats.trousers} outline={hull} />
+              <Part g={geo.shin} m={mats.trousers} outline={hull} />
+              <group ref={footR} position={[0, -L_SHIN, 0]}>
+                <Part g={geo.shoe} m={mats.shoe} outline={hull} />
+                <Part g={geo.sole} m={mats.belt} />
+              </group>
+            </group>
+          </group>
+
+          {/* torso: jacket shell, shirt bib, lapels, tie, collar, badge */}
+          <group ref={torso} position={[0, 0.03, 0]}>
+            <Part g={geo.torso} m={mats.jacket} outline={hull} />
+            <mesh geometry={geo.shirt} material={mats.shirt} />
+            <mesh geometry={geo.lapelR} material={mats.jacketDark} />
+            <mesh geometry={geo.lapelL} material={mats.jacketDark} />
+            <mesh geometry={geo.tie} material={mats.tie} />
+            <mesh geometry={geo.collar} material={mats.jacketDark} />
+            <mesh geometry={geo.shirtCollar} material={mats.shirt} />
+            <mesh geometry={geo.button} material={mats.metal} position={[0, 0.062, 0.129]} />
+
+            <mesh
+              material={mats.badge}
+              position={[-0.078, 0.275, 0.1255]}
+              rotation={[0, -0.43, 0]}
+            >
+              <boxGeometry args={[0.05, 0.068, 0.008]} />
+            </mesh>
+            <mesh
+              material={mats.badgeAccent}
+              position={[-0.081, 0.298, 0.1285]}
+              rotation={[0, -0.43, 0]}
+            >
+              <boxGeometry args={[0.05, 0.012, 0.003]} />
+            </mesh>
+            <mesh
+              material={mats.metal}
+              position={[-0.083, 0.238, 0.128]}
+              rotation={[0, -0.43, 0]}
+            >
+              <boxGeometry args={[0.014, 0.009, 0.003]} />
+            </mesh>
+            <mesh
+              material={mats.jacketDark}
+              position={[0.105, 0.095, 0.095]}
+              rotation={[0, 0.705, 0]}
+            >
+              <boxGeometry args={[0.055, 0.011, 0.011]} />
+            </mesh>
+            <mesh
+              material={mats.jacketDark}
+              position={[-0.105, 0.095, 0.095]}
+              rotation={[0, -0.705, 0]}
+            >
+              <boxGeometry args={[0.055, 0.011, 0.011]} />
+            </mesh>
+
+            {/* neck + head */}
+            <Part g={geo.neck} m={mats.skin} position={[0, 0.43, 0]} />
+            <group ref={head} position={[0, HEAD_Y, 0]}>
+              <Part g={geo.head} m={mats.skin} outline={hull} />
+              <Part g={geo.hair} m={mats.hair} outline={hull} />
+              <Part
+                g={geo.hairBack}
+                m={mats.hair}
+                outline={hull}
+                position={[0, 0.078, -0.036]}
+                scale={[0.98, 1.02, 0.74]}
+              />
+              <mesh
+                geometry={geo.ear}
+                material={mats.skin}
+                position={[-0.077, 0.066, -0.004]}
+                scale={[0.45, 1, 0.72]}
+              />
+              <mesh
+                geometry={geo.ear}
+                material={mats.skin}
+                position={[0.077, 0.066, -0.004]}
+                scale={[0.45, 1, 0.72]}
+              />
+
+              <mesh
+                geometry={geo.eye}
+                material={mats.eye}
+                position={[-0.0315, 0.0835, 0.0855]}
+                scale={[1, 0.85, 0.7]}
+              />
+              <mesh
+                geometry={geo.eye}
+                material={mats.eye}
+                position={[0.0315, 0.0835, 0.0855]}
+                scale={[1, 0.85, 0.7]}
+              />
+              <mesh geometry={geo.pupil} material={mats.pupil} position={[-0.0315, 0.0835, 0.093]} />
+              <mesh geometry={geo.pupil} material={mats.pupil} position={[0.0315, 0.0835, 0.093]} />
+              <mesh material={mats.hair} position={[-0.032, 0.106, 0.092]} rotation={[0, 0, -0.07]}>
+                <boxGeometry args={[0.038, 0.007, 0.01]} />
+              </mesh>
+              <mesh material={mats.hair} position={[0.032, 0.106, 0.092]} rotation={[0, 0, 0.07]}>
+                <boxGeometry args={[0.038, 0.007, 0.01]} />
+              </mesh>
+              <mesh geometry={geo.nose} material={mats.skin} />
+              <mesh material={mats.mouth} position={[0, -0.002, 0.089]}>
+                <boxGeometry args={[0.036, 0.006, 0.008]} />
+              </mesh>
+
+              {/* glasses */}
+              <mesh
+                geometry={geo.lens}
+                material={mats.glasses}
+                position={[-0.0335, 0.085, 0.1005]}
+                scale={[1.15, 0.9, 1]}
+              />
+              <mesh
+                geometry={geo.lens}
+                material={mats.glasses}
+                position={[0.0335, 0.085, 0.1005]}
+                scale={[1.15, 0.9, 1]}
+              />
+              <mesh material={mats.glasses} position={[0, 0.09, 0.1005]}>
+                <boxGeometry args={[0.026, 0.005, 0.006]} />
+              </mesh>
+              <mesh material={mats.glasses} position={[-0.0765, 0.087, 0.044]}>
+                <boxGeometry args={[0.004, 0.006, 0.108]} />
+              </mesh>
+              <mesh material={mats.glasses} position={[0.0765, 0.087, 0.044]}>
+                <boxGeometry args={[0.004, 0.006, 0.108]} />
+              </mesh>
+            </group>
+
+            {/* arms */}
+            <group ref={shoulderL} position={[-SHOULDER_X, SHOULDER_Y, 0]}>
+              <Part g={geo.upperArm} m={mats.jacket} outline={hull} />
+              <group ref={elbowL} position={[0, -L_UPPER, 0]}>
+                <Part g={geo.elbow} m={mats.jacket} outline={hull} />
+                <Part g={geo.forearm} m={mats.jacket} outline={hull} />
+                <mesh geometry={geo.cuff} material={mats.shirt} position={[0, -0.238, 0]} />
+                <group ref={handL} position={[0, -L_FORE, 0]}>
+                  <Hand side={-1} mats={mats} outline={hull} geo={geo} />
+                </group>
+              </group>
+            </group>
+            <group ref={shoulderR} position={[SHOULDER_X, SHOULDER_Y, 0]}>
+              <Part g={geo.upperArm} m={mats.jacket} outline={hull} />
+              <group ref={elbowR} position={[0, -L_UPPER, 0]}>
+                <Part g={geo.elbow} m={mats.jacket} outline={hull} />
+                <Part g={geo.forearm} m={mats.jacket} outline={hull} />
+                <mesh geometry={geo.cuff} material={mats.shirt} position={[0, -0.238, 0]} />
+                <group ref={handR} position={[0, -L_FORE, 0]}>
+                  <Hand side={1} mats={mats} outline={hull} geo={geo} />
+                </group>
+              </group>
+            </group>
+          </group>
+        </group>
       </group>
       <mesh
         ref={shadow}
